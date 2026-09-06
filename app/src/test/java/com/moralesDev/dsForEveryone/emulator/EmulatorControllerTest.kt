@@ -77,6 +77,19 @@ class EmulatorControllerTest {
         assertEquals("En pausa no debe avanzar", afterPause, core.frames.get())
     }
 
+    @Test
+    fun `currentFrame se actualiza mientras corre y se limpia al parar`() = runTest {
+        controller.open(ROM, batterySave = null)
+        controller.resume()
+        waitUntil { controller.currentFrame != null }
+
+        assertNotNull(controller.currentFrame)
+
+        controller.stop()
+
+        assertEquals(null, controller.currentFrame)
+    }
+
     // ---------------------------------------------------------- máscara de botones
 
     @Test

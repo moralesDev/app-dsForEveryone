@@ -25,9 +25,14 @@ import com.moralesDev.dsForEveryone.ui.theme.textAlpha
  * Ocupante provisional del destino de biblioteca. La biblioteca real —Room,
  * SAF, cabecera y banner de la ROM— llega en la fase 3; de momento sólo deja
  * ver que la navegación funciona y da acceso a Configuración.
+ *
+ * [onOpenGame] es igual de provisional: hasta que exista una biblioteca de
+ * verdad (fase 3) es la única forma de llegar a la pantalla de juego, que en
+ * la fase 2 monta el renderizador GL contra `StubEmulatorCore` (entregable
+ * 2.5) en vez de abrir ninguna ROM real.
  */
 @Composable
-fun RomLibraryScreen(onOpenSettings: () -> Unit) {
+fun RomLibraryScreen(onOpenSettings: () -> Unit, onOpenGame: () -> Unit) {
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -46,6 +51,10 @@ fun RomLibraryScreen(onOpenSettings: () -> Unit) {
             text = stringResource(R.string.scr_library_body),
             style = MaterialTheme.typography.bodyMedium,
             color = textAlpha(0.62f),
+        )
+        AccentButton(
+            text = stringResource(R.string.nav_open_game_debug),
+            onClick = onOpenGame,
         )
         AccentButton(
             text = stringResource(R.string.nav_open_settings),

@@ -39,18 +39,28 @@
     <!-- Destinos todavía vacíos del grafo de navegación -->
     <string name="scr_library_title">Biblioteca</string>
     <string name="scr_library_body">Todavía no hay biblioteca. Llega en la fase 3, con Room, SAF y la portada extraída del banner de cada ROM.</string>
-    <string name="scr_game_title">Juego</string>
-    <string name="scr_game_body">Todavía no hay pantalla de juego. Llega en la fase 2, contra el stub del core.</string>
     <string name="scr_settings_title">Configuración</string>
     <string name="scr_settings_body">Todavía no hay ajustes reales. Cada uno llega junto con la función a la que pertenece.</string>
     <string name="scr_about_title">Acerca de</string>
     <string name="scr_about_body">Todavía no hay pantalla «Acerca de». El aviso del core y el enlace al código fuente llegan con la fase 4.</string>
     <string name="scr_layout_editor_title">Editor de disposición</string>
     <string name="scr_layout_editor_body">Todavía no hay editor. Llega en el entregable 2.7, sobre la misma geometría que usa la pantalla de juego.</string>
+    <string name="nav_open_game_debug">Abrir prueba del renderizador</string>
     <string name="nav_open_settings">Configuración</string>
     <string name="nav_open_about">Acerca de</string>
     <string name="nav_open_layout_editor">Editor de disposición</string>
 
     <!-- Accesibilidad -->
     <string name="cd_back">Volver</string>
+
+    <!-- Pantalla de prueba del renderizador GL (fase 2.5, provisional) -->
+    <string name="dbg_fps">%1$d fps emulados · %2$d fps presentados</string>
+    <string name="dbg_swap">Intercambiar</string>
+    <string name="dbg_mode_stacked">Apiladas</string>
+    <string name="dbg_mode_side_by_side">Lado a lado</string>
+    <string name="dbg_mode_top_only">Solo superior</string>
+    <string name="dbg_mode_bottom_only">Solo inferior</string>
+    <string name="dbg_mode_main_secondary">Principal + secundaria</string>
+    <string name="filter_sharp">Nítido</string>
+    <string name="filter_smooth">Suavizado</string>
 </resources>

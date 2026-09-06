@@ -62,6 +62,18 @@ class EmulatorController(private val core: EmulatorCore) {
     @Volatile
     private var thread: EmulationThread? = null
 
+    @Volatile
+    private var latestFrame: IntArray? = null
+
+    /**
+     * Último fotograma producido por el core, actualizado al final de cada
+     * vuelta del bucle. Lo lee el renderizador GL (fase 2.5) desde su propio
+     * hilo, una vez por fotograma de pantalla: es estado compartido, igual
+     * que la máscara de botones y el lápiz, no un comando encolado ni una
+     * llamada `suspend`.
+     */
+    val currentFrame: IntArray? get() = latestFrame
+
     /** Identidad técnica del core; es lo que se graba en cada save state. */
     val coreName: String get() = core.coreName
     val coreVersion: String get() = core.coreVersion
@@ -117,6 +129,7 @@ class EmulatorController(private val core: EmulatorCore) {
         }
         thread = null
         _framesPerSecond.value = 0
+        latestFrame = null
         _status.value = EmulatorStatus.IDLE
     }
 
@@ -213,6 +226,7 @@ class EmulatorController(private val core: EmulatorCore) {
                     val touch = input.currentTouch
                     core.setTouch(touch.x, touch.y, touch.down)
                     core.runFrame()
+                    latestFrame = core.captureFrame()
 
                     val now = System.nanoTime()
 
