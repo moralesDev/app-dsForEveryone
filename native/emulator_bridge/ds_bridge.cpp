@@ -45,6 +45,7 @@
 #include <NDS.h>
 #include <NDSCart.h>
 #include <GPU.h>
+#include <GPU3D_Soft.h>
 #include <Platform.h>
 #include <SPU.h>
 #include <Savestate.h>
@@ -622,6 +623,16 @@ jint FinishLoad(
     // nada. Orden correcto, el del frontend de referencia: Reset() ->
     // SetupDirectBoot() -> Start().
     emu->nds->Start();
+
+    // El renderizador 3D por software arranca en modo de un solo hilo
+    // (GPU3D_Soft.h). NDSArgs::Renderer3D ya trae un SoftRenderer por
+    // defecto (Args.h), así que basta con pedirle el hilo aparte: el propio
+    // SoftRenderer crea y destruye ese hilo con Platform::Thread_Create/
+    // Thread_Free, que en este puente hacen join — se detiene solo, sin
+    // trabajo adicional en nativeUnload, cuando el unique_ptr de NDS/GPU se
+    // destruye.
+    static_cast<melonDS::SoftRenderer&>(emu->nds->GPU.GetRenderer3D())
+        .SetThreaded(true, emu->nds->GPU);
 
     emu->batteryDirty.store(false, std::memory_order_relaxed);
     emu->loaded = true;
