@@ -19,6 +19,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Save
+import androidx.compose.material.icons.filled.SettingsBackupRestore
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -65,6 +67,7 @@ fun PauseMenu(
     onTouchModeChange: (TouchMode) -> Unit,
     imageFilter: ImageFilter,
     onImageFilterChange: (ImageFilter) -> Unit,
+    onChooseSlot: (SlotAction) -> Unit,
     onResume: () -> Unit,
     onExit: () -> Unit,
     modifier: Modifier = Modifier,
@@ -149,6 +152,25 @@ fun PauseMenu(
                     },
                 )
             }
+
+            Box(
+                Modifier
+                    .padding(horizontal = 4.dp, vertical = 16.dp)
+                    .fillMaxWidth()
+                    .height(1.dp)
+                    .background(Divider),
+            )
+
+            MenuRow(
+                label = stringResource(R.string.pa_save),
+                icon = Icons.Filled.Save,
+                onClick = { onChooseSlot(SlotAction.SAVE) },
+            )
+            MenuRow(
+                label = stringResource(R.string.pa_load),
+                icon = Icons.Filled.SettingsBackupRestore,
+                onClick = { onChooseSlot(SlotAction.LOAD) },
+            )
 
             Box(
                 Modifier

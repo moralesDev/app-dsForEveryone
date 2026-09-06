@@ -37,13 +37,10 @@
     <string name="onb_sys_f2b">La aplicación no los incluye ni enlaza a dónde conseguirlos</string>
 
     <!-- Destinos todavía vacíos del grafo de navegación -->
-    <string name="scr_library_title">Biblioteca</string>
-    <string name="scr_library_body">Todavía no hay biblioteca. Llega en la fase 3, con Room, SAF y la portada extraída del banner de cada ROM.</string>
     <string name="scr_settings_title">Configuración</string>
     <string name="scr_settings_body">Todavía no hay ajustes reales. Cada uno llega junto con la función a la que pertenece.</string>
     <string name="scr_about_title">Acerca de</string>
     <string name="scr_about_body">Todavía no hay pantalla «Acerca de». El aviso del core y el enlace al código fuente llegan con la fase 4.</string>
-    <string name="nav_open_game">Abrir juego (sin ROM todavía)</string>
     <string name="nav_open_settings">Configuración</string>
     <string name="nav_open_about">Acerca de</string>
     <string name="nav_open_layout_editor">Editor de disposición</string>
@@ -60,6 +57,8 @@
     <string name="pa_exit">Salir</string>
     <string name="pa_layout">Disposición de pantallas</string>
     <string name="pa_touch_mode">Modo de toque</string>
+    <string name="pa_save">Guardar partida</string>
+    <string name="pa_load">Cargar partida</string>
 
     <!-- Modos de disposición de pantallas -->
     <string name="layout_stacked">Apiladas</string>
@@ -93,4 +92,115 @@
     <string name="le_group_start">Start</string>
     <string name="le_group_select">Select</string>
     <string name="le_group_blow">Soplar</string>
+
+    <!-- Biblioteca (entregable 3.3) -->
+    <string name="lib_title">Biblioteca</string>
+    <string name="lib_search">Buscar</string>
+    <string name="lib_add">Añadir ROM</string>
+    <string name="lib_no_results">Sin resultados para «%1$s»</string>
+    <string name="lib_open">Abrir</string>
+    <string name="lib_unavailable">Archivo no encontrado</string>
+    <string name="lib_options_title">%1$s</string>
+    <string name="lib_remove_body">Esto quita el juego de la biblioteca. Puedes conservar su partida por si vuelves a añadirlo.</string>
+    <string name="lib_remove_keep">Quitar, conservar la partida</string>
+    <string name="lib_remove_delete">Quitar y borrar la partida</string>
+    <string name="lib_page_indicator">%1$d de %2$d</string>
+    <string name="cd_settings">Ajustes</string>
+    <string name="cd_page_previous">Página anterior</string>
+    <string name="cd_page_next">Página siguiente</string>
+    <string name="cd_rom_options">Opciones de %1$s</string>
+    <string name="cd_cover_custom">Portada de %1$s, toca para cambiarla</string>
+    <string name="cd_cover_default">Portada de %1$s, toca para añadir una</string>
+
+    <!-- Biblioteca: mensajes -->
+    <string name="msg_imported">%1$s añadido a la biblioteca</string>
+    <string name="msg_already">%1$s ya estaba en la biblioteca; se actualizó su ubicación</string>
+    <string name="msg_unrecognized_rom">El archivo no es una ROM de Nintendo DS reconocible</string>
+    <string name="msg_unreadable">No se pudo leer el archivo elegido</string>
+    <string name="msg_zip_no_rom">El .zip no trae ninguna ROM .nds</string>
+    <string name="msg_zip_multiple">El .zip trae %1$d ROMs; añade sólo una por archivo</string>
+    <string name="msg_zip_encrypted">El .zip está cifrado; no se puede leer su contenido</string>
+    <string name="msg_zip_corrupt">El .zip está dañado</string>
+    <string name="msg_rom_too_large">La ROM descomprimida es demasiado grande</string>
+    <string name="msg_removed_all">Juego y partida borrados</string>
+    <string name="msg_removed_keep">Juego quitado; la partida se conserva</string>
+
+    <!-- Biblioteca vacía -->
+    <string name="em_title">Añade tu primer juego</string>
+    <string name="em_body">Elige un archivo .nds, o un .zip que traiga uno, desde el almacenamiento de tu teléfono.</string>
+    <string name="em_cta">Añadir ROM</string>
+
+    <!-- Portada -->
+    <string name="cover_add_title">Añadir portada</string>
+    <string name="cover_change_title">Cambiar portada</string>
+    <string name="cover_add">Añadir imagen</string>
+    <string name="cover_change">Cambiar imagen</string>
+    <string name="cover_delete">Quitar portada</string>
+    <string name="cover_delete_title">Quitar portada</string>
+    <string name="cover_delete_body">Se recupera el icono del propio cartucho. Esta acción no se puede deshacer.</string>
+    <string name="cover_crop_title">Encuadrar portada</string>
+    <string name="cover_crop_square">La imagen ya es cuadrada: se ve entera.</string>
+    <string name="cover_crop_body">Arrastra y pellizca para elegir qué parte se ve.</string>
+    <string name="cover_save">Guardar</string>
+    <string name="cover_failed">No se pudo procesar la imagen</string>
+    <string name="cover_removed">Portada quitada</string>
+    <string name="cover_too_large">La imagen pesa demasiado</string>
+    <string name="cover_unsupported">Formato de imagen no admitido</string>
+
+    <!-- Genéricos de hoja -->
+    <string name="st_cancel">Cancelar</string>
+    <string name="st_delete">Borrar</string>
+
+    <!-- Fecha relativa de última partida -->
+    <string name="when_never">Nunca jugado</string>
+    <string name="when_today">Hoy, %1$s</string>
+    <string name="when_yesterday">Ayer</string>
+    <string name="when_days_ago">Hace %1$d días</string>
+    <string name="when_last_week">La semana pasada</string>
+
+    <!-- Sistema de partidas: hoja de ranuras (entregable 3.4) -->
+    <string name="st_save_title">Guardar partida</string>
+    <string name="st_load_title">Cargar partida</string>
+    <string name="st_manual_section">Ranuras</string>
+    <string name="st_auto_section">Respaldo automático</string>
+    <string name="st_slot">Ranura %1$d</string>
+    <string name="st_empty">Vacía</string>
+    <string name="st_save">Guardar</string>
+    <string name="st_overwrite">Sobrescribir</string>
+    <string name="st_load">Cargar</string>
+    <string name="st_auto_last">Última copia</string>
+    <string name="st_auto_never">Sin copias todavía</string>
+    <string name="st_auto_restore">Restaurar</string>
+    <string name="st_overwrite_title">¿Sobrescribir la ranura %1$d?</string>
+    <string name="st_overwrite_body">El estado que hay ahora en esta ranura se perderá.</string>
+    <string name="st_delete_title">¿Borrar la ranura %1$d?</string>
+    <string name="st_delete_body">Esta acción no se puede deshacer.</string>
+    <string name="st_replace">Sobrescribir</string>
+    <string name="cd_close">Cerrar</string>
+    <string name="cd_delete_auto">Borrar el respaldo automático</string>
+    <string name="cd_delete_state">Borrar la ranura %1$d</string>
+
+    <!-- Por qué una ranura no se puede restaurar -->
+    <string name="st_problem_other_game">Otro juego</string>
+    <string name="st_problem_other_core">Otra versión</string>
+    <string name="st_problem_other_version">Formato antiguo</string>
+    <string name="st_problem_unknown">Archivo desconocido</string>
+    <string name="st_problem_damaged">Dañado</string>
+
+    <!-- Sistema de partidas: mensajes -->
+    <string name="msg_state_no_session">Todavía no hay ninguna partida cargada</string>
+    <string name="msg_state_failed">No se pudo guardar el estado</string>
+    <string name="msg_state_saved">Guardado en la ranura %1$d</string>
+    <string name="msg_state_slot_empty">La ranura %1$d está vacía</string>
+    <string name="msg_state_unreadable">No se pudo leer la ranura</string>
+    <string name="msg_state_loaded">Cargado desde la ranura %1$d</string>
+    <string name="msg_state_rejected_by_core">El emulador rechazó el estado</string>
+    <string name="msg_state_deleted">Ranura %1$d borrada</string>
+    <string name="msg_state_not_a_state">El archivo no es un estado guardado</string>
+    <string name="msg_state_other_container">El archivo es de una versión no admitida</string>
+    <string name="msg_state_truncated">El archivo está incompleto</string>
+    <string name="msg_state_corrupt">El archivo está dañado</string>
+    <string name="msg_state_other_game">Este estado pertenece a otro juego</string>
+    <string name="msg_state_other_core">Este estado se guardó con %1$s</string>
+    <string name="msg_state_wrong_size">Este estado no cuadra con la versión actual del emulador</string>
 </resources>
