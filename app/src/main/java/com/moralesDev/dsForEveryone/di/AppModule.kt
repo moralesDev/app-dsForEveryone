@@ -15,8 +15,8 @@ import com.moralesDev.dsForEveryone.data.save.SaveStateManager
 import com.moralesDev.dsForEveryone.data.settings.SettingsRepository
 import com.moralesDev.dsForEveryone.data.storage.StorageManager
 import com.moralesDev.dsForEveryone.emulator.EmulatorController
+import com.moralesDev.dsForEveryone.emulator.core.DsEmulatorCore
 import com.moralesDev.dsForEveryone.emulator.core.EmulatorCore
-import com.moralesDev.dsForEveryone.emulator.core.StubEmulatorCore
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -113,12 +113,12 @@ object AppModule {
     /**
      * Único punto donde se decide qué core usa la aplicación.
      *
-     * `StubEmulatorCore` sigue en el proyecto una vez llegue el core nativo
-     * (fase 4): es el doble con el que se prueba sin NDK.
+     * `StubEmulatorCore` sigue en el proyecto tras llegar el core nativo: es
+     * el doble con el que se prueba sin NDK.
      */
     @Provides
     @Singleton
-    fun provideEmulatorCore(): EmulatorCore = StubEmulatorCore()
+    fun provideEmulatorCore(): EmulatorCore = DsEmulatorCore()
 
     /**
      * El controlador es único en la aplicación: la sesión de juego debe

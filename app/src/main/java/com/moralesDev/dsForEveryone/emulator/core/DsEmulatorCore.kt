@@ -1,0 +1,101 @@
+package com.moralesDev.dsForEveryone.emulator.core
+
+import android.view.Surface
+
+/**
+ * Core de emulación real, sobre melonDS.
+ *
+ * Traduce el contrato de [EmulatorCore] a las llamadas del puente JNI y no
+ * hace nada más: la emulación entera ocurre en C++. Igual que el resto del
+ * proyecto, asume que todas las operaciones llegan desde el hilo de
+ * emulación salvo [attachSurface].
+ *
+ * Entregable 4.2 («cargar y pintar»): sólo [load], [runFrame] y
+ * [captureFrame] hablan de verdad con el core. La entrada ([setKeys],
+ * [setTouch], [setMicNoise]), la partida de batería ([readBattery],
+ * [consumeBatteryDirty]) y los save states ([serializeState],
+ * [deserializeState]) llegan en las fases 4.3 y 4.4; hasta entonces sus
+ * llamadas al puente existen pero no hacen nada.
+ *
+ * El manejador nativo se crea una sola vez y vive lo que viva el proceso, con
+ * el mismo motivo que en `app-emulador`: la superficie puede engancharse
+ * antes de que haya ninguna ROM cargada.
+ */
+class DsEmulatorCore : EmulatorCore {
+
+    private val handle: Long by lazy {
+        if (NativeBridge.isAvailable) NativeBridge.nativeCreate() else 0L
+    }
+
+    private val isUsable: Boolean get() = NativeBridge.isAvailable && handle != 0L
+
+    override val coreName: String = "melonds"
+
+    /**
+     * `BRIDGE_CORE_VERSION`, fijada a mano en `ds_bridge.cpp`, no un valor
+     * generado por el sistema de compilación: ver docs/integracion-core.md,
+     * sección 6.
+     */
+    override val coreVersion: String by lazy {
+        if (NativeBridge.isAvailable) NativeBridge.nativeCoreVersion() else "no-disponible"
+    }
+
+    override fun load(rom: ByteArray, batterySave: ByteArray?): CoreLoadResult {
+        if (!isUsable) return CoreLoadResult.CoreUnavailable
+        // batterySave se conecta en la fase 4.3, junto con el resto de la
+        // partida de batería (readBattery/consumeBatteryDirty).
+        return when (NativeBridge.nativeLoad(handle, rom)) {
+            LOAD_OK -> CoreLoadResult.Success
+            LOAD_INVALID_ROM -> CoreLoadResult.InvalidRom
+            else -> CoreLoadResult.Failure("melonDS no pudo inicializar la ROM.")
+        }
+    }
+
+    override fun unload() {
+        if (isUsable) NativeBridge.nativeUnload(handle)
+    }
+
+    override fun runFrame() {
+        if (isUsable) NativeBridge.nativeRunFrame(handle)
+    }
+
+    override fun setKeys(mask: Int) {
+        if (isUsable) NativeBridge.nativeSetKeys(handle, mask)
+    }
+
+    override fun setTouch(x: Int, y: Int, down: Boolean) {
+        if (isUsable) NativeBridge.nativeSetTouch(handle, x, y, down)
+    }
+
+    override fun setMicNoise(active: Boolean) {
+        if (isUsable) NativeBridge.nativeSetMicNoise(handle, active)
+    }
+
+    override fun attachSurface(surface: Surface?) {
+        // melonDS no dibuja en esta superficie: el vídeo de la DS sale por
+        // captureFrame (ver la documentación de EmulatorCore.attachSurface).
+    }
+
+    override fun stateSize(): Int =
+        if (isUsable) NativeBridge.nativeStateSize(handle) else 0
+
+    override fun serializeState(): ByteArray? =
+        if (isUsable) NativeBridge.nativeSerializeState(handle) else null
+
+    override fun deserializeState(state: ByteArray): Boolean =
+        isUsable && NativeBridge.nativeDeserializeState(handle, state)
+
+    override fun readBattery(): ByteArray? =
+        if (isUsable) NativeBridge.nativeReadBattery(handle) else null
+
+    override fun consumeBatteryDirty(): Boolean =
+        isUsable && NativeBridge.nativeConsumeBatteryDirty(handle)
+
+    override fun captureFrame(): IntArray? =
+        if (isUsable) NativeBridge.nativeCaptureFrame(handle) else null
+
+    private companion object {
+        const val LOAD_OK = 0
+        const val LOAD_INVALID_ROM = 1
+    }
+}

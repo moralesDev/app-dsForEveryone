@@ -46,25 +46,21 @@ android {
 
         externalNativeBuild {
             cmake {
-                // Sin JIT ni renderizador GL todavía: el primero se mide en la
-                // 4.5 antes de arriesgar el ensamblador ARM64 del recompilador,
-                // y el segundo necesita `PlatformOGL.h`, que sólo existirá
-                // cuando escribamos el puente (fase 4.2). GDB stub abre un
-                // socket, y aquí no hay ni un permiso de red que declarar.
+                // Sin renderizador GL todavía: necesita `PlatformOGL.h`, que
+                // se aporta más adelante. El JIT se mide en la 4.5 antes de
+                // arriesgar el ensamblador ARM64 del recompilador. GDB stub
+                // abre un socket, y aquí no hay ni un permiso de red que
+                // declarar.
                 arguments(
                     "-DBUILD_QT_SDL=OFF",
                     "-DENABLE_OGLRENDERER=OFF",
                     "-DENABLE_JIT=OFF",
                     "-DENABLE_GDBSTUB=OFF",
                 )
-                // `core` es una biblioteca estática: nada la enlaza todavía
-                // (el puente llega en la 4.2), así que sin decir explícitamente
-                // qué compilar, AGP no encuentra ningún `.so` que empaquetar y
-                // no llega a invocar `ninja` de verdad. Pedirlo por nombre es
-                // lo que hace que `assembleDebug` compile el core de verdad,
-                // sin necesidad de escribir un puente sólo para forzar la
-                // compilación.
-                targets("core")
+                // Desde la 4.2 el puente (`dsemu`) enlaza `core` en su propio
+                // .so, así que AGP vuelve a encontrar sola qué construir: ya
+                // no hace falta pedir `core` por nombre (ver docs/integracion-
+                // core.md, sección 6).
             }
         }
     }

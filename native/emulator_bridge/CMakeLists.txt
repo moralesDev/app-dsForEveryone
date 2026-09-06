@@ -1,11 +1,8 @@
 # Puente nativo entre la aplicación Android y el core de emulación.
 #
-# Entregable 4.1: que el core compile como biblioteca estática, nada más. El
-# puente propio (extern "C", JNI) llega en el 4.2, sobre esta misma base, así
-# que este archivo hoy no declara ninguna biblioteca suya.
-#
-# melonDS vive intacto en third_party/melonDS y se consume como subdirectorio,
-# sin mezclar fuentes de terceros con las nuestras.
+# El código propio vive aquí; melonDS vive intacto en third_party/melonDS y se
+# consume como subdirectorio, sin mezclar fuentes de terceros con las
+# nuestras.
 #
 # melonDS 1.1 — GNU General Public License v3.0. Ver docs/integracion-core.md.
 
@@ -41,4 +38,29 @@ project(ds_emulator_bridge CXX)
 add_subdirectory(
     ${CMAKE_CURRENT_SOURCE_DIR}/../../third_party/melonDS
     ${CMAKE_CURRENT_BINARY_DIR}/melonDS
+)
+
+# ---------------------------------------------------------------------------
+# Puente propio
+#
+# Enlaza `core` en una biblioteca dinámica de verdad, así que a partir de este
+# entregable (4.2) AGP vuelve a encontrar sola qué construir: la línea
+# `externalNativeBuild.cmake.targets("core")` de app/build.gradle.kts, que
+# hacía falta cuando `core` era la única biblioteca (estática) del proyecto,
+# ya no es necesaria y se retira.
+# ---------------------------------------------------------------------------
+add_library(dsemu SHARED
+    ds_bridge.cpp
+)
+
+target_compile_features(dsemu PRIVATE cxx_std_17)
+
+target_include_directories(dsemu PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../third_party/melonDS/src
+)
+
+target_link_libraries(dsemu
+    core
+    android
+    log
 )

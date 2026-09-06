@@ -269,3 +269,120 @@ estática sin `strip`; lo que de verdad pesa en el APK es el `.so` final del
 puente, una vez enlazado). Confirmado con `llvm-nm` que expone símbolos
 `arm64-v8a` reales en el espacio de nombres `melonDS::`, contra la libc++ del
 NDK (`std::__ndk1::...`).
+
+## 7. El puente: cargar y pintar (fase 4.2)
+
+`native/emulator_bridge/ds_bridge.cpp` enlaza `core` en `libdsemu.so` y expone
+las funciones nativas de `NativeBridge.kt`; `DsEmulatorCore.kt` traduce el
+contrato de `EmulatorCore` a esas llamadas. Con esto, la línea
+`cmake.targets("core")` de la sección 6 ya no hace falta (AGP vuelve a
+encontrar solo qué construir) y se ha retirado de `app/build.gradle.kts`.
+
+### FreeBIOS arranca sin archivos de sistema reales
+
+La pregunta abierta de la sección 1 —si melonDS exige BIOS y firmware
+volcados de una DS real— tiene matiz: **para arrancar una ROM sí hace falta
+algo en el sitio de la BIOS, pero no tiene que ser un volcado real.**
+`NDSArgs`, la estructura que recibe el constructor de `NDS`, ya trae por
+defecto:
+
+```cpp
+std::unique_ptr<ARM9BIOSImage> ARM9BIOS = std::make_unique<ARM9BIOSImage>(bios_arm9_bin);
+std::unique_ptr<ARM7BIOSImage> ARM7BIOS = std::make_unique<ARM7BIOSImage>(bios_arm7_bin);
+melonDS::Firmware Firmware {0};
+```
+
+`bios_arm9_bin`/`bios_arm7_bin` son **FreeBIOS**, una reimplementación libre
+incluida en el propio `core` (`FreeBIOS.h`/`.cpp`), y `Firmware{0}` genera un
+firmware sintético en memoria. El puente construye `NDS` sin tocar estos
+campos, y `NDS::NeedsDirectBoot()` detecta solo que ni la BIOS ni el firmware
+son "nativos" y exige arranque directo (`SetupDirectBoot()`), que es
+justamente lo que se necesita para saltarse el menú de la consola y entrar
+directo al juego. Verificado en dispositivo (Motorola Edge 30, ROM sintética
+de prueba): el log de melonDS confirma firmware generado con CRC16 válido en
+todas sus secciones y el cartucho insertado correctamente, sin pedir ningún
+archivo.
+
+**Limitación conocida, documentada en el propio `Args.h` de melonDS:**
+FreeBIOS no es compatible con el modo DSi y solo permite arranque directo
+(no puede arrancar por el menú de firmware). Ninguna de las dos cosas es un
+problema para este proyecto: no se soporta DSi, y el arranque directo es
+exactamente el comportamiento que se quiere. La import de archivos de
+sistema reales (para quien prefiera BIOS/firmware propios) sigue siendo
+territorio de la fase 4.5, pero deja de ser un bloqueo para tener el core
+funcionando.
+
+### El framebuffer no es zero-copy
+
+La otra pregunta abierta de la sección 3 —si el core puede escribir
+directamente en un búfer propio o hay que copiar— queda resuelta: **hay que
+copiar.** `GPU::Framebuffer[2][2]` (dos búferes, uno por pantalla cada uno)
+es memoria que gestiona y posee melonDS por completo; el frontend de
+referencia (`Screen.cpp`, en el puerto Qt/SDL) lee el búfer activo
+(`GPU::FrontBuffer`) con `memcpy` en cada presentación. `nativeCaptureFrame`
+hace lo mismo: copia `Framebuffer[FrontBuffer][0]` (superior) y `[1]`
+(inferior), 256×192 píxeles cada una, a las mitades del array de 256×384 que
+espera `EmulatorCore.captureFrame()`. Es una copia por fotograma, no cero,
+pero a 256×384 píxeles (menos de 400 KB) no es una carga significativa.
+
+Además, el formato de píxel de melonDS no es directamente el que espera
+Android: cada píxel sale como `r | (g << 8) | (b << 16)` en memoria (bytes
+R, G, B, A en ese orden), mientras que Android espera un entero
+`0xAARRGGBB`. El puente hace el canje byte a byte al copiar
+(`ToAndroidArgb` en `ds_bridge.cpp`); sin él, el rojo y el azul saldrían
+intercambiados en pantalla.
+
+### `melonDS::Platform`: la lista exacta, no toda la cabecera
+
+`Platform.h` declara una interfaz grande (archivos, hilos, mutex/semáforo,
+multijugador, cámara, AAC, addons...) que el core necesita para enlazar. En
+vez de implementar la cabecera entera a ciegas, se comprobó con `llvm-nm
+--undefined-only` sobre `libcore.a` qué símbolos de `melonDS::Platform::`
+quedan realmente sin resolver **con las banderas de compilación de este
+proyecto** (JIT/OGL/GDB/red apagados), y sólo se implementó esa lista. Entre
+lo que la cabecera declara pero `core` no llega a referenciar con estas
+banderas: `GetLocalFilePath`, `FileExists`, `CheckFileWritable`,
+`CheckLocalFileWritable`, `DynamicLibrary_*`.
+
+De lo que sí hace falta:
+
+- **Hilos, mutex y semáforos** son implementaciones reales sobre
+  `std::thread`/`std::mutex`/`std::condition_variable`: el renderizador 3D
+  por software de melonDS los usa aunque el JIT esté apagado, así que no
+  pueden ser no-operación.
+- **Archivos** (`OpenFile`/`FileRead`/`FileWrite`/...) son una envoltura real
+  sobre `fopen`/`fread`/`fwrite`, aunque en este entregable ningún camino los
+  ejercita de verdad (ROM en memoria, FreeBIOS, firmware generado): están
+  para no romper el enlace y para cuando la fase 4.5 los necesite.
+- **`Log`** enruta a `__android_log_vprint` con el tag `melonDS`; es lo que
+  produjo la confirmación visible en `logcat` durante la prueba en
+  dispositivo.
+- **Partida de batería (`WriteNDSSave`), micrófono (`Mic_ReadInput`) y
+  entrada (`nativeSetKeys`/`nativeSetTouch`)** son no-operación deliberada:
+  se conectan de verdad en la fase 4.3. `DsEmulatorCore` ya expone los
+  métodos —la interfaz `EmulatorCore` los exige todos—, pero de momento no
+  llegan al core.
+- **Multijugador, cámara, AAC (DSi) y addons** (Guitar Grip, Rumble Pak,
+  Motion Pak) son no-operación permanente: no se usan en este proyecto.
+
+### `BRIDGE_CORE_VERSION`
+
+`"1.1"`, literal en `ds_bridge.cpp`, expuesta a Kotlin por `nativeCoreVersion()`.
+Sigue el principio de la sección 2 aunque melonDS no tenga el defecto de
+mGBA: lo que se graba en cada save state es esta constante, nunca un valor
+generado por CMake.
+
+### Prueba en dispositivo
+
+Verificado en el Motorola Edge 30 con una ROM sintética generada con
+`DsRomFixtures` (sin código ARM9/ARM7 real, sólo cabecera y banner válidos):
+se importó por la biblioteca —icono y título del banner correctos—, cargó
+sin error, corrió más de dos minutos sin caerse, y las dos pantallas se
+vieron correctamente separadas y del tamaño correcto en la pantalla de
+juego. Al no llevar código ejecutable real, ambas pantallas quedan en negro
+—un framebuffer válido e inicializado, no basura—, que es el resultado
+esperable para esa ROM y confirma que la tubería completa (JNI → melonDS →
+`captureFrame` → textura GL) funciona de punta a punta. Comprobar el pintado
+de un juego de verdad queda pendiente de una ROM homebrew legítima; no se
+usó ninguna ROM comercial del usuario para esta prueba (ver
+`docs/plan-de-trabajo.md`, protocolo de pruebas en dispositivo).
