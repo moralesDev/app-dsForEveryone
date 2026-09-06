@@ -26,7 +26,11 @@ recompilación de shaders), JIT de ARM11, claves de descifrado que el usuario
 extrae de su consola, y es el terreno con más presión legal que existe hoy en
 emulación. Si algún día se hace, se hace aparte.
 
-Estado: **fase de documentación.** No hay código todavía.
+Paquete: `com.moralesDev.dsForEveryone`. Nombre de la app: **DsForEveryone**.
+
+Estado: **fase de documentación.** No hay código todavía. El plan de desarrollo
+por fases, con el prompt de cada entregable, está en
+[`docs/plan-de-trabajo.md`](docs/plan-de-trabajo.md).
 
 ## Licencia: esto condiciona todo lo demás
 
@@ -173,13 +177,21 @@ esa jugada rinde **más**, porque lo difícil no es el core —ese ya está escr
 por otros— sino la geometría de dos pantallas, la ruta táctil y doce botones en
 menos sitio.
 
-1. **Documentación** (fase actual).
-2. **Esqueleto + stub**: splash, home, navegación, Nocturne, biblioteca,
-   partidas, y un `StubDsCore` que pinte dos rectángulos animados. Con eso se
-   cierra toda la geometría sin tocar el NDK.
-3. **Integración del core**: puente JNI, elección medida entre melonDS y
-   DeSmuME, gestión de archivos de sistema.
-4. **Acabado**: portadas desde el icono de la ROM, trucos, mandos físicos.
+| Fase | Qué cierra | Rama |
+|---|---|---|
+| 0 | Licencia, README, estructura del repositorio | `feature/fase-0-cimientos` |
+| 1 | Esqueleto Gradle, Nocturne, navegación, almacenamiento | `feature/fase-1-esqueleto` |
+| 2 | **La geometría**: dos pantallas, táctil, doce botones, editor — contra el stub | `feature/fase-2-geometria` |
+| 3 | Biblioteca, cabecera y banner de la ROM, sistema de partidas | `feature/fase-3-biblioteca-partidas` |
+| 4 | El core nativo, el puente JNI, archivos de sistema y la medición | `feature/fase-4-core-nativo` |
+
+**Una rama por fase, un commit por entregable.** Claude Code sólo hace commits
+dentro de la rama de la fase; el *merge* a `develop` lo hace el usuario a mano
+al terminar cada fase. `develop` es el tronco real; `master` significa
+únicamente «lo que está publicado en la tienda ahora mismo».
+
+El desglose entregable a entregable, con el prompt de cada uno y su «está hecho
+cuando», está en [`docs/plan-de-trabajo.md`](docs/plan-de-trabajo.md).
 
 ## Documentación
 
@@ -191,3 +203,4 @@ Ampliar aquí antes de escribir código nuevo en esas áreas:
 - [`docs/pantallas.md`](docs/pantallas.md) — las dos pantallas, el renderizador GL y las disposiciones.
 - [`docs/entrada.md`](docs/entrada.md) — lápiz con el dedo, los doce botones, el editor de disposición y el micrófono.
 - [`docs/reutilizacion.md`](docs/reutilizacion.md) — qué se trae de `app-emulador`, qué se adapta y qué es nuevo.
+- [`docs/plan-de-trabajo.md`](docs/plan-de-trabajo.md) — las cinco fases, los diecinueve entregables y el prompt de cada uno.

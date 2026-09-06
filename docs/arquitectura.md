@@ -34,11 +34,11 @@ y eso se comprueba coordenada a coordenada en JVM sin Robolectric.
 
 ## Estructura de paquetes
 
-Paquete propuesto: `com.moralesDev.emuladorDs` (decisión pendiente de confirmar
-antes del primer commit de código; después es un renombrado caro).
+Paquete: **`com.moralesDev.dsForEveryone`**. Nombre de la app: **DsForEveryone**,
+que mantiene la familia de `EmuladorForEveryone`.
 
 ```
-com.moralesDev.emuladorDs
+com.moralesDev.dsForEveryone
 ├── MainActivity            Activity única
 ├── DsEmuApplication        Punto de entrada de Hilt
 │
