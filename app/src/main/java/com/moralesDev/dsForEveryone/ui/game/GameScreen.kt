@@ -6,76 +6,94 @@ import android.content.ContextWrapper
 import android.content.pm.ActivityInfo
 import android.content.res.Configuration
 import android.opengl.GLSurfaceView
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.horizontalScroll
-import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.windowInsetsPadding
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import androidx.compose.material.icons.filled.Menu
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.moralesDev.dsForEveryone.R
-import com.moralesDev.dsForEveryone.data.settings.ImageFilter
+import com.moralesDev.dsForEveryone.data.settings.TouchMode
+import com.moralesDev.dsForEveryone.emulator.DsButton
+import com.moralesDev.dsForEveryone.emulator.layout.ControlGroup
+import com.moralesDev.dsForEveryone.emulator.layout.ControlLayout
+import com.moralesDev.dsForEveryone.emulator.layout.ControlLayoutProfile
+import com.moralesDev.dsForEveryone.emulator.layout.LayoutRect
 import com.moralesDev.dsForEveryone.emulator.layout.LayoutSize
-import com.moralesDev.dsForEveryone.emulator.layout.LayoutMode
 import com.moralesDev.dsForEveryone.emulator.layout.ScreenLayout
+import com.moralesDev.dsForEveryone.emulator.layout.ScreenPlacement
+import com.moralesDev.dsForEveryone.emulator.layout.TouchRouter
 import com.moralesDev.dsForEveryone.emulator.render.DsGLRenderer
 import com.moralesDev.dsForEveryone.ui.components.GlassIconButton
-import com.moralesDev.dsForEveryone.ui.components.GlassSwitch
-import com.moralesDev.dsForEveryone.ui.components.SegmentedPair
-import com.moralesDev.dsForEveryone.ui.theme.Accent
-import com.moralesDev.dsForEveryone.ui.theme.Accent100
+import com.moralesDev.dsForEveryone.ui.game.controls.ActionButtons
+import com.moralesDev.dsForEveryone.ui.game.controls.BlowButton
+import com.moralesDev.dsForEveryone.ui.game.controls.DirectionalPad
+import com.moralesDev.dsForEveryone.ui.game.controls.ShoulderButton
+import com.moralesDev.dsForEveryone.ui.game.controls.SystemButton
 import com.moralesDev.dsForEveryone.ui.theme.Background
-import com.moralesDev.dsForEveryone.ui.theme.Glass
-import com.moralesDev.dsForEveryone.ui.theme.textAlpha
-import kotlinx.coroutines.delay
 
 /**
- * Pantalla de prueba del renderizador GL (entregable 2.5): monta
- * [DsGLRenderer] contra `StubEmulatorCore`, con un selector de disposición,
- * el intercambio de pantallas y el filtro de imagen, para poder comprobar en
- * el dispositivo que los dos rectángulos del stub se ven, que cambiar de
- * disposición no recrea nada y que rotar no deja nada pegado.
+ * Pantalla de juego (entregable 2.6): las dos pantallas con [DsGLRenderer],
+ * la superficie táctil sobre la pantalla inferior y los siete grupos de
+ * mandos colocados por [ControlLayout], todo contra `StubEmulatorCore`.
  *
- * La pantalla de juego de verdad —ROM real, mandos y táctil, menú de
- * pausa— es el entregable 2.6, que sustituye esta por completo.
+ * La pantalla táctil es un puntero más, no un caso especial: no hay ninguna
+ * lógica de exclusividad entre mandos y dedo, porque Compose ya entrega cada
+ * puntero al nodo sobre el que bajó. Lo que se pinta pulsado sale siempre de
+ * la máscara real de [com.moralesDev.dsForEveryone.emulator.InputManager],
+ * nunca de estado local del composable.
+ *
+ * La ROM real, la biblioteca y el sistema de partidas llegan con la fase 3,
+ * sobre esta misma pantalla.
  */
 @Composable
 fun GameScreen(onExit: () -> Unit) {
     val viewModel: GameViewModel = hiltViewModel()
     val settings by viewModel.settings.collectAsStateWithLifecycle()
-    val emulatedFps by viewModel.framesPerSecond.collectAsStateWithLifecycle()
+    val pressedMask by viewModel.pressedMask.collectAsStateWithLifecycle()
+    val micActive by viewModel.micNoiseActive.collectAsStateWithLifecycle()
+    var isMenuOpen by remember { mutableStateOf(false) }
 
     FreeOrientation()
+
+    BackHandler {
+        if (isMenuOpen) {
+            isMenuOpen = false
+            viewModel.resume()
+        } else {
+            isMenuOpen = true
+            viewModel.pause()
+        }
+    }
 
     val isPortrait = LocalConfiguration.current.orientation == Configuration.ORIENTATION_PORTRAIT
     val activeMode = if (isPortrait) settings.portraitLayoutMode else settings.landscapeLayoutMode
@@ -101,18 +119,23 @@ fun GameScreen(onExit: () -> Unit) {
         }
     }
 
-    val renderer = remember { DsGLRenderer(frameProvider = { viewModel.currentFrame }) }
-    var presentedFps by remember { mutableIntStateOf(0) }
-
-    LaunchedEffect(renderer) {
-        while (true) {
-            delay(POLL_PRESENTED_FPS_MS)
-            presentedFps = renderer.presentedFramesPerSecond()
-        }
+    val controlProfile = remember(placement, availableSize) {
+        val current = placement ?: return@remember null
+        val side = minOf(availableSize.width, availableSize.height) * CONTROL_GROUP_SIZE_FRACTION
+        ControlLayout.defaultProfile(
+            available = availableSize,
+            touchScreen = current.touchScreen,
+            groupSize = LayoutSize(side, side),
+            opacity = CONTROL_OPACITY,
+        )
     }
 
+    val renderer = remember { DsGLRenderer(frameProvider = { viewModel.currentFrame }) }
     LaunchedEffect(placement) { placement?.let(renderer::setPlacement) }
     LaunchedEffect(settings.imageFilter) { renderer.setFilter(settings.imageFilter) }
+
+    val density = LocalDensity.current
+    val touchOffsetPx = with(density) { settings.touchOffsetDp.dp.toPx() }
 
     Box(
         modifier = Modifier
@@ -134,91 +157,226 @@ fun GameScreen(onExit: () -> Unit) {
             onRelease = { it.onPause() },
         )
 
-        Column(
+        placement?.let { current ->
+            TouchSurface(
+                placement = current,
+                touchMode = settings.touchMode,
+                touchOffsetPx = touchOffsetPx,
+                onTouch = viewModel::onTouch,
+            )
+        }
+
+        controlProfile?.let { profile ->
+            ControlGroups(
+                profile = profile,
+                pressedMask = pressedMask,
+                micActive = micActive,
+                onButton = viewModel::onButton,
+                onDirections = viewModel::onDirections,
+                onBlow = viewModel::onMicNoise,
+                density = density,
+            )
+        }
+
+        GlassIconButton(
+            icon = Icons.Filled.Menu,
+            contentDescription = stringResource(R.string.cd_menu),
+            onClick = {
+                isMenuOpen = true
+                viewModel.pause()
+            },
             modifier = Modifier
-                .align(Alignment.TopStart)
+                .align(Alignment.TopEnd)
                 .windowInsetsPadding(WindowInsets.systemBars)
                 .padding(12.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            GlassIconButton(
-                icon = Icons.AutoMirrored.Filled.ArrowBack,
-                contentDescription = stringResource(R.string.cd_back),
-                onClick = onExit,
+        )
+
+        if (isMenuOpen) {
+            PauseMenu(
+                activeLayoutMode = activeMode,
+                onLayoutModeChange = { mode -> viewModel.setLayoutMode(mode, isPortrait) },
+                touchMode = settings.touchMode,
+                onTouchModeChange = viewModel::setTouchMode,
+                imageFilter = settings.imageFilter,
+                onImageFilterChange = viewModel::setImageFilter,
+                onResume = {
+                    isMenuOpen = false
+                    viewModel.resume()
+                },
+                onExit = {
+                    viewModel.pause()
+                    onExit()
+                },
             )
-            Text(
-                text = stringResource(R.string.dbg_fps, emulatedFps, presentedFps),
-                style = MaterialTheme.typography.labelMedium,
-                color = textAlpha(0.7f),
-            )
-            ModeSelector(
-                selected = activeMode,
-                onSelect = { viewModel.setLayoutMode(it, isPortrait) },
-            )
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
-            ) {
-                SegmentedPair(
-                    first = stringResource(R.string.filter_sharp),
-                    second = stringResource(R.string.filter_smooth),
-                    firstSelected = settings.imageFilter == ImageFilter.SHARP,
-                    onSelect = { sharp ->
-                        viewModel.setImageFilter(if (sharp) ImageFilter.SHARP else ImageFilter.SMOOTH)
-                    },
-                )
-                Text(
-                    text = stringResource(R.string.dbg_swap),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = textAlpha(0.7f),
-                )
-                GlassSwitch(
-                    checked = settings.screensSwapped,
-                    onCheckedChange = viewModel::setScreensSwapped,
-                )
-            }
         }
     }
+}
+
+/**
+ * Superficie invisible exactamente sobre [ScreenPlacement.touchScreen].
+ *
+ * Traduce cada posición a coordenadas de la DS con [TouchRouter] y la escribe
+ * en [com.moralesDev.dsForEveryone.emulator.InputManager] a través de
+ * [onTouch]. En [TouchMode.OFFSET] el punto de contacto real se sitúa
+ * [touchOffsetPx] por encima del dedo, para no taparlo con la yema.
+ */
+@Composable
+private fun TouchSurface(
+    placement: ScreenPlacement,
+    touchMode: TouchMode,
+    touchOffsetPx: Float,
+    onTouch: (Int, Int, Boolean) -> Unit,
+) {
+    val screen = placement.touchScreen
+    if (screen.width <= 0f || screen.height <= 0f) return
+
+    val density = LocalDensity.current
+    val (offsetX, offsetY, boxWidth, boxHeight) = with(density) {
+        listOf(screen.left.toDp(), screen.top.toDp(), screen.width.toDp(), screen.height.toDp())
+    }
+
+    Box(
+        modifier = Modifier
+            .offset(offsetX, offsetY)
+            .size(boxWidth, boxHeight)
+            .pointerInput(placement, touchMode, touchOffsetPx) {
+                awaitEachGesture {
+                    val down = awaitFirstDown(requireUnconsumed = false)
+                    down.consume()
+                    reportTouch(down.position, screen, touchMode, touchOffsetPx, placement, onTouch)
+                    try {
+                        while (true) {
+                            val event = awaitPointerEvent()
+                            val change = event.changes.firstOrNull { it.id == down.id } ?: break
+                            if (!change.pressed) break
+                            change.consume()
+                            reportTouch(change.position, screen, touchMode, touchOffsetPx, placement, onTouch)
+                        }
+                    } finally {
+                        onTouch(0, 0, false)
+                    }
+                }
+            },
+    )
+}
+
+/**
+ * [localPosition] está en coordenadas locales de la superficie táctil (0,0 en
+ * su propia esquina superior izquierda); se traslada al hueco disponible
+ * completo sumando [screen] antes de pasar por [TouchRouter], que espera esas
+ * unidades. Un punto fuera de la pantalla táctil —posible al arrastrar el
+ * dedo más allá del borde— da `null` y se reporta como dedo levantado.
+ */
+private fun reportTouch(
+    localPosition: Offset,
+    screen: LayoutRect,
+    touchMode: TouchMode,
+    touchOffsetPx: Float,
+    placement: ScreenPlacement,
+    onTouch: (Int, Int, Boolean) -> Unit,
+) {
+    val globalX = screen.left + localPosition.x
+    val globalY = screen.top + localPosition.y - if (touchMode == TouchMode.OFFSET) touchOffsetPx else 0f
+
+    val point = TouchRouter.map(globalX, globalY, placement)
+    if (point != null) onTouch(point.x, point.y, true) else onTouch(0, 0, false)
 }
 
 @Composable
-private fun ModeSelector(selected: LayoutMode, onSelect: (LayoutMode) -> Unit) {
-    Row(
-        modifier = Modifier.horizontalScroll(rememberScrollState()),
-        horizontalArrangement = Arrangement.spacedBy(6.dp),
-    ) {
-        LayoutMode.entries.forEach { mode ->
-            val isSelected = mode == selected
-            Box(
-                modifier = Modifier
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(if (isSelected) Accent.copy(alpha = 0.30f) else Glass)
-                    .clickable { onSelect(mode) }
-                    .padding(horizontal = 8.dp, vertical = 5.dp),
-            ) {
-                Text(
-                    text = stringResource(mode.labelRes()),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = if (isSelected) Accent100 else textAlpha(0.6f),
-                )
-            }
+private fun ControlGroups(
+    profile: ControlLayoutProfile,
+    pressedMask: Int,
+    micActive: Boolean,
+    onButton: (DsButton, Boolean) -> Unit,
+    onDirections: (Set<DsButton>) -> Unit,
+    onBlow: (Boolean) -> Unit,
+    density: Density,
+) {
+    profile.groups.forEach { (group, placement) ->
+        val bounds = placement.bounds
+        if (bounds.width <= 0f || bounds.height <= 0f) return@forEach
+
+        val (offsetX, offsetY, boxWidth, boxHeight) = with(density) {
+            listOf(bounds.left.toDp(), bounds.top.toDp(), bounds.width.toDp(), bounds.height.toDp())
+        }
+        val groupModifier = Modifier
+            .offset(offsetX, offsetY)
+            .size(boxWidth, boxHeight)
+
+        when (group) {
+            ControlGroup.DIRECTIONAL_PAD -> DirectionalPad(
+                pressedMask = pressedMask,
+                opacity = placement.opacity,
+                haptic = true,
+                onDirections = onDirections,
+                modifier = groupModifier,
+            )
+
+            ControlGroup.ACTION_BUTTONS -> ActionButtons(
+                pressedMask = pressedMask,
+                opacity = placement.opacity,
+                haptic = true,
+                onPress = onButton,
+                modifier = groupModifier,
+            )
+
+            ControlGroup.L -> ShoulderButton(
+                button = DsButton.L,
+                label = "L",
+                pressedMask = pressedMask,
+                opacity = placement.opacity,
+                haptic = true,
+                onPress = onButton,
+                modifier = groupModifier,
+            )
+
+            ControlGroup.R -> ShoulderButton(
+                button = DsButton.R,
+                label = "R",
+                pressedMask = pressedMask,
+                opacity = placement.opacity,
+                haptic = true,
+                onPress = onButton,
+                modifier = groupModifier,
+            )
+
+            // START/SELECT: literal, sin traducir. Son la leyenda física del
+            // botón, igual que A/B/X/Y/L/R: ningún juego real las traduce.
+            ControlGroup.START -> SystemButton(
+                button = DsButton.START,
+                label = "START",
+                pressedMask = pressedMask,
+                opacity = placement.opacity,
+                haptic = true,
+                onPress = onButton,
+                modifier = groupModifier,
+            )
+
+            ControlGroup.SELECT -> SystemButton(
+                button = DsButton.SELECT,
+                label = "SELECT",
+                pressedMask = pressedMask,
+                opacity = placement.opacity,
+                haptic = true,
+                onPress = onButton,
+                modifier = groupModifier,
+            )
+
+            ControlGroup.BLOW -> BlowButton(
+                active = micActive,
+                opacity = placement.opacity,
+                haptic = true,
+                contentDescription = stringResource(R.string.cd_blow),
+                onBlow = onBlow,
+                modifier = groupModifier,
+            )
         }
     }
-}
-
-private fun LayoutMode.labelRes(): Int = when (this) {
-    LayoutMode.STACKED -> R.string.dbg_mode_stacked
-    LayoutMode.SIDE_BY_SIDE -> R.string.dbg_mode_side_by_side
-    LayoutMode.TOP_ONLY -> R.string.dbg_mode_top_only
-    LayoutMode.BOTTOM_ONLY -> R.string.dbg_mode_bottom_only
-    LayoutMode.MAIN_AND_SECONDARY -> R.string.dbg_mode_main_secondary
 }
 
 /**
  * Libera la orientación mientras esta pantalla esté visible; el resto de la
- * app sigue en vertical por manifiesto. Adelantado desde el entregable 2.6
- * —que la formaliza como pieza reutilizable— porque sin esto no hay forma de
- * comprobar en el dispositivo que rotar no deja nada pegado.
+ * app sigue en vertical por manifiesto.
  */
 @Composable
 private fun FreeOrientation() {
@@ -237,4 +395,6 @@ private tailrec fun Context.findActivity(): Activity = when (this) {
     else -> error("No se encontró ninguna Activity en la cadena de contextos")
 }
 
-private const val POLL_PRESENTED_FPS_MS = 500L
+/** Lado de cada grupo de mandos, como fracción del lado menor del hueco disponible. */
+private const val CONTROL_GROUP_SIZE_FRACTION = 0.20f
+private const val CONTROL_OPACITY = 0.85f

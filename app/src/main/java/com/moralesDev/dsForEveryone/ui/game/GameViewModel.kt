@@ -5,6 +5,8 @@ import androidx.lifecycle.viewModelScope
 import com.moralesDev.dsForEveryone.data.settings.EmulatorSettings
 import com.moralesDev.dsForEveryone.data.settings.ImageFilter
 import com.moralesDev.dsForEveryone.data.settings.SettingsRepository
+import com.moralesDev.dsForEveryone.data.settings.TouchMode
+import com.moralesDev.dsForEveryone.emulator.DsButton
 import com.moralesDev.dsForEveryone.emulator.EmulatorController
 import com.moralesDev.dsForEveryone.emulator.EmulatorStatus
 import com.moralesDev.dsForEveryone.emulator.layout.LayoutMode
@@ -16,13 +18,13 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 /**
- * ViewModel de la pantalla de prueba del renderizador GL (entregable 2.5).
+ * Sesión de juego contra `StubEmulatorCore` (entregable 2.6).
  *
  * Abre un "cartucho" que no es ninguna ROM real —el stub sólo necesita
  * suficientes bytes para pasar su comprobación de tamaño mínimo— y arranca en
- * marcha para tener siempre algo que dibujar. La sesión de juego de verdad
- * —ROM elegida por el usuario, partidas, mandos y táctil reales— llega en el
- * entregable 2.6, cuando esta pantalla se reconstruye por completo.
+ * marcha para tener siempre algo que jugar. La sesión de verdad —ROM elegida
+ * por el usuario, partidas, save states— llega con la biblioteca real en la
+ * fase 3, sobre esta misma pantalla.
  */
 @HiltViewModel
 class GameViewModel @Inject constructor(
@@ -38,7 +40,10 @@ class GameViewModel @Inject constructor(
 
     val status: StateFlow<EmulatorStatus> get() = controller.status
 
-    val framesPerSecond: StateFlow<Int> get() = controller.framesPerSecond
+    /** Máscara real de doce bits: lo que se pinta pulsado sale de aquí, no de estado local del composable. */
+    val pressedMask: StateFlow<Int> get() = controller.input.pressed
+
+    val micNoiseActive: StateFlow<Boolean> get() = controller.input.micNoiseActive
 
     /** Lo lee el hilo de GL directamente; no pasa por Compose ni por corrutinas. */
     val currentFrame: IntArray? get() = controller.currentFrame
@@ -50,6 +55,18 @@ class GameViewModel @Inject constructor(
         }
     }
 
+    fun onButton(button: DsButton, pressed: Boolean) = controller.input.setPressed(button, pressed)
+
+    fun onDirections(directions: Set<DsButton>) = controller.input.setDirections(directions)
+
+    fun onTouch(x: Int, y: Int, down: Boolean) = controller.input.setTouch(x, y, down)
+
+    fun onMicNoise(active: Boolean) = controller.input.setMicNoise(active)
+
+    fun pause() = controller.pause()
+
+    fun resume() = controller.resume()
+
     fun setLayoutMode(mode: LayoutMode, portrait: Boolean) {
         viewModelScope.launch {
             if (portrait) {
@@ -60,12 +77,12 @@ class GameViewModel @Inject constructor(
         }
     }
 
-    fun setImageFilter(filter: ImageFilter) {
-        viewModelScope.launch { settingsRepository.setImageFilter(filter) }
+    fun setTouchMode(mode: TouchMode) {
+        viewModelScope.launch { settingsRepository.setTouchMode(mode) }
     }
 
-    fun setScreensSwapped(swapped: Boolean) {
-        viewModelScope.launch { settingsRepository.setScreensSwapped(swapped) }
+    fun setImageFilter(filter: ImageFilter) {
+        viewModelScope.launch { settingsRepository.setImageFilter(filter) }
     }
 
     /**

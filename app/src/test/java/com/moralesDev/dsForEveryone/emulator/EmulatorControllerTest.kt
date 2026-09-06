@@ -118,6 +118,18 @@ class EmulatorControllerTest {
         assertEquals(0, controller.input.currentMask)
     }
 
+    @Test
+    fun `el soplido llega al core mientras el boton este pulsado`() = runTest {
+        controller.open(ROM, batterySave = null)
+        controller.input.setMicNoise(true)
+
+        controller.resume()
+        waitUntil { core.micNoiseActive.get() }
+
+        controller.input.setMicNoise(false)
+        waitUntil { !core.micNoiseActive.get() }
+    }
+
     // ---------------------------------------------------------- lápiz
 
     @Test

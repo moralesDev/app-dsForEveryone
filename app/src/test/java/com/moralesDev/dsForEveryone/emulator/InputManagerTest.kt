@@ -71,15 +71,35 @@ class InputManagerTest {
     }
 
     @Test
-    fun `releaseAll deja la mascara a cero y suelta el lapiz`() {
+    fun `releaseAll deja la mascara a cero, suelta el lapiz y el soplido`() {
         input.press(DsButton.START)
         input.setDirections(setOf(DsButton.DOWN))
         input.setTouch(100, 80, down = true)
+        input.setMicNoise(true)
 
         input.releaseAll()
 
         assertEquals(0, input.currentMask)
         assertFalse(input.currentTouch.down)
+        assertFalse(input.currentMicNoise)
+    }
+
+    // ---------------------------------------------------------- soplido
+
+    @Test
+    fun `el soplido se refleja en currentMicNoise y no toca botones ni lapiz`() {
+        input.press(DsButton.A)
+        input.setTouch(10, 10, down = true)
+
+        input.setMicNoise(true)
+
+        assertTrue(input.currentMicNoise)
+        assertTrue(input.isDown(DsButton.A))
+        assertTrue(input.currentTouch.down)
+
+        input.setMicNoise(false)
+
+        assertFalse(input.currentMicNoise)
     }
 
     @Test

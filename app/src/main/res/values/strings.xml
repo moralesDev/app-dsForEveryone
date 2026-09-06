@@ -45,22 +45,37 @@
     <string name="scr_about_body">Todavía no hay pantalla «Acerca de». El aviso del core y el enlace al código fuente llegan con la fase 4.</string>
     <string name="scr_layout_editor_title">Editor de disposición</string>
     <string name="scr_layout_editor_body">Todavía no hay editor. Llega en el entregable 2.7, sobre la misma geometría que usa la pantalla de juego.</string>
-    <string name="nav_open_game_debug">Abrir prueba del renderizador</string>
+    <string name="nav_open_game">Abrir juego (sin ROM todavía)</string>
     <string name="nav_open_settings">Configuración</string>
     <string name="nav_open_about">Acerca de</string>
     <string name="nav_open_layout_editor">Editor de disposición</string>
 
     <!-- Accesibilidad -->
     <string name="cd_back">Volver</string>
+    <string name="cd_menu">Abrir menú</string>
+    <string name="cd_dpad">Cruceta</string>
+    <string name="cd_blow">Soplar</string>
 
-    <!-- Pantalla de prueba del renderizador GL (fase 2.5, provisional) -->
-    <string name="dbg_fps">%1$d fps emulados · %2$d fps presentados</string>
-    <string name="dbg_swap">Intercambiar</string>
-    <string name="dbg_mode_stacked">Apiladas</string>
-    <string name="dbg_mode_side_by_side">Lado a lado</string>
-    <string name="dbg_mode_top_only">Solo superior</string>
-    <string name="dbg_mode_bottom_only">Solo inferior</string>
-    <string name="dbg_mode_main_secondary">Principal + secundaria</string>
+    <!-- Menú de pausa -->
+    <string name="pa_title">Juego en pausa</string>
+    <string name="pa_resume">Continuar</string>
+    <string name="pa_exit">Salir</string>
+    <string name="pa_layout">Disposición de pantallas</string>
+    <string name="pa_touch_mode">Modo de toque</string>
+
+    <!-- Modos de disposición de pantallas -->
+    <string name="layout_stacked">Apiladas</string>
+    <string name="layout_side_by_side">Lado a lado</string>
+    <string name="layout_top_only">Solo superior</string>
+    <string name="layout_bottom_only">Solo inferior</string>
+    <string name="layout_main_secondary">Principal + secundaria</string>
+
+    <!-- Modos de toque -->
+    <string name="touch_direct">Directo</string>
+    <string name="touch_offset">Desplazamiento</string>
+
+    <!-- Filtro de imagen -->
+    <string name="se_filter">Filtro de imagen</string>
     <string name="filter_sharp">Nítido</string>
     <string name="filter_smooth">Suavizado</string>
 </resources>

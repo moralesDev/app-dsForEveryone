@@ -3,6 +3,7 @@ package com.moralesDev.dsForEveryone.emulator
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicReference
 
@@ -37,9 +38,11 @@ class InputManager {
 
     private val mask = AtomicInteger(0)
     private val touch = AtomicReference(TouchState.UP)
+    private val micNoise = AtomicBoolean(false)
 
     private val _pressed = MutableStateFlow(0)
     private val _touch = MutableStateFlow(TouchState.UP)
+    private val _micNoise = MutableStateFlow(false)
 
     /** Máscara observable para pintar el estado de los botones. */
     val pressed: StateFlow<Int> = _pressed.asStateFlow()
@@ -47,11 +50,17 @@ class InputManager {
     /** Posición del lápiz observable, para dibujar el punto de contacto. */
     val touchState: StateFlow<TouchState> = _touch.asStateFlow()
 
+    /** Si el botón de soplar está pulsado ahora mismo, observable para la propia UI del botón. */
+    val micNoiseActive: StateFlow<Boolean> = _micNoise.asStateFlow()
+
     /** Máscara que consume el core al inicio de cada fotograma. */
     val currentMask: Int get() = mask.get()
 
     /** Posición del lápiz que consume el core al inicio de cada fotograma. */
     val currentTouch: TouchState get() = touch.get()
+
+    /** Si el core debe inyectar ruido de micrófono en este fotograma. */
+    val currentMicNoise: Boolean get() = micNoise.get()
 
     fun press(button: DsButton) {
         publishMask(mask.updateAndGet { it or button.mask })
@@ -91,10 +100,22 @@ class InputManager {
         _touch.value = state
     }
 
+    /**
+     * Botón de soplar: mientras esté pulsado, el core debe inyectar ruido
+     * blanco en su entrada de micrófono simulada (sin `RECORD_AUDIO`, ver
+     * docs/entrada.md). Mismo patrón de estado compartido que los botones y
+     * el lápiz.
+     */
+    fun setMicNoise(active: Boolean) {
+        micNoise.set(active)
+        _micNoise.value = active
+    }
+
     /** Suelta todo. Se usa al pausar, al abrir el menú y al perder el foco. */
     fun releaseAll() {
         publishMask(mask.updateAndGet { 0 })
         setTouch(0, 0, down = false)
+        setMicNoise(false)
     }
 
     private fun publishMask(value: Int) {

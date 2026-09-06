@@ -28,8 +28,7 @@ import com.moralesDev.dsForEveryone.ui.theme.textAlpha
  *
  * [onOpenGame] es igual de provisional: hasta que exista una biblioteca de
  * verdad (fase 3) es la única forma de llegar a la pantalla de juego, que en
- * la fase 2 monta el renderizador GL contra `StubEmulatorCore` (entregable
- * 2.5) en vez de abrir ninguna ROM real.
+ * la fase 2 juega contra `StubEmulatorCore` en vez de abrir ninguna ROM real.
  */
 @Composable
 fun RomLibraryScreen(onOpenSettings: () -> Unit, onOpenGame: () -> Unit) {
@@ -53,7 +52,7 @@ fun RomLibraryScreen(onOpenSettings: () -> Unit, onOpenGame: () -> Unit) {
             color = textAlpha(0.62f),
         )
         AccentButton(
-            text = stringResource(R.string.nav_open_game_debug),
+            text = stringResource(R.string.nav_open_game),
             onClick = onOpenGame,
         )
         AccentButton(

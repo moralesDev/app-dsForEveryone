@@ -225,6 +225,7 @@ class EmulatorController(private val core: EmulatorCore) {
                     core.setKeys(input.currentMask)
                     val touch = input.currentTouch
                     core.setTouch(touch.x, touch.y, touch.down)
+                    core.setMicNoise(input.currentMicNoise)
                     core.runFrame()
                     latestFrame = core.captureFrame()
 
