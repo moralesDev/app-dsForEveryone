@@ -15,6 +15,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.withContext
+import java.nio.ByteBuffer
+import java.nio.ByteOrder
 import java.util.concurrent.LinkedBlockingQueue
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.locks.LockSupport
@@ -63,17 +65,30 @@ class EmulatorController(private val core: EmulatorCore) {
     @Volatile
     private var thread: EmulationThread? = null
 
+    /**
+     * Búfer único para el fotograma, reservado una sola vez y reutilizado
+     * cada vuelta del bucle: ver [EmulatorCore.captureFrameInto]. Antes de
+     * esto, cada fotograma pedía un `IntArray` nuevo al core —60 veces por
+     * segundo, ~90 MB/s de basura en el heap de Java— y era candidato serio a
+     * ser la causa real del OutOfMemoryError de la fase 4.C (ver
+     * docs/estabilizacion-core.md).
+     */
+    private val frameBuffer: ByteBuffer =
+        ByteBuffer.allocateDirect(DsVideo.WIDTH * DsVideo.HEIGHT * BYTES_PER_PIXEL)
+            .order(ByteOrder.nativeOrder())
+
     @Volatile
-    private var latestFrame: IntArray? = null
+    private var frameReady = false
 
     /**
      * Último fotograma producido por el core, actualizado al final de cada
      * vuelta del bucle. Lo lee el renderizador GL (fase 2.5) desde su propio
      * hilo, una vez por fotograma de pantalla: es estado compartido, igual
      * que la máscara de botones y el lápiz, no un comando encolado ni una
-     * llamada `suspend`.
+     * llamada `suspend`. Siempre el mismo búfer: quien lo consuma debe
+     * copiarlo o subirlo antes de que la siguiente vuelta lo reescriba.
      */
-    val currentFrame: IntArray? get() = latestFrame
+    val currentFrame: ByteBuffer? get() = if (frameReady) frameBuffer else null
 
     /** Identidad técnica del core; es lo que se graba en cada save state. */
     val coreName: String get() = core.coreName
@@ -145,7 +160,7 @@ class EmulatorController(private val core: EmulatorCore) {
         }
         thread = null
         _framesPerSecond.value = 0
-        latestFrame = null
+        frameReady = false
         _status.value = EmulatorStatus.IDLE
     }
 
@@ -243,7 +258,7 @@ class EmulatorController(private val core: EmulatorCore) {
                     core.setTouch(touch.x, touch.y, touch.down)
                     core.setMicNoise(input.currentMicNoise)
                     core.runFrame()
-                    latestFrame = core.captureFrame()
+                    frameReady = core.captureFrameInto(frameBuffer)
 
                     val now = System.nanoTime()
 
@@ -299,6 +314,7 @@ class EmulatorController(private val core: EmulatorCore) {
         const val PAUSED_POLL_MS = 50L
         const val JOIN_TIMEOUT_MS = 1_000L
         const val FPS_WINDOW_NANOS = 500_000_000L
+        const val BYTES_PER_PIXEL = 4
 
         /** Una comprobación por segundo de reloj real: suficiente y sin castigar el disco. */
         const val BATTERY_CHECK_INTERVAL_NANOS = 1_000_000_000L

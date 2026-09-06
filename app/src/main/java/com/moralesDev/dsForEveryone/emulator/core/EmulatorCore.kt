@@ -2,6 +2,7 @@ package com.moralesDev.dsForEveryone.emulator.core
 
 import android.os.ParcelFileDescriptor
 import android.view.Surface
+import java.nio.ByteBuffer
 
 /**
  * Frontera entre la aplicación y el core de emulación.
@@ -18,8 +19,8 @@ import android.view.Surface
  *
  * - [load], [unload], [runFrame], [setKeys], [setTouch], [setMicNoise],
  *   [stateSize], [serializeState], [deserializeState], [readBattery],
- *   [consumeBatteryDirty] y [captureFrame] se llaman **siempre** desde el
- *   hilo de emulación, nunca desde el hilo principal.
+ *   [consumeBatteryDirty], [captureFrame] y [captureFrameInto] se llaman
+ *   **siempre** desde el hilo de emulación, nunca desde el hilo principal.
  * - [attachSurface] es la excepción: la llama el hilo principal, y **debe
  *   bloquear** hasta que el core deje de escribir en la superficie anterior,
  *   si es que escribe en alguna (ver su documentación).
@@ -150,6 +151,36 @@ interface EmulatorCore {
      * para subirlo como textura.
      */
     fun captureFrame(): IntArray?
+
+    /**
+     * Como [captureFrame], pero escribiendo los bytes ya en orden R,G,B,A
+     * directamente en [buffer] (asignado y reutilizado por quien llama, con
+     * espacio para 256×384 píxeles de 4 bytes) en vez de devolver un
+     * `IntArray` nuevo.
+     *
+     * Existe sólo para el camino caliente —una llamada por fotograma, 60
+     * veces por segundo, desde [com.moralesDev.dsForEveryone.emulator.EmulatorController]—,
+     * donde reservar un array nuevo cada vez llenaba el heap de Java de
+     * basura sin necesidad (era además la sospecha real detrás del
+     * `OutOfMemoryError` de la fase 4.C, ver docs/estabilizacion-core.md).
+     * [captureFrame] se queda para usos infrecuentes (la miniatura de un save
+     * state), donde esa reserva no importa.
+     *
+     * @return `false` si no hay fotograma que copiar (nada cargado todavía) o
+     *   si [buffer] no es válido; en ese caso no se escribe nada.
+     */
+    fun captureFrameInto(buffer: ByteBuffer): Boolean {
+        val frame = captureFrame() ?: return false
+        buffer.clear()
+        for (pixel in frame) {
+            buffer.put(((pixel shr 16) and 0xFF).toByte()) // R
+            buffer.put(((pixel shr 8) and 0xFF).toByte()) // G
+            buffer.put((pixel and 0xFF).toByte()) // B
+            buffer.put(((pixel shr 24) and 0xFF).toByte()) // A
+        }
+        buffer.position(0)
+        return true
+    }
 }
 
 /** Resultado de [EmulatorCore.load]. */

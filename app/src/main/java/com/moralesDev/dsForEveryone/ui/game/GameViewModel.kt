@@ -33,6 +33,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import java.nio.ByteBuffer
 
 /** Qué se está eligiendo en la hoja de ranuras. */
 enum class SlotAction { SAVE, LOAD }
@@ -88,7 +89,7 @@ class GameViewModel @Inject constructor(
     val micNoiseActive: StateFlow<Boolean> get() = controller.input.micNoiseActive
 
     /** Lo lee el hilo de GL directamente; no pasa por Compose ni por corrutinas. */
-    val currentFrame: IntArray? get() = controller.currentFrame
+    val currentFrame: ByteBuffer? get() = controller.currentFrame
 
     private val _slotAction = MutableStateFlow<SlotAction?>(null)
     val slotAction: StateFlow<SlotAction?> = _slotAction.asStateFlow()

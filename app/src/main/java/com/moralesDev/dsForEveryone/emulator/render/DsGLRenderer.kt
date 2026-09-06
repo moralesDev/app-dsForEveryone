@@ -34,10 +34,13 @@ import javax.microedition.khronos.opengles.GL10
  * [frameProvider] se llama desde el propio hilo de GL en cada [onDrawFrame]:
  * debe ser una lectura barata y sin bloqueo (un campo compartido, no una
  * función `suspend`), igual que [com.moralesDev.dsForEveryone.emulator.InputManager]
- * para los mandos.
+ * para los mandos. El `ByteBuffer` que devuelve es siempre el mismo —lo
+ * asigna y reutiliza [com.moralesDev.dsForEveryone.emulator.EmulatorController]
+ * una sola vez, ver `EmulatorCore.captureFrameInto`—, así que se sube tal
+ * cual, sin copiarlo ni convertirlo aquí.
  */
 class DsGLRenderer(
-    private val frameProvider: () -> IntArray?,
+    private val frameProvider: () -> ByteBuffer?,
 ) : GLSurfaceView.Renderer {
 
     @Volatile private var placement: ScreenPlacement? = null
@@ -54,10 +57,6 @@ class DsGLRenderer(
     private var texCoordHandle = 0
     private var textureUniform = 0
     private var appliedFilter: ImageFilter? = null
-
-    private val pixelBuffer: ByteBuffer =
-        ByteBuffer.allocateDirect(DsVideo.WIDTH * DsVideo.HEIGHT * BYTES_PER_PIXEL)
-            .order(ByteOrder.nativeOrder())
 
     private val vertexBuffer =
         ByteBuffer.allocateDirect(VERTICES_PER_QUAD * QUADS * FLOATS_PER_VERTEX * 4)
@@ -121,22 +120,21 @@ class DsGLRenderer(
         trackPresentedFps()
     }
 
-    /** Una sola subida por fotograma, al búfer ya asignado en [onSurfaceCreated]. */
-    private fun uploadFrame(frame: IntArray) {
-        pixelBuffer.clear()
-        for (pixel in frame) {
-            pixelBuffer.put(((pixel shr 16) and 0xFF).toByte()) // R
-            pixelBuffer.put(((pixel shr 8) and 0xFF).toByte()) // G
-            pixelBuffer.put((pixel and 0xFF).toByte()) // B
-            pixelBuffer.put(((pixel shr 24) and 0xFF).toByte()) // A
-        }
-        pixelBuffer.position(0)
+    /**
+     * Una sola subida por fotograma. El búfer ya llega con los bytes en
+     * R,G,B,A —el puente nativo los escribe así directamente, ver
+     * `EmulatorCore.captureFrameInto`—, así que aquí no hace falta convertir
+     * nada: era un bucle por los 98304 píxeles en cada fotograma, en este
+     * mismo hilo, sólo para reordenar canales.
+     */
+    private fun uploadFrame(frame: ByteBuffer) {
+        frame.position(0)
 
         GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, textureId)
         GLES20.glTexSubImage2D(
             GLES20.GL_TEXTURE_2D, 0, 0, 0,
             DsVideo.WIDTH, DsVideo.HEIGHT,
-            GLES20.GL_RGBA, GLES20.GL_UNSIGNED_BYTE, pixelBuffer,
+            GLES20.GL_RGBA, GLES20.GL_UNSIGNED_BYTE, frame,
         )
     }
 
@@ -244,7 +242,6 @@ class DsGLRenderer(
 
     private companion object {
         const val TAG = "DsGLRenderer"
-        const val BYTES_PER_PIXEL = 4
         const val VERTICES_PER_QUAD = 4
         const val QUADS = 2
         const val FLOATS_PER_VERTEX = 4 // x, y, u, v

@@ -219,6 +219,17 @@ inline uint32_t ToAndroidArgb(uint32_t pixel) {
     return 0xFF000000u | (r << 16) | (g << 8) | b;
 }
 
+// Mismo canje de canales que ToAndroidArgb, pero escrito directamente como
+// cuatro bytes R,G,B,A: el orden que GLES espera en un GL_RGBA/
+// GL_UNSIGNED_BYTE (ver DsGLRenderer.uploadFrame), sin pasar por un entero
+// empaquetado que habría que desempaquetar otra vez del lado de Kotlin.
+inline void WriteRgbaBytes(uint32_t pixel, uint8_t* out) {
+    out[0] = static_cast<uint8_t>((pixel >> 16) & 0xFFu);  // R
+    out[1] = static_cast<uint8_t>((pixel >> 8) & 0xFFu);   // G
+    out[2] = static_cast<uint8_t>(pixel & 0xFFu);          // B
+    out[3] = 0xFF;                                         // A
+}
+
 }  // namespace
 
 // ---------------------------------------------------------------------------
@@ -753,6 +764,38 @@ Java_com_moralesDev_dsForEveryone_emulator_core_NativeBridge_nativeCaptureFrame(
     }
     env->SetIntArrayRegion(result, 0, kScreenPixels * 2, pixels.get());
     return result;
+}
+
+// Camino caliente: una llamada por fotograma desde EmulatorController, en el
+// hilo de emulación. A diferencia de nativeCaptureFrame, no reserva nada: el
+// `ByteBuffer` directo lo asigna Kotlin una sola vez (ver
+// EmulatorCore.captureFrameInto) y aquí sólo se escribe dentro, con el color
+// ya convertido en el mismo recorrido. El nativeCaptureFrame de arriba
+// hacía, 60 veces por segundo, un NewIntArray más una copia intermedia a un
+// unique_ptr: ~90 MB/s de basura en el heap de Java, y candidato serio a ser
+// la causa real del OutOfMemoryError de la fase 4.C (ver
+// docs/estabilizacion-core.md).
+JNIEXPORT jboolean JNICALL
+Java_com_moralesDev_dsForEveryone_emulator_core_NativeBridge_nativeCaptureFrameInto(
+    JNIEnv* env, jobject, jlong handle, jobject buffer) {
+    Emulator* emu = FromHandle(handle);
+    if (!emu || !emu->loaded) return JNI_FALSE;
+
+    melonDS::GPU& gpu = emu->nds->GPU;
+    int front = gpu.FrontBuffer;
+    const melonDS::u32* top = gpu.Framebuffer[front][0].get();
+    const melonDS::u32* bottom = gpu.Framebuffer[front][1].get();
+    if (!top || !bottom) return JNI_FALSE;
+
+    auto* out = static_cast<uint8_t*>(env->GetDirectBufferAddress(buffer));
+    jlong capacity = env->GetDirectBufferCapacity(buffer);
+    if (!out || capacity < static_cast<jlong>(kScreenPixels) * 2 * 4) return JNI_FALSE;
+
+    for (int i = 0; i < kScreenPixels; ++i) {
+        WriteRgbaBytes(top[i], out + i * 4);
+        WriteRgbaBytes(bottom[i], out + (kScreenPixels + i) * 4);
+    }
+    return JNI_TRUE;
 }
 
 JNIEXPORT void JNICALL

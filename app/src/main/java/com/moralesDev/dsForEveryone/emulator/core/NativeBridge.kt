@@ -1,6 +1,7 @@
 package com.moralesDev.dsForEveryone.emulator.core
 
 import android.util.Log
+import java.nio.ByteBuffer
 
 /**
  * Declaración de los métodos nativos del puente.
@@ -48,6 +49,15 @@ internal object NativeBridge {
     external fun nativeRunFrame(handle: Long)
 
     external fun nativeCaptureFrame(handle: Long): IntArray?
+
+    /**
+     * Escribe el fotograma actual, ya en bytes R,G,B,A, dentro de [buffer]
+     * (debe ser directo, con espacio para 256×384×4 bytes) en vez de devolver
+     * un array nuevo. Ver [EmulatorCore.captureFrameInto].
+     *
+     * @return `false` si no hay nada cargado o [buffer] no es válido.
+     */
+    external fun nativeCaptureFrameInto(handle: Long, buffer: ByteBuffer): Boolean
 
     external fun nativeSetKeys(handle: Long, mask: Int)
 

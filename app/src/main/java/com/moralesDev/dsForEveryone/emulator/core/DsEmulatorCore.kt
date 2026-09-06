@@ -2,6 +2,7 @@ package com.moralesDev.dsForEveryone.emulator.core
 
 import android.os.ParcelFileDescriptor
 import android.view.Surface
+import java.nio.ByteBuffer
 
 /**
  * Core de emulación real, sobre melonDS.
@@ -109,6 +110,9 @@ class DsEmulatorCore : EmulatorCore {
 
     override fun captureFrame(): IntArray? =
         if (isUsable) NativeBridge.nativeCaptureFrame(handle) else null
+
+    override fun captureFrameInto(buffer: ByteBuffer): Boolean =
+        isUsable && NativeBridge.nativeCaptureFrameInto(handle, buffer)
 
     private companion object {
         const val LOAD_OK = 0
