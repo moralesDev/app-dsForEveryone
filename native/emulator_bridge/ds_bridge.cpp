@@ -580,6 +580,20 @@ Java_com_moralesDev_dsForEveryone_emulator_core_NativeBridge_nativeLoad(
         emu->nds->SetupDirectBoot("rom.nds");
     }
 
+    // Sin esto, NDS::Running se queda en el valor indeterminado con el que
+    // se construye el objeto (no tiene inicializador de miembro, y Reset()
+    // tampoco lo toca): sólo NDS::Start() lo pone a true. RunFrame() entero
+    // es un `while (Running) { ... }` — con Running en false ese bucle no
+    // ejecuta ni un ciclo de CPU, GPU::FinishFrame() no se llama nunca (así
+    // que FrontBuffer no alterna y el framebuffer se queda en el blanco de
+    // GPU::Reset()), y aun así NumFrames++ sigue contando fuera del bucle
+    // (el propio melonDS lo hace a propósito, para TAS) y RunFrame()
+    // devuelve 263. El resultado es una emulación que desde fuera parece
+    // sana —60 fps constantes, sin caídas— y que en realidad no ejecuta
+    // nada. Orden correcto, el del frontend de referencia: Reset() ->
+    // SetupDirectBoot() -> Start().
+    emu->nds->Start();
+
     emu->batteryDirty.store(false, std::memory_order_relaxed);
     emu->loaded = true;
     return kLoadOk;
