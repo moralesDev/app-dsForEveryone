@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Complementa android:allowBackup="false": ese atributo por sí solo no cierra
+  el copiado de datos entre dispositivos en Android 12+, que usa este mecanismo
+  aparte. Se excluye todo explícitamente.
+-->
+<data-extraction-rules>
+    <cloud-backup>
+        <exclude domain="root" />
+    </cloud-backup>
+    <device-transfer>
+        <exclude domain="root" />
+    </device-transfer>
+</data-extraction-rules>

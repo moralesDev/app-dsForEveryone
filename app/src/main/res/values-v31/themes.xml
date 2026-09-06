@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Desde Android 12 la pantalla de arranque del sistema es obligatoria y la pinta
+  el propio sistema. Se le da el mismo fondo y el mismo símbolo que usa la
+  pantalla de bienvenida de la aplicación, de modo que al abrirla no se vea un
+  salto: el sistema muestra la marca y la aplicación la recoge donde la dejó.
+-->
+<resources>
+    <style name="Theme.DsEmu" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@color/surface_background</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+
+        <item name="android:windowSplashScreenBackground">@color/surface_background</item>
+        <item name="android:windowSplashScreenAnimatedIcon">@drawable/ic_launcher_foreground</item>
+    </style>
+</resources>

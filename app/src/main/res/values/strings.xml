@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Español: idioma por defecto. La traducción inglesa vive en values-en/.
+  El usuario puede cambiar de idioma dentro de la aplicación sin tocar los
+  ajustes del sistema.
+-->
+<resources>
+    <string name="app_name">DsForEveryone</string>
+
+    <!-- Arranque -->
+    <string name="splash_tagline">Tu DS. En cualquier lugar.</string>
+    <string name="splash_credit" translatable="false">moralesDev</string>
+
+    <!-- Carga entre pantallas -->
+    <string name="tr_loading">Cargando</string>
+
+    <!-- Onboarding -->
+    <string name="onb_title">Tus juegos de DS, en tu teléfono</string>
+    <string name="onb_body">Añade tus propios archivos y juega con controles táctiles y de lápiz pensados para dos pantallas.</string>
+    <string name="onb_f1">Añade tus ROMs</string>
+    <string name="onb_f1b">Desde el almacenamiento del teléfono</string>
+    <string name="onb_f2">Dos pantallas, un lápiz</string>
+    <string name="onb_f2b">Controles táctiles y de mando ajustables</string>
+    <string name="onb_f3">Guarda cuando quieras</string>
+    <string name="onb_f3b">Varias ranuras de estado por juego</string>
+    <string name="onb_next">Siguiente</string>
+    <string name="onb_cta">Empezar</string>
+    <string name="onb_skip">Ya tengo juegos</string>
+    <string name="onb_dont">No volver a mostrar esta pantalla</string>
+
+    <!-- Onboarding: paso de archivos de sistema (condicional, ver WelcomeScreen.kt) -->
+    <string name="onb_sys_title">Antes de jugar, un archivo más</string>
+    <string name="onb_sys_body">La Nintendo DS necesita su BIOS y su firmware para arrancar. Son archivos de tu propia consola: esta aplicación no los incluye ni los descarga.</string>
+    <string name="onb_sys_f1">Tú los aportas</string>
+    <string name="onb_sys_f1b">Se importan más adelante, desde Configuración</string>
+    <string name="onb_sys_f2">Nunca se distribuyen</string>
+    <string name="onb_sys_f2b">La aplicación no los incluye ni enlaza a dónde conseguirlos</string>
+
+    <!-- Destinos todavía vacíos del grafo de navegación -->
+    <string name="scr_library_title">Biblioteca</string>
+    <string name="scr_library_body">Todavía no hay biblioteca. Llega en la fase 3, con Room, SAF y la portada extraída del banner de cada ROM.</string>
+    <string name="scr_game_title">Juego</string>
+    <string name="scr_game_body">Todavía no hay pantalla de juego. Llega en la fase 2, contra el stub del core.</string>
+    <string name="scr_settings_title">Configuración</string>
+    <string name="scr_settings_body">Todavía no hay ajustes reales. Cada uno llega junto con la función a la que pertenece.</string>
+    <string name="scr_about_title">Acerca de</string>
+    <string name="scr_about_body">Todavía no hay pantalla «Acerca de». El aviso del core y el enlace al código fuente llegan con la fase 4.</string>
+    <string name="scr_layout_editor_title">Editor de disposición</string>
+    <string name="scr_layout_editor_body">Todavía no hay editor. Llega en el entregable 2.7, sobre la misma geometría que usa la pantalla de juego.</string>
+    <string name="nav_open_settings">Configuración</string>
+    <string name="nav_open_about">Acerca de</string>
+    <string name="nav_open_layout_editor">Editor de disposición</string>
+
+    <!-- Accesibilidad -->
+    <string name="cd_back">Volver</string>
+</resources>

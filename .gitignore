@@ -9,11 +9,16 @@
 /.idea/assetWizardSettings.xml
 .DS_Store
 /build/
+/app/build/
 /captures/
 .externalNativeBuild/
 .cxx/
+/app/.cxx/
+.kotlin/
 local.properties
 keystore.properties
+*.jks
+*.keystore
 
 # Android Studio / IntelliJ
 *.hprof
