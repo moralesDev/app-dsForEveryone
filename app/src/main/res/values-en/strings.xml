@@ -34,7 +34,10 @@
     <string name="scr_settings_title">Settings</string>
     <string name="scr_settings_body">There are no real settings yet. Each one arrives with the feature it belongs to.</string>
     <string name="scr_about_title">About</string>
-    <string name="scr_about_body">There\'s no About screen yet. The core notice and the link to the source code arrive with phase 4.</string>
+    <string name="scr_about_body">DsForEveryone uses melonDS to emulate the Nintendo DS, published under the GNU General Public License v3.0. Linking its code inside this application makes the whole app — interface, save system, bridge included — distributed under the same license. You can keep, modify, and redistribute this application under the terms of that license.</string>
+    <string name="ab_core_label">Emulation core: melonDS 1.1 · GPL-3.0-or-later</string>
+    <string name="ab_core_link">melonDS source code</string>
+    <string name="ab_source_link">This app\'s source code</string>
     <string name="nav_open_settings">Settings</string>
     <string name="nav_open_about">About</string>
     <string name="nav_open_layout_editor">Layout editor</string>

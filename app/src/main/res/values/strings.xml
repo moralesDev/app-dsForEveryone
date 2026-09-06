@@ -40,7 +40,10 @@
     <string name="scr_settings_title">Configuración</string>
     <string name="scr_settings_body">Todavía no hay ajustes reales. Cada uno llega junto con la función a la que pertenece.</string>
     <string name="scr_about_title">Acerca de</string>
-    <string name="scr_about_body">Todavía no hay pantalla «Acerca de». El aviso del core y el enlace al código fuente llegan con la fase 4.</string>
+    <string name="scr_about_body">DsForEveryone usa melonDS para emular la Nintendo DS, publicado bajo la GNU General Public License v3.0. Enlazar su código dentro de esta aplicación hace que toda ella —interfaz, sistema de partidas, puente incluido— se distribuya bajo la misma licencia. Puedes conservar, modificar y redistribuir esta aplicación en los términos de esa licencia.</string>
+    <string name="ab_core_label">Núcleo de emulación: melonDS 1.1 · GPL-3.0-or-later</string>
+    <string name="ab_core_link">Código fuente de melonDS</string>
+    <string name="ab_source_link">Código fuente de esta aplicación</string>
     <string name="nav_open_settings">Configuración</string>
     <string name="nav_open_about">Acerca de</string>
     <string name="nav_open_layout_editor">Editor de disposición</string>
