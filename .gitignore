@@ -1,0 +1,25 @@
+*.iml
+.gradle/
+/local.properties
+/.idea/caches
+/.idea/libraries
+/.idea/modules.xml
+/.idea/workspace.xml
+/.idea/navEditor.xml
+/.idea/assetWizardSettings.xml
+.DS_Store
+/build/
+/captures/
+.externalNativeBuild/
+.cxx/
+local.properties
+keystore.properties
+
+# Android Studio / IntelliJ
+*.hprof
+
+# NDK / core de terceros: se añade como tarball versionado a mano, no se
+# gestiona con git dentro de este repositorio
+third_party/*
+!third_party/.gitkeep
+!third_party/README.md
