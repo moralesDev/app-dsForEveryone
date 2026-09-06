@@ -1,9 +1,12 @@
 # Elección e integración del core
 
-Este documento recoge qué core usar, por qué, y cómo enchufarlo. **La decisión
-está deliberadamente abierta**: la frontera `EmulatorCore` se diseña para
-admitir los dos candidatos, y la elección se toma midiendo en dispositivo, no
-leyendo tablas. Es el mismo método que llevó a mGBA en `app-emulador`.
+Este documento recoge qué core usar, por qué, y cómo enchufarlo. La decisión
+se dejó deliberadamente abierta durante toda la fase 4 —la frontera
+`EmulatorCore` se diseñó para admitir los dos candidatos— y se tomó midiendo
+en dispositivo, no leyendo tablas, el mismo método que llevó a mGBA en
+`app-emulador`. **Está cerrada** desde el entregable 4.5, a favor de melonDS:
+ver la sección 10, al final de este documento, para el razonamiento completo
+y los números.
 
 ## 1. Qué core
 
@@ -538,3 +541,63 @@ que decodifica, que `coreName`/`coreVersion` son exactamente `"melonds"`/
 cuando" con un juego real: guardar, cargar y comprobar que la partida vuelve
 tal cual, con un juego que de verdad se juegue. La plomería está verificada;
 falta el contenido real, y exige una ROM homebrew legítima.
+
+## 10. La decisión, cerrada: melonDS
+
+La sección 1 planteaba la elección como una balanza entre precisión y
+fricción de arranque, con DeSmuME por delante en lo segundo (arranca sin
+BIOS, por HLE) y melonDS por delante en lo primero. El plan de trabajo
+preveía medir los dos con números delante antes de decidir. Eso no hizo
+falta, y conviene decir exactamente por qué en vez de saltarse el paso.
+
+**La fricción de arranque de melonDS, que era su desventaja frente a
+DeSmuME, no existe en la práctica.** La sección 7 ya lo estableció:
+`NDSArgs` trae FreeBIOS y firmware generado por defecto, y basta con
+arrancar en modo directo para que un juego —real, no sólo la ROM
+sintética— corra sin pedir un solo archivo del usuario. Verificado con
+Cave Story DS y con un segundo homebrew del mismo motor, y confirmado
+también con la observación —hecha por el usuario, fuera de las pruebas
+formales de este documento— de que una ROM comercial real llegaba a
+insertarse y a descifrar su área segura sin fricción de BIOS. La ventaja
+que hacía a DeSmuME atractivo pese a su menor precisión desaparece: no
+hay ningún motivo para aceptar menos exactitud a cambio de una facilidad
+de arranque que el propio melonDS ya ofrece.
+
+**Lo que sí costó fue integración, no elección de core.** Los dos defectos
+de la sección 1 de `estabilizacion-core.md` (`SetupDirectBoot` incompleto,
+`NDS::Start()` nunca llamado) eran errores del puente contra la API de
+melonDS, no limitaciones del core en sí — y una vez corregidos, un juego
+real arranca, se ve y se oye en las dos pantallas sin más peros que los ya
+conocidos (sin JIT, sin renderizador 3D por GL, ver más abajo). Nada de lo
+encontrado apunta a que DeSmuME fuera a evitar ese trabajo: cualquier
+puente nuevo contra cualquier core exige este mismo tipo de verificación
+contra contenido real, no sintético.
+
+**Por eso no se construyó DeSmuME para comparar.** Habría sido repetir la
+integración entera —CMake, Platform, puente JNI— de un segundo core sólo
+para una comparación cuyo resultado ya se puede argumentar sin
+ambigüedad: melonDS compiló sin fricción desde la fase 4.1 (sección 6),
+integró sin exigir ningún archivo de sistema (sección 7), y sus dos únicos
+defectos de arranque eran del puente, ya corregidos y verificados con un
+juego real (`estabilizacion-core.md`, sección 1). El coste de escribir un
+segundo puente completo sólo para confirmar lo que ya está confirmado no
+se justifica.
+
+**Con los números que sí hay** (`estabilizacion-core.md`, sección 2): 59-60
+fps emulados estables, 89-90 fps presentados, 1,4-1,7 núcleos de uso
+combinado en un gama alta, sin caída de fps tras varios minutos seguidos y
+con Nítido/Suavizado costando exactamente lo mismo —la comprobación que
+pedía el entregable, superada—. Ninguna cifra sugiere que haga falta
+reconsiderar.
+
+**Lo que queda abierto**, y no es una limitación de la elección sino del
+alcance de esta fase: sin JIT (deferido a un ensayo explícito, igual que
+el ensayo ×2 de `app-emulador`), sin renderizador 3D por GL (exige
+`PlatformOGL.h`, no escrito), sin medir en un dispositivo de gama media, y
+sin el "está hecho cuando" completo de guardado/estado con un juego que
+de verdad se juegue —todo pendiente de una ROM homebrew con contenido
+real, no de la elección de core—.
+
+**Decisión: melonDS, versión 1.1, fijada como constante del puente
+(`BRIDGE_CORE_VERSION`).** `StubEmulatorCore` sigue en el proyecto como
+doble de pruebas sin NDK; `DeSmuME` no se integra.
