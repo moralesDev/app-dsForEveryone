@@ -145,6 +145,32 @@ Y una regla de producto heredada de la decisión que ya se tomó para el GBA: el
 editor sólo se abre **con la emulación detenida**. Arrastrar pantallas mientras
 corre un juego es un problema de sincronización que no aporta nada.
 
+### Lo que se arrastra de verdad en las pantallas (entregable 2.7)
+
+«Arrastrar las pantallas a mano» no se tradujo en rectángulos libres para cada
+pantalla. `ScreenLayout.resolve` sólo tiene tres grados de libertad reales
+—modo, separación y escala de la secundaria— y las cinco pruebas de JVM de
+`ScreenLayoutTest` (4:3 exacto, sin solape salvo en Principal+secundaria, sin
+salirse del hueco) dependen de que sea así. Dar rectángulos libres habría
+significado un segundo sistema de geometría de pantallas, con el riesgo
+concreto que el propio entregable advertía: que el editor y el juego acaben
+colocando distinto.
+
+Así que el editor arrastra los mismos tres grados de libertad que ya existían:
+una barra entre las dos pantallas cambia `screenGap` (en Apiladas y Lado a
+lado), y una esquina de la secundaria cambia `secondaryScale` (en Principal +
+secundaria). El modo se elige con las mismas cápsulas del menú de pausa
+(`LayoutModeChips`, ahora `internal` para compartirla). Quien sí es
+completamente libre —posición, tamaño y opacidad, sin más restricción que no
+solaparse— son los siete grupos de mandos, que es donde `docs/entrada.md`
+plantea el problema real: no hay colocación fija que sirva para las dos
+orientaciones y todos los juegos.
+
+La vista previa del editor llama a `ScreenLayout.resolve` y a
+`ControlLayout.resolveProfile` con los mismos argumentos que `GameScreen`: si
+algún día colocan distinto es un error de una de las dos pantallas, no una
+discrepancia de diseño.
+
 ## Rendimiento: lo que hay que medir
 
 El protocolo es el que ya se usó para el ensayo de velocidad ×2 en
@@ -161,3 +187,54 @@ El protocolo es el que ya se usó para el ensayo de velocidad ×2 en
 La hipótesis a comprobar es que con el renderizador GL de la app el coste de
 presentar sea **el mismo en «Nítido» y en «Suavizado»**, a diferencia del GBA.
 Si no lo es, algo está mal en el renderizador.
+
+### Línea base contra `StubEmulatorCore` (cierre de la fase 2)
+
+Medido en el Motorola Edge 30, disposición Apiladas en vertical, sesión
+contra el stub (2.C). No hay renderizado 3D todavía —eso llega con el core
+real en la fase 4—, así que esto mide únicamente el coste de presentación:
+subir una textura de 256×384 y pintar dos quads.
+
+Las cifras de fps emulados y presentados se leyeron sin añadir código de
+depuración: `dumpsys SurfaceFlinger --latency` sobre la superficie del
+`GLSurfaceView` da la marca de tiempo real de cada fotograma *presentado*, y
+`top -H` el porcentaje de CPU por hilo. El hilo de emulación no expone
+todavía su contador (`EmulatorController.framesPerSecond`) por ningún canal
+externo; ver la nota al final de esta sección.
+
+| Magnitud | Nítido (`GL_NEAREST`) | Suavizado (`GL_LINEAR`) |
+|---|---|---|
+| fps presentados (medidos) | 90.03 | 90.04 |
+| Refresco del panel | 90 Hz | 90 Hz |
+| `GLThread` (hilo de GL) | 81–89 % de un núcleo | 81–89 % de un núcleo |
+| `ds-emulation` (hilo de emulación) | 0–7 % de un núcleo (≈4 % típico) | igual |
+| Proceso completo | ≈90 % de un núcleo | igual |
+| Temperatura CPU / GPU tras 3 min | 44–45 °C / 42–43 °C | igual |
+| `Thermal Status` | 0 (nominal) en todo momento | igual |
+
+**Se confirma la hipótesis**: Nítido y Suavizado cuestan lo mismo, con
+diferencias dentro del ruido de medida (±5 puntos de `%CPU` entre muestras
+consecutivas del propio Nítido). El dispositivo se probó 3 minutos seguidos
+sin que `Thermal Status` se moviera de 0 ni la temperatura de CPU superase los
+45 °C: sin indicio de limitación térmica a este ritmo de trabajo.
+
+**Hallazgo que conviene arrastrar a la fase 4**: `GLThread` cuesta bastante
+más de lo que dos quads deberían — el sospechoso es el bucle a nivel de
+píxel de `DsGLRenderer.uploadFrame()`, que recorre los 256×384 píxeles del
+framebuffer haciendo cuatro `put()` por píxel para reordenar ARGB→RGBA antes
+de subirlo con `glTexSubImage2D`. Con un core real produciendo fotogramas a
+59,8261 Hz de verdad —aquí el stub apenas ocupa CPU—, ese bucle pasa a competir
+por el mismo núcleo que el propio core. Antes de la fase 4 conviene mirar si
+el core puede entregar el framebuffer ya en el orden de bytes que espera GL
+(evitando el reordenado por software) o, si no, mover el reordenado a un
+formato de textura que no lo necesite.
+
+**Lo que falta por instrumentar**: los fps *emulados* no se leyeron de un
+contador real, se infieren de que `ds-emulation` está muy por debajo de
+saturación (≈4 % de un núcleo): con ese margen no hay motivo para que el hilo
+llegue tarde a su período de 16 715 113 ns, así que se da por buena la cifra
+de diseño, 59,8261 Hz. Antes de medir el core real en la fase 4 hace falta
+exponer `EmulatorController.framesPerSecond` y
+`DsGLRenderer.presentedFramesPerSecond()` por algún canal legible sin
+depurador —un `Log.d` periódico tras `BuildConfig.DEBUG` basta—, porque contra
+un core real la suposición de «nunca llega tarde» deja de sostenerse sola.
