@@ -44,6 +44,7 @@
 #include <GPU.h>
 #include <Platform.h>
 #include <SPU.h>
+#include <Savestate.h>
 
 #define TAG "ds-bridge"
 #define LOGE(...) __android_log_print(ANDROID_LOG_ERROR, TAG, __VA_ARGS__)
@@ -669,24 +670,58 @@ Java_com_moralesDev_dsForEveryone_emulator_core_NativeBridge_nativeSetMicNoise(
 JNIEXPORT jint JNICALL
 Java_com_moralesDev_dsForEveryone_emulator_core_NativeBridge_nativeStateSize(
     JNIEnv*, jobject, jlong handle) {
-    // Los save states contra el core real llegan en la fase 4.4.
-    (void) handle;
-    return 0;
+    Emulator* emu = FromHandle(handle);
+    if (!emu || !emu->loaded) return 0;
+
+    // melonDS no tiene un tamaño de estado fijo por versión de core (a
+    // diferencia de mGBA): Savestate crece según lo que de verdad haga falta
+    // serializar. La única forma honesta de responder «cuánto ocupa ahora
+    // mismo» es serializar de verdad y medir; no es gratis, pero se llama una
+    // vez al cargar la ROM (ver StateIdentity en GameViewModel), no cada
+    // fotograma.
+    melonDS::Savestate state(melonDS::Savestate::DEFAULT_SIZE);
+    if (state.Error) return 0;
+    if (!emu->nds->DoSavestate(&state) || state.Error) return 0;
+    return static_cast<jint>(state.Length());
 }
 
 JNIEXPORT jbyteArray JNICALL
 Java_com_moralesDev_dsForEveryone_emulator_core_NativeBridge_nativeSerializeState(
-    JNIEnv*, jobject, jlong handle) {
-    (void) handle;
-    return nullptr;
+    JNIEnv* env, jobject, jlong handle) {
+    Emulator* emu = FromHandle(handle);
+    if (!emu || !emu->loaded) return nullptr;
+
+    melonDS::Savestate state(melonDS::Savestate::DEFAULT_SIZE);
+    if (state.Error) return nullptr;
+    if (!emu->nds->DoSavestate(&state) || state.Error) return nullptr;
+
+    jsize len = static_cast<jsize>(state.Length());
+    jbyteArray result = env->NewByteArray(len);
+    if (!result) return nullptr;
+    env->SetByteArrayRegion(result, 0, len, reinterpret_cast<const jbyte*>(state.Buffer()));
+    return result;
 }
 
 JNIEXPORT jboolean JNICALL
 Java_com_moralesDev_dsForEveryone_emulator_core_NativeBridge_nativeDeserializeState(
-    JNIEnv*, jobject, jlong handle, jbyteArray state) {
-    (void) handle;
-    (void) state;
-    return JNI_FALSE;
+    JNIEnv* env, jobject, jlong handle, jbyteArray stateArray) {
+    Emulator* emu = FromHandle(handle);
+    if (!emu || !emu->loaded || !stateArray) return JNI_FALSE;
+
+    jsize len = env->GetArrayLength(stateArray);
+    if (len <= 0) return JNI_FALSE;
+
+    jbyte* bytes = env->GetByteArrayElements(stateArray, nullptr);
+    if (!bytes) return JNI_FALSE;
+
+    // El constructor (buffer, size, false) envuelve estos bytes sin copiarlos
+    // ni quedarse con la propiedad (buffer_owned=false en Savestate.cpp): el
+    // puntero sólo tiene que vivir durante DoSavestate, que es exactamente lo
+    // que dura este bloque.
+    melonDS::Savestate state(bytes, static_cast<melonDS::u32>(len), false);
+    bool ok = !state.Error && emu->nds->DoSavestate(&state) && !state.Error;
+    env->ReleaseByteArrayElements(stateArray, bytes, JNI_ABORT);
+    return ok ? JNI_TRUE : JNI_FALSE;
 }
 
 JNIEXPORT jbyteArray JNICALL

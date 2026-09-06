@@ -477,3 +477,64 @@ inspección y no rompe nada en las pruebas hechas; falta el round-trip real,
 que requiere un juego libre que guarde de verdad. Es el mismo tipo de
 limitación que el vídeo y el audio: exige una ROM homebrew legítima, no la
 sintética.
+
+## 9. Save states contra el core real (fase 4.4)
+
+### El puente, contra `melonDS::Savestate`
+
+`nativeSerializeState`/`nativeStateSize` crean un `Savestate` con el
+constructor que reserva su propio búfer (`Savestate::DEFAULT_SIZE`, 32 MB),
+llaman a `NDS::DoSavestate`, y devuelven `Length()` bytes reales — nunca la
+capacidad reservada. `nativeDeserializeState` usa el otro constructor
+(`Savestate(buffer, size, false)`), que envuelve los bytes de Java **sin
+copiarlos ni adueñarse de ellos** (`buffer_owned=false` en `Savestate.cpp`):
+el puntero JNI sólo tiene que vivir mientras dura `DoSavestate`, y así es.
+
+`coreName` («melonds») y `coreVersion` (`BRIDGE_CORE_VERSION`, `"1.1"`)
+siguen siendo constantes del puente, nunca un símbolo que genere el core —la
+regla de la sección 2, que aquí es precaución y no la corrección de un
+defecto real (sección 6)—. El reintento de `loadState` (serializar el estado
+actual antes de restaurar, devolverlo si el core rechaza el archivo) ya vivía
+en `EmulatorController.loadState` desde la fase 2.4 y no necesitó ningún
+cambio: es genérico, no conoce a melonDS.
+
+### Un dato nuevo importante: el tamaño real de un save state
+
+Un estado completo de melonDS pesa **~19 MB** sin comprimir, incluso para una
+ROM sin código real: VRAM, RAM principal y los búferes del GPU3D se
+serializan siempre, se use o no el renderizador 3D. Es casi 50 veces más que
+los ~400 KB de un save state de mGBA en `app-emulador`. Con cinco ranuras de
+usuario más el respaldo automático, un solo juego puede ocupar más de 100 MB
+sólo en save states. Esto no bloquea nada de esta fase, pero es una cifra a
+tener en cuenta en la 4.5 (medición) y, más adelante, en cualquier pantalla
+que hable de espacio ocupado.
+
+### Las dos defensas del proyecto hermano
+
+1. **`GoldenSaveStateTest`** (`app/src/test/java/.../data/save/`), contra un
+   `slot_1.state` real de ~19 MB capturado en el Motorola Edge 30 con la ROM
+   sintética (`app/src/test/resources/save/golden-melonds-1.1.state`,
+   extraído con `adb run-as` justo como se hizo con el fixture de mGBA).
+   Corre en JVM pura: no toca `libdsemu.so` ni puede detectar una regresión
+   de `coreVersion` en un build futuro, sólo que el formato del contenedor
+   sigue decodificándose igual.
+2. **La tarea de Gradle `verifyCoreVersionDebug`/`verifyCoreVersionRelease`**
+   (`app/build.gradle.kts`), con dependencia de `assembleDebug`/
+   `assembleRelease`, que sí inspecciona el objeto compilado
+   (`ds_bridge.cpp.o`): comprueba que contiene el literal `"1.1"` y que
+   ninguna fuente propia referencia los símbolos de `version.h` de melonDS
+   (`MELONDS_VERSION`, `MELONDS_GIT_BRANCH`, `MELONDS_GIT_HASH`,
+   `MELONDS_BUILD_PROVIDER`) en vez de `BRIDGE_CORE_VERSION`. Verificada en
+   verde contra `assembleDebug` y `assembleRelease` (con R8 activo).
+
+### Prueba en dispositivo
+
+Verificado en el Motorola Edge 30 con la misma ROM sintética de las fases
+4.2/4.3: se guardó la ranura 1 desde el menú de pausa («Guardado en la
+ranura 1»), se extrajo el contenedor real con `adb run-as`, y se comprobó
+que decodifica, que `coreName`/`coreVersion` son exactamente `"melonds"`/
+`"1.1"`, y que pasa sus propias comprobaciones de identidad. Sigue pendiente
+—igual que el vídeo, el audio y la partida de batería— el "está hecho
+cuando" con un juego real: guardar, cargar y comprobar que la partida vuelve
+tal cual, con un juego que de verdad se juegue. La plomería está verificada;
+falta el contenido real, y exige una ROM homebrew legítima.
