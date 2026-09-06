@@ -150,6 +150,15 @@ queda en ~29 MB mientras el heap nativo absorbe la ROM completa (~256 MB
 redondeados por el propio core a la potencia de dos más cercana). Antes
 del arreglo, esa misma prueba repetía el `OutOfMemoryError`.
 
+**Corrección posterior (sección 4.3):** este arreglo no fue necesariamente
+la única causa. `nativeCaptureFrame` reservaba un `jintArray` nuevo en
+*cada fotograma* —60 veces por segundo, no una vez por carga de ROM— y
+esa reserva sostenida es, en heaps limitados como el de Dalvik, una vía
+al menos igual de plausible hacia el mismo síntoma. El arreglo de esta
+sección sigue siendo necesario (una ROM de 128 MB agota el heap sólo con
+copiarla, JIT o no), pero no se puede afirmar que fuera la única causa
+del `OutOfMemoryError` original: pudieron coincidir las dos.
+
 ## 3. Medición de rendimiento (Motorola Edge 30)
 
 Con los dos defectos corregidos, medido con Cave Story DS (misma ROM del
@@ -238,7 +247,145 @@ adicional dentro del propio core—. Activar el renderizador GL y repetir
 esta comparación queda abierto para cuando haga falta de verdad exprimir
 más rendimiento; con los números de hoy, en un gama alta, no hace falta.
 
-## 4. Limitaciones que quedan abiertas
+## 4. Rendimiento: JIT, hilo de render 3D y captura sin copia
+
+La fase 4.C se cerró con el rendimiento sin JIT anotado como limitación
+abierta (ver más abajo, sección 5): el usuario probó juegos reales
+(Brain Age, Pokémon HeartGold, Pokémon Platino) y reportó rendimiento
+«horrible» y audio que empieza bien y se degrada. Con tres causas
+concretas ya localizadas en el código, se atacaron en orden en la rama
+`feature/rendimiento-jit`, midiendo entre cada una en el Motorola Edge 30
+con Cave Story DS (la misma ROM libre de las secciones 1 y 3) en pantalla
+de título.
+
+**Aviso sobre el alcance de esta medición:** Cave Story DS ya sostenía
+59-60 fps emulados con el intérprete puro, antes de tocar nada (sección
+3.1) — nunca reprodujo el síntoma real. Los fps no podían mejorar aquí
+porque no habían empeorado; lo que sí se puede medir con esta ROM es
+cuánta CPU deja de hacer falta para sostener ese mismo ritmo, que es la
+huella que predice más margen en un juego que si esté al límite. La
+verificación con un juego pesado de verdad sigue pendiente porque las
+pruebas en dispositivo de este proyecto se hacen siempre con ROMs libres,
+nunca con las del usuario (ver CLAUDE.md).
+
+### 4.1. JIT (`ENABLE_JIT=ON`)
+
+El core compilaba con `ENABLE_JIT=OFF` desde la fase 4.1, a propósito:
+medir su coste real antes de arriesgar el recompilador ARM64
+(`ARMJIT_A64/*.S`) se dejó para cuando hubiera datos con juegos de
+verdad. El puente además apagaba el JIT en tiempo de ejecución aunque se
+hubiera compilado (`args.JIT = std::nullopt` en `MakeArgs()`), así que
+activar sólo la bandera de CMake no habría bastado.
+
+Se puso `NDSArgs::JIT` a un `JITArgs` real (`src/Args.h`): bloques de
+hasta 32 instrucciones, optimizaciones de literales y de saltos, y
+`FastMemory` activa —los cuatro valores por defecto de la propia
+estructura—. Compilar con el JIT arrastra `ARMJIT_Memory`, que en Android
+resuelve `ASharedMemory_create` de `libandroid.so` a través de
+`Platform::DynamicLibrary_Load/LoadFunction/Unload`: el puente no las
+tenía implementadas porque, con el JIT apagado, nada las llamaba. Se
+implementaron con `dlopen`/`dlsym`/`dlclose`, las funciones reales de
+bionic, no un *stub*.
+
+**No hizo falta desactivar `FastMemory`.** El aviso del plan era que sus
+manejadores de `SIGSEGV` podían chocar con los de ART; en la práctica, en
+el Motorola Edge 30, el juego arrancó, se jugó y se descargó sin ningún
+fallo con `FastMemory` en su valor por defecto (`true`).
+
+| Medida | Antes (intérprete) | Con JIT |
+|---|---|---|
+| Fps emulados | 59-60 | 59-60 |
+| Fps presentados | 89-90 | 89-90 |
+| `ds-emulation` (recién cargado) | 70,3 % / 66,6 % (según filtro) | 62,9-66,6 % |
+| `GLThread` | 81,4 % | 85,1 % |
+
+Sin cambio en fps —ya estaban al techo con el intérprete en esta ROM— y
+una bajada modesta en `ds-emulation`. Es la confirmación de que el JIT
+funciona y no rompe nada, no de su beneficio real: Cave Story DS apenas
+ejecuta suficiente código de CPU para que un recompilador merezca la
+pena. El beneficio grande —el que motivó este punto— se espera en juegos
+con más carga de CPU por fotograma, que es justo lo que no se puede
+medir aquí.
+
+### 4.2. Hilo aparte para el renderizador 3D por software
+
+`SoftRenderer` arranca en modo de un solo hilo (`GPU3D_Soft.h:490`,
+`Threaded = false`); el puente nunca llamaba a `SetThreaded(bool, GPU&)`
+(declarado en la línea 36 de esa cabecera), así que el rasterizado 3D
+corría entero dentro del hilo de emulación, compitiendo con la CPU y el
+resto del bucle por el mismo núcleo.
+
+Se activa justo después de `NDS::Start()`, sobre el `SoftRenderer` que
+`NDSArgs::Renderer3D` ya trae por defecto. El propio `SoftRenderer` crea
+y destruye su hilo con `Platform::Thread_Create`/`Thread_Free`; como esas
+dos funciones ya hacen `join()` en este puente, se detiene solo al
+descargar la ROM, sin ningún cambio en `nativeUnload`. Se comprobó
+además que salir del juego con el hilo activo no cuelga la aplicación:
+la descarga vuelve en el mismo fotograma, sin ANR.
+
+| Medida | Con JIT (4.1) | + hilo de render 3D |
+|---|---|---|
+| Fps emulados / presentados | 59-60 / 89-90 | 59-60 / 89-90 |
+| `ds-emulation` | 62,9-66,6 % | 37,0-40,7 % |
+| Hilo de render 3D | (no existía) | 25,9 % |
+| `GLThread` | 85,1 % | 81,4 % |
+
+El trabajo de rasterizado se va, en efecto, a un hilo aparte: `ds-emulation`
+baja a poco más de la mitad. Cave Story DS tiene gráficos 3D discretos
+(sobre todo efectos), así que ese ~26 % en el hilo nuevo da una idea de
+cuánto puede pesar el 3D en un juego que lo use más a fondo.
+
+### 4.3. Captura de fotograma sin reserva por fotograma
+
+`nativeCaptureFrame` pedía un `jintArray` nuevo (`NewIntArray`) y copiaba
+el framebuffer dos veces —a un `unique_ptr` y luego con
+`SetIntArrayRegion`— en cada fotograma: ~90 MB/s de basura en el heap de
+Java a 60 fps, sólo para entregar un búfer que `DsGLRenderer.uploadFrame`
+además recorría píxel a píxel para reordenar los canales de color antes
+de subirlo a la textura. Ver sección 2 para la corrección sobre el
+`OutOfMemoryError` de la fase 4.C.
+
+Se añadió `EmulatorCore.captureFrameInto(buffer: ByteBuffer)`: el puente
+escribe los bytes ya en orden R,G,B,A directamente en un `ByteBuffer`
+directo que `EmulatorController` reserva una sola vez y reutiliza cada
+vuelta, sin pasar por ningún entero empaquetado. `DsGLRenderer` sube ese
+búfer tal cual con `glTexSubImage2D`, sin el bucle que antes convertía
+los 98304 píxeles en su propio hilo. `captureFrame()` (el que devuelve
+`IntArray`) se queda para el único uso que le queda —la miniatura de un
+save state, infrecuente, donde la reserva no importa—; se probó que
+guardar partida sigue generando esa miniatura sin fallos.
+
+| Medida | + hilo de render 3D (4.2) | + captura sin copia |
+|---|---|---|
+| Fps emulados / presentados | 59-60 / 89-90 | 59-60 / 89-90 |
+| `ds-emulation` | 37,0-40,7 % | 40,7 % |
+| Hilo de render 3D | 25,9 % | 37,0 % |
+| `GLThread` | 81,4 % | **11,1-14,8 %** |
+
+La caída grande está en `GLThread`, no en `ds-emulation`: el coste real
+estaba en el bucle de conversión de color en Kotlin, no en el propio
+`glTexSubImage2D`. De los tres puntos, este es el único que también
+libera GPU/hilo de UI, no sólo el hilo de emulación.
+
+### 4.4. Audio: la hipótesis sigue sin confirmarse
+
+La hipótesis del plan era que los chasquidos eran el anillo de audio
+vaciándose por no llegar a velocidad completa, no un defecto del propio
+audio. No se pudo confirmar ni descartar con esta medición: Cave Story
+DS nunca perdió velocidad completa, ni antes de estos tres puntos ni
+después, así que nunca reprodujo el síntoma que la hipótesis intenta
+explicar. `adb logcat` no mostró ningún aviso de AAudio (*underrun* o
+similar) en ninguna de las sesiones de esta fase.
+
+Sigue abierto hasta que se pueda comprobar con un juego que de verdad
+cargue la CPU. Si al probar con un juego real la degradación de audio
+desaparece a la vez que se sostiene la velocidad completa, la hipótesis
+queda confirmada sin más cambios; si el sonido se sigue degradando con
+la velocidad ya sostenida, entonces sí hace falta diseñar sincronización
+de audio de verdad — y eso, tal como pidió el plan, se discute antes de
+implementarlo, no se decide aquí.
+
+## 5. Limitaciones que quedan abiertas
 
 - **Sin verificación con un juego jugado de verdad.** Todo lo de este
   documento se midió en la pantalla de título e introducción de Cave
@@ -246,7 +393,10 @@ más rendimiento; con los números de hoy, en un gama alta, no hace falta.
   (los doce botones y el táctil de este proyecto están pensados para
   tocarse, no para *scriptearse*). El guardado/carga de partida con
   contenido real de guardado sigue pendiente, como ya anotaba
-  `docs/integracion-core.md` sección 8.
+  `docs/integracion-core.md` sección 8. Esto incluye la sección 4: el
+  beneficio real del JIT y del hilo de render 3D en un juego con más
+  carga de CPU que Cave Story DS, y si la degradación de audio
+  desaparece con ellos, quedan sin confirmar.
 - **Sin comparación con DeSmuME.** No se llegó a integrar como segundo
   core: melonDS compiló sin fricción desde la fase 4.1, y FreeBIOS
   eliminó la que era su mayor desventaja frente a DeSmuME (pedir BIOS y
@@ -259,18 +409,6 @@ más rendimiento; con los números de hoy, en un gama alta, no hace falta.
   trabajo de GPU de sobra.
 - **Medición hecha en un único dispositivo gama alta.** Sin datos de gama
   media, que es donde el margen de rendimiento importa de verdad.
-- **Rendimiento y audio con un juego comercial pesado, sin JIT.** El
-  usuario probó juegos reales (Brain Age, Pokémon HeartGold) durante el
-  cierre de la fase y reportó rendimiento «horrible» y audio que empieza
-  bien y se degrada —exactamente la huella de un hilo de emulación que no
-  sostiene el ritmo real de la DS: sin JIT (intérprete puro, la
-  configuración de la fase 4.1), un juego con más carga de CPU que Cave
-  Story DS puede quedarse por detrás del reloj, y el anillo de audio sin
-  sincronización (ver `docs/integracion-core.md`, sección 7, «Audio») se
-  vacía o se llena a destiempo cuando eso pasa. No se investigó más a
-  fondo ni se activó el JIT dentro de esta fase, a propósito: el propio
-  plan trata "activar el JIT" como su propia decisión, con medición
-  dedicada antes de arriesgar el ensamblador ARM64 del recompilador
-  (`docs/integracion-core.md`, sección 1), no como una reacción a un
-  síntoma. Candidato claro para el primer entregable de la próxima fase
-  que toque rendimiento.
+- **Sincronización de audio.** Ver sección 4.4: si un juego real sigue
+  degradando el sonido a velocidad completa, hace falta diseñarla —no
+  implementarla directamente— como su propio entregable.

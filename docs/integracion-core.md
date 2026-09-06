@@ -246,6 +246,12 @@ pero aquí es precaución, no la corrección de un defecto real.
 `ENABLE_JIT` es la única de las cuatro que no es obligatoria por compilación:
 es una decisión de alcance, no un bloqueo técnico. Las otras tres sí lo son.
 
+**Actualización:** medido el coste real de no tenerlo (rendimiento
+«horrible» y audio a chasquidos en juegos comerciales pesados, reportado
+al cerrar la fase 4), `ENABLE_JIT` pasó a `ON` en `feature/rendimiento-jit`.
+Detalle completo, con cifras, en `docs/estabilizacion-core.md`, sección
+4.1.
+
 ### AGP no compila una biblioteca estática sin que se le pida por nombre
 
 Con `core` como único objetivo de CMake (sin ningún `.so` que lo enlace
