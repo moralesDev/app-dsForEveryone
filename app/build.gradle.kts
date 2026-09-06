@@ -54,7 +54,7 @@ android {
                 arguments(
                     "-DBUILD_QT_SDL=OFF",
                     "-DENABLE_OGLRENDERER=OFF",
-                    "-DENABLE_JIT=OFF",
+                    "-DENABLE_JIT=ON",
                     "-DENABLE_GDBSTUB=OFF",
                 )
                 // Desde la 4.2 el puente (`dsemu`) enlaza `core` en su propio

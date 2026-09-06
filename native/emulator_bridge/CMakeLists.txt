@@ -27,10 +27,13 @@ project(ds_emulator_bridge CXX)
 #   incluye `OpenGLSupport.cpp`, que espera un `PlatformOGL.h` aportado por
 #   quien lo empotra. Ese archivo no existe todavía —lo escribe el puente de
 #   la fase 4.2—, así que con el renderizador encendido ni siquiera compila.
-# - ENABLE_JIT=OFF por ahora: activa un recompilador ARM64 con ensamblador
-#   propio (`ARMJIT_A64/*.S`) que no hace falta para que el core compile, y
-#   que conviene medir antes de arriesgar (fase 4.5) en vez de darlo por
-#   bueno en este entregable.
+# - ENABLE_JIT=ON: activa el recompilador ARM64 con ensamblador propio
+#   (`ARMJIT_A64/*.S`). Se dejó apagado hasta la fase 4.5 para cerrar el core
+#   nativo con el intérprete puro primero; medido el coste real (rendimiento
+#   horrible en juegos comerciales, ver docs/estabilizacion-core.md), se
+#   activa aquí. El puente rellena `NDSArgs::JIT` con un `JITArgs` real en
+#   `MakeArgs()` (ds_bridge.cpp): sin eso el JIT quedaría enlazado pero
+#   desactivado en tiempo de ejecución.
 # - ENABLE_GDBSTUB=OFF, porque abre un socket de depuración remota y esta
 #   aplicación no declara ningún permiso de red.
 # ---------------------------------------------------------------------------

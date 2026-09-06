@@ -35,6 +35,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <ctime>
+#include <dlfcn.h>
 #include <memory>
 #include <mutex>
 #include <sys/mman.h>
@@ -106,7 +107,13 @@ melonDS::NDSArgs MakeArgs(double outputSampleRate) {
     // usuario tenga que aportar BIOS ni firmware reales. Los archivos de
     // sistema de verdad, si hacen falta, llegan en la fase 4.5.
     melonDS::NDSArgs args{};
-    args.JIT = std::nullopt;  // ENABLE_JIT=OFF en esta compilación.
+    // JITArgs por defecto (src/Args.h): bloques de hasta 32 instrucciones,
+    // optimización de literales y de saltos activas, y FastMemory activa (usa
+    // manejadores de SIGSEGV para las lecturas/escrituras de memoria emulada
+    // en vez de comprobar límites en cada acceso). Si FastMemory choca con los
+    // manejadores de señales de ART en algún dispositivo, es el primer valor a
+    // poner en `false` antes de renunciar al JIT entero.
+    args.JIT = melonDS::JITArgs();
     args.GDB = std::nullopt;  // ENABLE_GDBSTUB=OFF: sin socket de depuración.
     // El SPU resamplea internamente de 32768 Hz a esta frecuencia; hay que
     // decirle la que de verdad entrega AAudio (puede no ser la pedida), no la
@@ -509,6 +516,25 @@ bool Addon_KeyDown(KeyType, void*) { return false; }
 void Addon_RumbleStart(u32, void*) {}
 void Addon_RumbleStop(void*) {}
 float Addon_MotionQuery(MotionQueryType, void*) { return 0.0f; }
+
+// Con ENABLE_JIT=ON, ARMJIT_Memory usa esto en Android para resolver
+// ASharedMemory_create de libandroid.so (memoria compartida con la que monta
+// el mapeo doble que hace posible FastMemory). dlopen/dlsym son las
+// funciones reales de bionic, no un stub: sin ellas el enlazado falla porque
+// libcore.a las referencia incondicionalmente en cuanto el JIT está
+// compilado.
+DynamicLibrary* DynamicLibrary_Load(const char* lib) {
+    return reinterpret_cast<DynamicLibrary*>(dlopen(lib, RTLD_NOW));
+}
+
+void DynamicLibrary_Unload(DynamicLibrary* lib) {
+    if (lib) dlclose(reinterpret_cast<void*>(lib));
+}
+
+void* DynamicLibrary_LoadFunction(DynamicLibrary* lib, const char* name) {
+    if (!lib) return nullptr;
+    return dlsym(reinterpret_cast<void*>(lib), name);
+}
 
 }  // namespace melonDS::Platform
 
