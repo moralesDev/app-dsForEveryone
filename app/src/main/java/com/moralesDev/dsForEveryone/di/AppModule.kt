@@ -9,6 +9,9 @@ import com.moralesDev.dsForEveryone.data.db.RomDao
 import com.moralesDev.dsForEveryone.data.rom.ContentResolverDocumentAccess
 import com.moralesDev.dsForEveryone.data.rom.DocumentAccess
 import com.moralesDev.dsForEveryone.data.rom.RomRepository
+import com.moralesDev.dsForEveryone.data.save.BatterySaveManager
+import com.moralesDev.dsForEveryone.data.save.SaveManager
+import com.moralesDev.dsForEveryone.data.save.SaveStateManager
 import com.moralesDev.dsForEveryone.data.settings.SettingsRepository
 import com.moralesDev.dsForEveryone.data.storage.StorageManager
 import com.moralesDev.dsForEveryone.emulator.EmulatorController
@@ -20,7 +23,9 @@ import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import javax.inject.Singleton
 
 @Module
@@ -31,6 +36,13 @@ object AppModule {
     @Singleton
     @IoDispatcher
     fun provideIoDispatcher(): CoroutineDispatcher = Dispatchers.IO
+
+    @Provides
+    @Singleton
+    @ApplicationScope
+    fun provideApplicationScope(
+        @IoDispatcher ioDispatcher: CoroutineDispatcher,
+    ): CoroutineScope = CoroutineScope(SupervisorJob() + ioDispatcher)
 
     @Provides
     @Singleton
@@ -75,6 +87,28 @@ object AppModule {
         storageManager: StorageManager,
         @IoDispatcher ioDispatcher: CoroutineDispatcher,
     ): CoverRepository = CoverRepository(contentResolver, storageManager, ioDispatcher)
+
+    @Provides
+    @Singleton
+    fun provideBatterySaveManager(
+        storageManager: StorageManager,
+        @IoDispatcher ioDispatcher: CoroutineDispatcher,
+    ): BatterySaveManager = BatterySaveManager(storageManager, ioDispatcher)
+
+    @Provides
+    @Singleton
+    fun provideSaveStateManager(
+        storageManager: StorageManager,
+        @IoDispatcher ioDispatcher: CoroutineDispatcher,
+    ): SaveStateManager = SaveStateManager(storageManager, ioDispatcher)
+
+    @Provides
+    @Singleton
+    fun provideSaveManager(
+        batterySaveManager: BatterySaveManager,
+        saveStateManager: SaveStateManager,
+        storageManager: StorageManager,
+    ): SaveManager = SaveManager(batterySaveManager, saveStateManager, storageManager)
 
     /**
      * Único punto donde se decide qué core usa la aplicación.

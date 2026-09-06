@@ -51,6 +51,8 @@
     <string name="pa_exit">Exit</string>
     <string name="pa_layout">Screen layout</string>
     <string name="pa_touch_mode">Touch mode</string>
+    <string name="pa_save">Save game</string>
+    <string name="pa_load">Load game</string>
 
     <!-- Screen layout modes -->
     <string name="layout_stacked">Stacked</string>
@@ -149,4 +151,50 @@
     <string name="when_yesterday">Yesterday</string>
     <string name="when_days_ago">%1$d days ago</string>
     <string name="when_last_week">Last week</string>
+
+    <!-- Save system: slot sheet (deliverable 3.4) -->
+    <string name="st_save_title">Save game</string>
+    <string name="st_load_title">Load game</string>
+    <string name="st_manual_section">Slots</string>
+    <string name="st_auto_section">Automatic backup</string>
+    <string name="st_slot">Slot %1$d</string>
+    <string name="st_empty">Empty</string>
+    <string name="st_save">Save</string>
+    <string name="st_overwrite">Overwrite</string>
+    <string name="st_load">Load</string>
+    <string name="st_auto_last">Latest backup</string>
+    <string name="st_auto_never">No backups yet</string>
+    <string name="st_auto_restore">Restore</string>
+    <string name="st_overwrite_title">Overwrite slot %1$d?</string>
+    <string name="st_overwrite_body">The state currently in this slot will be lost.</string>
+    <string name="st_delete_title">Delete slot %1$d?</string>
+    <string name="st_delete_body">This can\'t be undone.</string>
+    <string name="st_replace">Overwrite</string>
+    <string name="cd_close">Close</string>
+    <string name="cd_delete_auto">Delete the automatic backup</string>
+    <string name="cd_delete_state">Delete slot %1$d</string>
+
+    <!-- Why a slot can't be restored -->
+    <string name="st_problem_other_game">Different game</string>
+    <string name="st_problem_other_core">Different version</string>
+    <string name="st_problem_other_version">Old format</string>
+    <string name="st_problem_unknown">Unknown file</string>
+    <string name="st_problem_damaged">Damaged</string>
+
+    <!-- Save system: messages -->
+    <string name="msg_state_no_session">No game loaded yet</string>
+    <string name="msg_state_failed">The state couldn\'t be saved</string>
+    <string name="msg_state_saved">Saved to slot %1$d</string>
+    <string name="msg_state_slot_empty">Slot %1$d is empty</string>
+    <string name="msg_state_unreadable">The slot couldn\'t be read</string>
+    <string name="msg_state_loaded">Loaded from slot %1$d</string>
+    <string name="msg_state_rejected_by_core">The emulator rejected the state</string>
+    <string name="msg_state_deleted">Slot %1$d deleted</string>
+    <string name="msg_state_not_a_state">The file isn\'t a saved state</string>
+    <string name="msg_state_other_container">The file is from an unsupported version</string>
+    <string name="msg_state_truncated">The file is incomplete</string>
+    <string name="msg_state_corrupt">The file is damaged</string>
+    <string name="msg_state_other_game">This state belongs to a different game</string>
+    <string name="msg_state_other_core">This state was saved with %1$s</string>
+    <string name="msg_state_wrong_size">This state doesn\'t match the current emulator version</string>
 </resources>

@@ -8,6 +8,7 @@ import android.content.res.Configuration
 import android.opengl.GLSurfaceView
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.layout.Box
@@ -18,8 +19,11 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -29,6 +33,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
@@ -59,7 +64,10 @@ import com.moralesDev.dsForEveryone.ui.game.controls.BlowButton
 import com.moralesDev.dsForEveryone.ui.game.controls.DirectionalPad
 import com.moralesDev.dsForEveryone.ui.game.controls.ShoulderButton
 import com.moralesDev.dsForEveryone.ui.game.controls.SystemButton
+import com.moralesDev.dsForEveryone.ui.resolve
 import com.moralesDev.dsForEveryone.ui.theme.Background
+import com.moralesDev.dsForEveryone.ui.theme.GlassBorder
+import com.moralesDev.dsForEveryone.ui.theme.Surface
 
 /**
  * Pantalla de juego (entregable 2.6): las dos pantallas con [DsGLRenderer],
@@ -81,6 +89,12 @@ fun GameScreen(onExit: () -> Unit) {
     val settings by viewModel.settings.collectAsStateWithLifecycle()
     val pressedMask by viewModel.pressedMask.collectAsStateWithLifecycle()
     val micActive by viewModel.micNoiseActive.collectAsStateWithLifecycle()
+    val rom by viewModel.rom.collectAsStateWithLifecycle()
+    val slotAction by viewModel.slotAction.collectAsStateWithLifecycle()
+    val stateSlots by viewModel.stateSlots.collectAsStateWithLifecycle()
+    val autoSlot by viewModel.autoSlot.collectAsStateWithLifecycle()
+    val pendingConfirmation by viewModel.pendingConfirmation.collectAsStateWithLifecycle()
+    val message by viewModel.message.collectAsStateWithLifecycle()
     var isMenuOpen by remember { mutableStateOf(false) }
 
     FreeOrientation()
@@ -201,6 +215,7 @@ fun GameScreen(onExit: () -> Unit) {
                 onTouchModeChange = viewModel::setTouchMode,
                 imageFilter = settings.imageFilter,
                 onImageFilterChange = viewModel::setImageFilter,
+                onChooseSlot = viewModel::chooseSlot,
                 onResume = {
                     isMenuOpen = false
                     viewModel.resume()
@@ -211,6 +226,52 @@ fun GameScreen(onExit: () -> Unit) {
                 },
             )
         }
+
+        slotAction?.let { action ->
+            SaveStateSheet(
+                action = action,
+                gameTitle = rom?.displayName ?: stringResource(R.string.app_name),
+                slots = stateSlots,
+                autoSlot = autoSlot,
+                pending = pendingConfirmation,
+                onSelect = viewModel::onSlotChosen,
+                onDelete = viewModel::requestSlotDeletion,
+                onRestoreAutoBackup = viewModel::restoreAutoBackup,
+                onConfirm = viewModel::acceptConfirmation,
+                onCancelConfirmation = viewModel::cancelConfirmation,
+                onDismiss = viewModel::dismissSlotPicker,
+            )
+        }
+
+        message?.let { pending ->
+            GameToast(text = pending.resolve(), onDismiss = viewModel::consumeMessage)
+        }
+    }
+}
+
+@Composable
+private fun GameToast(text: String, onDismiss: () -> Unit) {
+    LaunchedEffect(text) {
+        kotlinx.coroutines.delay(2_600)
+        onDismiss()
+    }
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .windowInsetsPadding(WindowInsets.systemBars)
+            .padding(horizontal = 22.dp, vertical = 92.dp),
+        contentAlignment = Alignment.BottomCenter,
+    ) {
+        Text(
+            text = text,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier
+                .clip(RoundedCornerShape(12.dp))
+                .background(Surface)
+                .border(1.dp, GlassBorder, RoundedCornerShape(12.dp))
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+        )
     }
 }
 

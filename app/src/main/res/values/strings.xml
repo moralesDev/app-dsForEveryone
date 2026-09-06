@@ -57,6 +57,8 @@
     <string name="pa_exit">Salir</string>
     <string name="pa_layout">Disposición de pantallas</string>
     <string name="pa_touch_mode">Modo de toque</string>
+    <string name="pa_save">Guardar partida</string>
+    <string name="pa_load">Cargar partida</string>
 
     <!-- Modos de disposición de pantallas -->
     <string name="layout_stacked">Apiladas</string>
@@ -155,4 +157,50 @@
     <string name="when_yesterday">Ayer</string>
     <string name="when_days_ago">Hace %1$d días</string>
     <string name="when_last_week">La semana pasada</string>
+
+    <!-- Sistema de partidas: hoja de ranuras (entregable 3.4) -->
+    <string name="st_save_title">Guardar partida</string>
+    <string name="st_load_title">Cargar partida</string>
+    <string name="st_manual_section">Ranuras</string>
+    <string name="st_auto_section">Respaldo automático</string>
+    <string name="st_slot">Ranura %1$d</string>
+    <string name="st_empty">Vacía</string>
+    <string name="st_save">Guardar</string>
+    <string name="st_overwrite">Sobrescribir</string>
+    <string name="st_load">Cargar</string>
+    <string name="st_auto_last">Última copia</string>
+    <string name="st_auto_never">Sin copias todavía</string>
+    <string name="st_auto_restore">Restaurar</string>
+    <string name="st_overwrite_title">¿Sobrescribir la ranura %1$d?</string>
+    <string name="st_overwrite_body">El estado que hay ahora en esta ranura se perderá.</string>
+    <string name="st_delete_title">¿Borrar la ranura %1$d?</string>
+    <string name="st_delete_body">Esta acción no se puede deshacer.</string>
+    <string name="st_replace">Sobrescribir</string>
+    <string name="cd_close">Cerrar</string>
+    <string name="cd_delete_auto">Borrar el respaldo automático</string>
+    <string name="cd_delete_state">Borrar la ranura %1$d</string>
+
+    <!-- Por qué una ranura no se puede restaurar -->
+    <string name="st_problem_other_game">Otro juego</string>
+    <string name="st_problem_other_core">Otra versión</string>
+    <string name="st_problem_other_version">Formato antiguo</string>
+    <string name="st_problem_unknown">Archivo desconocido</string>
+    <string name="st_problem_damaged">Dañado</string>
+
+    <!-- Sistema de partidas: mensajes -->
+    <string name="msg_state_no_session">Todavía no hay ninguna partida cargada</string>
+    <string name="msg_state_failed">No se pudo guardar el estado</string>
+    <string name="msg_state_saved">Guardado en la ranura %1$d</string>
+    <string name="msg_state_slot_empty">La ranura %1$d está vacía</string>
+    <string name="msg_state_unreadable">No se pudo leer la ranura</string>
+    <string name="msg_state_loaded">Cargado desde la ranura %1$d</string>
+    <string name="msg_state_rejected_by_core">El emulador rechazó el estado</string>
+    <string name="msg_state_deleted">Ranura %1$d borrada</string>
+    <string name="msg_state_not_a_state">El archivo no es un estado guardado</string>
+    <string name="msg_state_other_container">El archivo es de una versión no admitida</string>
+    <string name="msg_state_truncated">El archivo está incompleto</string>
+    <string name="msg_state_corrupt">El archivo está dañado</string>
+    <string name="msg_state_other_game">Este estado pertenece a otro juego</string>
+    <string name="msg_state_other_core">Este estado se guardó con %1$s</string>
+    <string name="msg_state_wrong_size">Este estado no cuadra con la versión actual del emulador</string>
 </resources>
