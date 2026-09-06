@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Español: idioma por defecto. La traducción inglesa vive en values-en/.
+  El usuario podrá cambiar de idioma dentro de la aplicación (Configuración →
+  Idioma) sin tocar los ajustes del sistema.
+-->
+<resources>
+    <string name="app_name">DsForEveryone</string>
+
+    <!-- Carga entre pantallas -->
+    <string name="tr_loading">Cargando</string>
+</resources>

@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+      Tema mínimo: el aspecto real lo define Compose (DsEmuTheme). Este sólo
+      evita el flash blanco del arranque antes de que Compose pinte.
+    -->
+    <style name="Theme.DsEmu" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@color/surface_background</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+    </style>
+</resources>

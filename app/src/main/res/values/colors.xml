@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Sólo los colores que necesita el sistema fuera de Compose: el fondo de la
+     ventana antes de que Compose pinte, y el icono de lanzador. -->
+<resources>
+    <color name="surface_background">#FF161826</color>
+    <color name="ic_launcher_background">#FF161826</color>
+</resources>
