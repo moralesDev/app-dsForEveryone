@@ -568,7 +568,16 @@ Java_com_moralesDev_dsForEveryone_emulator_core_NativeBridge_nativeLoad(
     emu->nds->Reset();
 
     if (emu->nds->NeedsDirectBoot()) {
-        emu->nds->SetupDirectBoot();
+        // La sobrecarga sin argumentos SOLO prepara la CPU (registros,
+        // memoria, copia del logo); es NDSCartSlot::SetupDirectBoot() —que
+        // esta sobrecarga con nombre de ROM también invoca— quien pasa el
+        // cartucho a modo de cifrado KEY2. Sin eso, cualquier lectura de ROM
+        // después de la cabecera inicial (overlays, gráficos, sonido) vuelve
+        // con datos basura: el juego se queda literalmente a ciegas después
+        // de arrancar. El nombre en sí sólo importa para el modo SD de
+        // cartuchos homebrew (vía FAT virtual); aquí no hay ninguno, así que
+        // cualquier literal sirve.
+        emu->nds->SetupDirectBoot("rom.nds");
     }
 
     emu->batteryDirty.store(false, std::memory_order_relaxed);
