@@ -10,6 +10,7 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.floatPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import com.moralesDev.dsForEveryone.emulator.layout.LayoutMode
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
@@ -31,9 +32,9 @@ class SettingsRepository(private val context: Context) {
             // Sin elección explícita se sigue el idioma del teléfono.
             language = AppLanguage.fromTag(preferences[Keys.LANGUAGE]) ?: systemLanguage(),
             skipWelcome = preferences[Keys.SKIP_WELCOME] ?: DEFAULT.skipWelcome,
-            portraitLayoutMode = ScreenLayoutMode.fromName(preferences[Keys.PORTRAIT_LAYOUT])
+            portraitLayoutMode = layoutModeFromName(preferences[Keys.PORTRAIT_LAYOUT])
                 ?: DEFAULT.portraitLayoutMode,
-            landscapeLayoutMode = ScreenLayoutMode.fromName(preferences[Keys.LANDSCAPE_LAYOUT])
+            landscapeLayoutMode = layoutModeFromName(preferences[Keys.LANDSCAPE_LAYOUT])
                 ?: DEFAULT.landscapeLayoutMode,
             screenGap = preferences[Keys.SCREEN_GAP] ?: DEFAULT.screenGap,
             secondaryScale = preferences[Keys.SECONDARY_SCALE] ?: DEFAULT.secondaryScale,
@@ -49,11 +50,11 @@ class SettingsRepository(private val context: Context) {
 
     suspend fun setSkipWelcome(skip: Boolean) = edit { it[Keys.SKIP_WELCOME] = skip }
 
-    suspend fun setPortraitLayoutMode(mode: ScreenLayoutMode) = edit {
+    suspend fun setPortraitLayoutMode(mode: LayoutMode) = edit {
         it[Keys.PORTRAIT_LAYOUT] = mode.name
     }
 
-    suspend fun setLandscapeLayoutMode(mode: ScreenLayoutMode) = edit {
+    suspend fun setLandscapeLayoutMode(mode: LayoutMode) = edit {
         it[Keys.LANDSCAPE_LAYOUT] = mode.name
     }
 
@@ -72,6 +73,9 @@ class SettingsRepository(private val context: Context) {
     suspend fun setTouchOffsetDp(offset: Float) = edit {
         it[Keys.TOUCH_OFFSET_DP] = offset.coerceAtLeast(0f)
     }
+
+    private fun layoutModeFromName(name: String?): LayoutMode? =
+        LayoutMode.entries.firstOrNull { it.name == name }
 
     private fun systemLanguage(): AppLanguage {
         val locales = ConfigurationCompat.getLocales(context.resources.configuration)
