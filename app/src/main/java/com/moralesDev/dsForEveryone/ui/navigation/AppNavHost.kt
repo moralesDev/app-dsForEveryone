@@ -89,6 +89,9 @@ fun AppNavHost(
                     onOpenSettings = {
                         transitions.navigateWithVeil { navController.navigate(Routes.SETTINGS) }
                     },
+                    // Sin velo: la pantalla de juego traerá su propio
+                    // «Cargando ROM» a partir de la fase 3.
+                    onOpenGame = { navController.navigate(Routes.GAME) },
                 )
             }
 

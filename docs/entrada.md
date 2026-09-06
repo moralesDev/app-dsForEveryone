@@ -142,6 +142,15 @@ diagonales bien dimensionadas: demasiado estrechas y no se alcanzan, demasiado
 anchas y se activan sin querer. Es un parámetro a ajustar midiendo con el dedo,
 no calculando.
 
+**Medido (cierre de la fase 2):** `DirectionalPadZones.DEFAULT_DIAGONAL_WIDTH_DEGREES`
+se dejó en 40° en el entregable 2.3, marcado como provisional. Probado con el
+dedo en el Motorola Edge 30 contra `StubEmulatorCore` —las ocho direcciones,
+incluido deslizar de una cardinal a la diagonal contigua sin levantar el
+dedo—, 40° resultó cómodo: se alcanzan las diagonales sin que las cardinales
+se disparen por error. Se deja la constante como está; el comentario
+«provisional» en el código puede quitarse cuando se pruebe con un juego real
+que dependa de precisión diagonal (fase 4).
+
 Se mantiene lo que sí funciona: es **un único control**, no cuatro botones, de
 modo que deslizar de arriba a la diagonal y a la derecha sin levantar el dedo
 funciona; y lo que se pinta viene de la máscara real del `InputManager`, no de

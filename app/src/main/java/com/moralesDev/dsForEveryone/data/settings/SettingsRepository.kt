@@ -10,6 +10,10 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.floatPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import com.moralesDev.dsForEveryone.emulator.layout.ControlGroup
+import com.moralesDev.dsForEveryone.emulator.layout.ControlGroupFraction
+import com.moralesDev.dsForEveryone.emulator.layout.ControlLayout
+import com.moralesDev.dsForEveryone.emulator.layout.LayoutMode
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
@@ -31,9 +35,9 @@ class SettingsRepository(private val context: Context) {
             // Sin elección explícita se sigue el idioma del teléfono.
             language = AppLanguage.fromTag(preferences[Keys.LANGUAGE]) ?: systemLanguage(),
             skipWelcome = preferences[Keys.SKIP_WELCOME] ?: DEFAULT.skipWelcome,
-            portraitLayoutMode = ScreenLayoutMode.fromName(preferences[Keys.PORTRAIT_LAYOUT])
+            portraitLayoutMode = layoutModeFromName(preferences[Keys.PORTRAIT_LAYOUT])
                 ?: DEFAULT.portraitLayoutMode,
-            landscapeLayoutMode = ScreenLayoutMode.fromName(preferences[Keys.LANDSCAPE_LAYOUT])
+            landscapeLayoutMode = layoutModeFromName(preferences[Keys.LANDSCAPE_LAYOUT])
                 ?: DEFAULT.landscapeLayoutMode,
             screenGap = preferences[Keys.SCREEN_GAP] ?: DEFAULT.screenGap,
             secondaryScale = preferences[Keys.SECONDARY_SCALE] ?: DEFAULT.secondaryScale,
@@ -42,6 +46,8 @@ class SettingsRepository(private val context: Context) {
                 ?: DEFAULT.imageFilter,
             touchMode = TouchMode.fromName(preferences[Keys.TOUCH_MODE]) ?: DEFAULT.touchMode,
             touchOffsetDp = preferences[Keys.TOUCH_OFFSET_DP] ?: DEFAULT.touchOffsetDp,
+            portraitControlLayout = preferences[Keys.PORTRAIT_CONTROLS]?.let(ControlLayout::decode),
+            landscapeControlLayout = preferences[Keys.LANDSCAPE_CONTROLS]?.let(ControlLayout::decode),
         )
     }
 
@@ -49,11 +55,11 @@ class SettingsRepository(private val context: Context) {
 
     suspend fun setSkipWelcome(skip: Boolean) = edit { it[Keys.SKIP_WELCOME] = skip }
 
-    suspend fun setPortraitLayoutMode(mode: ScreenLayoutMode) = edit {
+    suspend fun setPortraitLayoutMode(mode: LayoutMode) = edit {
         it[Keys.PORTRAIT_LAYOUT] = mode.name
     }
 
-    suspend fun setLandscapeLayoutMode(mode: ScreenLayoutMode) = edit {
+    suspend fun setLandscapeLayoutMode(mode: LayoutMode) = edit {
         it[Keys.LANDSCAPE_LAYOUT] = mode.name
     }
 
@@ -72,6 +78,18 @@ class SettingsRepository(private val context: Context) {
     suspend fun setTouchOffsetDp(offset: Float) = edit {
         it[Keys.TOUCH_OFFSET_DP] = offset.coerceAtLeast(0f)
     }
+
+    /** `null` borra el perfil guardado: la pantalla de juego y el editor caen entonces al perfil por defecto. */
+    suspend fun setPortraitControlLayout(fractions: Map<ControlGroup, ControlGroupFraction>?) = edit {
+        if (fractions == null) it.remove(Keys.PORTRAIT_CONTROLS) else it[Keys.PORTRAIT_CONTROLS] = ControlLayout.encode(fractions)
+    }
+
+    suspend fun setLandscapeControlLayout(fractions: Map<ControlGroup, ControlGroupFraction>?) = edit {
+        if (fractions == null) it.remove(Keys.LANDSCAPE_CONTROLS) else it[Keys.LANDSCAPE_CONTROLS] = ControlLayout.encode(fractions)
+    }
+
+    private fun layoutModeFromName(name: String?): LayoutMode? =
+        LayoutMode.entries.firstOrNull { it.name == name }
 
     private fun systemLanguage(): AppLanguage {
         val locales = ConfigurationCompat.getLocales(context.resources.configuration)
@@ -94,6 +112,8 @@ class SettingsRepository(private val context: Context) {
         val IMAGE_FILTER = stringPreferencesKey("image_filter")
         val TOUCH_MODE = stringPreferencesKey("touch_mode")
         val TOUCH_OFFSET_DP = floatPreferencesKey("touch_offset_dp")
+        val PORTRAIT_CONTROLS = stringPreferencesKey("portrait_controls")
+        val LANDSCAPE_CONTROLS = stringPreferencesKey("landscape_controls")
     }
 
     private companion object {

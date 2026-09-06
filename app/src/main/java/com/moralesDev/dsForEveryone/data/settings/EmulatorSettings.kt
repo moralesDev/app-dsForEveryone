@@ -1,5 +1,9 @@
 package com.moralesDev.dsForEveryone.data.settings
 
+import com.moralesDev.dsForEveryone.emulator.layout.ControlGroup
+import com.moralesDev.dsForEveryone.emulator.layout.ControlGroupFraction
+import com.moralesDev.dsForEveryone.emulator.layout.LayoutMode
+
 /**
  * Idioma elegido dentro de la aplicación, independiente del idioma del
  * sistema. Ver [com.moralesDev.dsForEveryone.ui.locale.ProvideAppLanguage].
@@ -11,33 +15,6 @@ enum class AppLanguage(val tag: String) {
 
     companion object {
         fun fromTag(tag: String?): AppLanguage? = entries.firstOrNull { it.tag == tag }
-    }
-}
-
-/**
- * Cómo se colocan las dos pantallas de la DS en el hueco disponible. La
- * geometría exacta de cada modo la resuelve `ScreenLayout` (fase 2); aquí sólo
- * se guarda cuál está elegido. Ver docs/pantallas.md.
- */
-enum class ScreenLayoutMode {
-    /** La disposición nativa: una encima de la otra. Por defecto en vertical. */
-    STACKED,
-
-    /** Una junto a la otra. Por defecto en horizontal. */
-    SIDE_BY_SIDE,
-
-    /** Sólo la pantalla superior, a toda el área disponible. */
-    TOP_ONLY,
-
-    /** Sólo la pantalla inferior (la táctil), a toda el área disponible. */
-    BOTTOM_ONLY,
-
-    /** Una grande y la otra reducida en una esquina, a [EmulatorSettings.secondaryScale]. */
-    MAIN_AND_SECONDARY,
-    ;
-
-    companion object {
-        fun fromName(name: String?): ScreenLayoutMode? = entries.firstOrNull { it.name == name }
     }
 }
 
@@ -92,12 +69,12 @@ data class EmulatorSettings(
     val skipWelcome: Boolean = false,
 
     /** Disposición de pantallas cuando el teléfono está en vertical. */
-    val portraitLayoutMode: ScreenLayoutMode = ScreenLayoutMode.STACKED,
+    val portraitLayoutMode: LayoutMode = LayoutMode.STACKED,
     /** Disposición de pantallas cuando el teléfono está en horizontal. */
-    val landscapeLayoutMode: ScreenLayoutMode = ScreenLayoutMode.SIDE_BY_SIDE,
+    val landscapeLayoutMode: LayoutMode = LayoutMode.SIDE_BY_SIDE,
     /** Separación entre pantallas, 0..1 relativo al hueco disponible. */
     val screenGap: Float = 0.02f,
-    /** Escala de la pantalla secundaria en el modo [ScreenLayoutMode.MAIN_AND_SECONDARY]. */
+    /** Escala de la pantalla secundaria en el modo [LayoutMode.MAIN_AND_SECONDARY]. */
     val secondaryScale: Float = 0.35f,
     /**
      * La táctil sigue siendo la pantalla lógica inferior aunque esto esté
@@ -109,4 +86,13 @@ data class EmulatorSettings(
     val touchMode: TouchMode = TouchMode.DIRECT,
     /** Desplazamiento en dp del punto de contacto sobre el dedo, en [TouchMode.OFFSET]. */
     val touchOffsetDp: Float = 24f,
+
+    /**
+     * Perfil de mandos hecho a mano en el editor de disposición (fase 2.7),
+     * uno por orientación. `null` significa «sin perfil propio»: la pantalla
+     * de juego y el editor caen entonces al mismo perfil por defecto que
+     * calcula [com.moralesDev.dsForEveryone.emulator.layout.ControlLayout].
+     */
+    val portraitControlLayout: Map<ControlGroup, ControlGroupFraction>? = null,
+    val landscapeControlLayout: Map<ControlGroup, ControlGroupFraction>? = null,
 )
