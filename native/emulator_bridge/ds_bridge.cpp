@@ -196,15 +196,18 @@ void OpenAudio(Emulator* emu) {
 }
 
 /*
- * melonDS entrega cada píxel como r | (g<<8) | (b<<16), con el byte alto en
- * 0xFF: en memoria son cuatro bytes R,G,B,A. Android espera un entero
- * 0xAARRGGBB (el mismo formato que produce android.graphics.Color). Sin este
- * canje el rojo y el azul saldrían intercambiados en pantalla.
+ * En memoria, cada píxel del framebuffer de melonDS es B,G,R,A (byte 0 =
+ * azul), no R,G,B,A: se comprobó al revés en la fase 4.2 —con la ROM
+ * sintética, sin contenido real, nada lo delataba— y quedó así hasta que un
+ * juego con colores de verdad (rojo y azul bien diferenciados) lo hizo
+ * evidente: Ho-Oh, que es rojo, salía azul. Android espera un entero
+ * 0xAARRGGBB (el mismo formato que produce android.graphics.Color); sin este
+ * canje R↔B, rojo y azul salen intercambiados en toda la pantalla.
  */
 inline uint32_t ToAndroidArgb(uint32_t pixel) {
-    uint32_t r = pixel & 0xFFu;
+    uint32_t b = pixel & 0xFFu;
     uint32_t g = (pixel >> 8) & 0xFFu;
-    uint32_t b = (pixel >> 16) & 0xFFu;
+    uint32_t r = (pixel >> 16) & 0xFFu;
     return 0xFF000000u | (r << 16) | (g << 8) | b;
 }
 
