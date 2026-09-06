@@ -198,3 +198,74 @@ bitmap es aritmética, no una biblioteca.
   volcados de DSi que no arrancan el menú. Cada caso necesita su mensaje.
 - **Compilación cruzada.** Es la parte que más fricción suele dar, y aquí más
   que con mGBA. El `CMakeLists` del puerto Android de melonDS es la referencia.
+
+## 6. Lo que se comprobó al compilar el core (fase 4.1)
+
+melonDS **1.1** (etiqueta estable más reciente en el momento de escribir esto)
+se añadió como tarball en `third_party/melonDS/`, descargado directamente del
+archivo de GitHub para esa etiqueta —no un `git clone`, para que no quede
+ningún `.git` anidado dentro del árbol de trabajo— y compiló **a la primera**,
+sin fricción de compilación cruzada. El riesgo que anotaba la sección
+anterior no se materializó en este entregable.
+
+### La trampa de `version.cmake` no se repite
+
+El aviso que traía el prompt de este entregable —por el bug real de mGBA en
+`app-emulador`, donde `git describe` se escapaba al `.git` de la aplicación y
+estampaba su identidad como versión del core— **no aplica a melonDS**. Su
+`CMakeLists.txt` fija la versión con un literal:
+
+```cmake
+project(melonDS VERSION 1.1 ...)
+```
+
+y `src/version.h.in` sólo interpola `MELONDS_GIT_BRANCH`/`MELONDS_GIT_HASH` si
+se activa a mano la opción `MELONDS_EMBED_BUILD_INFO` (por defecto `OFF`), y en
+ese caso exige que los tres campos (`MELONDS_GIT_BRANCH`, `MELONDS_GIT_HASH`,
+`MELONDS_BUILD_PROVIDER`) lleguen ya rellenos por variables de entorno o falla
+la configuración (`FATAL_ERROR`). No hay ningún `git describe` implícito que
+pueda escaparse a un repositorio ajeno. Sigue en pie la regla general del
+puente (`BRIDGE_CORE_VERSION` como constante propia, nunca un valor generado),
+pero aquí es precaución, no la corrección de un defecto real.
+
+### Las cuatro banderas de compilación
+
+`app/build.gradle.kts` (`externalNativeBuild.cmake.arguments`, dentro de
+`defaultConfig`) fija:
+
+| Bandera | Valor | Por qué |
+|---|---|---|
+| `BUILD_QT_SDL` | `OFF` | Apaga el frontend de escritorio entero (Qt, SDL). Es la única bandera imprescindible: con ella encendida (su valor por defecto) `add_subdirectory` intenta enlazar Qt y SDL2, que no existen para Android. |
+| `ENABLE_OGLRENDERER` | `OFF` | El renderizador 3D por OpenGL de melonDS incluye `OpenGLSupport.cpp`, que espera un `PlatformOGL.h` aportado por quien empotra el core. Ese archivo lo escribe el puente (fase 4.2); sin él, con el renderizador encendido, `core` ni siquiera compila. |
+| `ENABLE_JIT` | `OFF` | Activaría el recompilador ARM64 con ensamblador propio (`ARMJIT_A64/*.S`). Compila igual de bien que el resto —no hay indicio de que fuera a dar problemas—, pero no hace falta para este entregable y conviene medir su beneficio real en la 4.5 antes de arriesgarlo. Queda como candidato claro para activar entonces. |
+| `ENABLE_GDBSTUB` | `OFF` | Abre un socket de depuración remota. La aplicación no declara ningún permiso de red y no hay ninguna razón para compilar ese camino. |
+
+`ENABLE_JIT` es la única de las cuatro que no es obligatoria por compilación:
+es una decisión de alcance, no un bloqueo técnico. Las otras tres sí lo son.
+
+### AGP no compila una biblioteca estática sin que se le pida por nombre
+
+Con `core` como único objetivo de CMake (sin ningún `.so` que lo enlace
+todavía, porque el puente no existe hasta la fase 4.2), `.\gradlew.bat
+assembleDebug` completaba la fase de *configure* de CMake pero **no invocaba
+`ninja` de verdad**: al no encontrar ninguna biblioteca compartida que
+empaquetar en el APK, `buildCMakeDebug[arm64-v8a]` no tenía ningún objetivo
+que construir y terminaba en segundos sin compilar una sola línea. `libcore.a`
+no aparecía en `app/.cxx/` por ningún lado.
+
+La solución no es escribir un puente vacío sólo para forzar la compilación:
+es decir explícitamente qué target de CMake hace falta, con
+`externalNativeBuild.cmake.targets("core")` en `defaultConfig`. Con eso, la
+tarea pasa a llamarse `buildCMakeDebug[arm64-v8a][core]` y sí compila los 71
+pasos de `core` y `teakra` (la biblioteca estática que aporta la emulación del
+DSP de la DSi) de verdad. Esta línea se retira en la fase 4.2, cuando el
+puente enlace `core` en un `.so` propio y AGP vuelva a encontrar sola qué
+construir.
+
+### Lo que produce
+
+`libcore.a`, unos 35 MB sin reducir símbolos (es normal para una biblioteca
+estática sin `strip`; lo que de verdad pesa en el APK es el `.so` final del
+puente, una vez enlazado). Confirmado con `llvm-nm` que expone símbolos
+`arm64-v8a` reales en el espacio de nombres `melonDS::`, contra la libc++ del
+NDK (`std::__ndk1::...`).

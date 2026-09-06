@@ -24,6 +24,12 @@ android {
     namespace = "com.moralesDev.dsForEveryone"
     compileSdk = 37
 
+    // La versión exacta con la que se comprobó que el core (melonDS 1.1)
+    // compila de verdad. Fijarla evita que un NDK distinto entre por una
+    // actualización de Android Studio y cambie el resultado sin que nadie lo
+    // pida.
+    ndkVersion = "28.2.13676358"
+
     defaultConfig {
         applicationId = "com.moralesDev.dsForEveryone"
         // 26 es el mínimo para AAudio, la ruta de audio prevista para la fase 4.
@@ -36,6 +42,37 @@ android {
         // tiene sentido emular, y cada ABI extra duplica el binario.
         ndk {
             abiFilters += listOf("arm64-v8a")
+        }
+
+        externalNativeBuild {
+            cmake {
+                // Sin JIT ni renderizador GL todavía: el primero se mide en la
+                // 4.5 antes de arriesgar el ensamblador ARM64 del recompilador,
+                // y el segundo necesita `PlatformOGL.h`, que sólo existirá
+                // cuando escribamos el puente (fase 4.2). GDB stub abre un
+                // socket, y aquí no hay ni un permiso de red que declarar.
+                arguments(
+                    "-DBUILD_QT_SDL=OFF",
+                    "-DENABLE_OGLRENDERER=OFF",
+                    "-DENABLE_JIT=OFF",
+                    "-DENABLE_GDBSTUB=OFF",
+                )
+                // `core` es una biblioteca estática: nada la enlaza todavía
+                // (el puente llega en la 4.2), así que sin decir explícitamente
+                // qué compilar, AGP no encuentra ningún `.so` que empaquetar y
+                // no llega a invocar `ninja` de verdad. Pedirlo por nombre es
+                // lo que hace que `assembleDebug` compile el core de verdad,
+                // sin necesidad de escribir un puente sólo para forzar la
+                // compilación.
+                targets("core")
+            }
+        }
+    }
+
+    externalNativeBuild {
+        cmake {
+            path = file("../native/emulator_bridge/CMakeLists.txt")
+            version = "3.22.1"
         }
     }
 
@@ -80,10 +117,6 @@ android {
     testOptions {
         unitTests.isReturnDefaultValues = true
     }
-
-    // Fase 4: aquí entra el bloque `externalNativeBuild { cmake { path(...) } }`
-    // junto con `ndkVersion`. Se deja fuera a propósito mientras no exista
-    // código nativo, para que el proyecto compile hoy sin el NDK instalado.
 }
 
 room {
