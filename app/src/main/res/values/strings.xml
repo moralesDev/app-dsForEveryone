@@ -37,13 +37,10 @@
     <string name="onb_sys_f2b">La aplicación no los incluye ni enlaza a dónde conseguirlos</string>
 
     <!-- Destinos todavía vacíos del grafo de navegación -->
-    <string name="scr_library_title">Biblioteca</string>
-    <string name="scr_library_body">Todavía no hay biblioteca. Llega en la fase 3, con Room, SAF y la portada extraída del banner de cada ROM.</string>
     <string name="scr_settings_title">Configuración</string>
     <string name="scr_settings_body">Todavía no hay ajustes reales. Cada uno llega junto con la función a la que pertenece.</string>
     <string name="scr_about_title">Acerca de</string>
     <string name="scr_about_body">Todavía no hay pantalla «Acerca de». El aviso del core y el enlace al código fuente llegan con la fase 4.</string>
-    <string name="nav_open_game">Abrir juego (sin ROM todavía)</string>
     <string name="nav_open_settings">Configuración</string>
     <string name="nav_open_about">Acerca de</string>
     <string name="nav_open_layout_editor">Editor de disposición</string>
@@ -93,4 +90,69 @@
     <string name="le_group_start">Start</string>
     <string name="le_group_select">Select</string>
     <string name="le_group_blow">Soplar</string>
+
+    <!-- Biblioteca (entregable 3.3) -->
+    <string name="lib_title">Biblioteca</string>
+    <string name="lib_search">Buscar</string>
+    <string name="lib_add">Añadir ROM</string>
+    <string name="lib_no_results">Sin resultados para «%1$s»</string>
+    <string name="lib_open">Abrir</string>
+    <string name="lib_unavailable">Archivo no encontrado</string>
+    <string name="lib_options_title">%1$s</string>
+    <string name="lib_remove_body">Esto quita el juego de la biblioteca. Puedes conservar su partida por si vuelves a añadirlo.</string>
+    <string name="lib_remove_keep">Quitar, conservar la partida</string>
+    <string name="lib_remove_delete">Quitar y borrar la partida</string>
+    <string name="lib_page_indicator">%1$d de %2$d</string>
+    <string name="cd_settings">Ajustes</string>
+    <string name="cd_page_previous">Página anterior</string>
+    <string name="cd_page_next">Página siguiente</string>
+    <string name="cd_rom_options">Opciones de %1$s</string>
+    <string name="cd_cover_custom">Portada de %1$s, toca para cambiarla</string>
+    <string name="cd_cover_default">Portada de %1$s, toca para añadir una</string>
+
+    <!-- Biblioteca: mensajes -->
+    <string name="msg_imported">%1$s añadido a la biblioteca</string>
+    <string name="msg_already">%1$s ya estaba en la biblioteca; se actualizó su ubicación</string>
+    <string name="msg_unrecognized_rom">El archivo no es una ROM de Nintendo DS reconocible</string>
+    <string name="msg_unreadable">No se pudo leer el archivo elegido</string>
+    <string name="msg_zip_no_rom">El .zip no trae ninguna ROM .nds</string>
+    <string name="msg_zip_multiple">El .zip trae %1$d ROMs; añade sólo una por archivo</string>
+    <string name="msg_zip_encrypted">El .zip está cifrado; no se puede leer su contenido</string>
+    <string name="msg_zip_corrupt">El .zip está dañado</string>
+    <string name="msg_rom_too_large">La ROM descomprimida es demasiado grande</string>
+    <string name="msg_removed_all">Juego y partida borrados</string>
+    <string name="msg_removed_keep">Juego quitado; la partida se conserva</string>
+
+    <!-- Biblioteca vacía -->
+    <string name="em_title">Añade tu primer juego</string>
+    <string name="em_body">Elige un archivo .nds, o un .zip que traiga uno, desde el almacenamiento de tu teléfono.</string>
+    <string name="em_cta">Añadir ROM</string>
+
+    <!-- Portada -->
+    <string name="cover_add_title">Añadir portada</string>
+    <string name="cover_change_title">Cambiar portada</string>
+    <string name="cover_add">Añadir imagen</string>
+    <string name="cover_change">Cambiar imagen</string>
+    <string name="cover_delete">Quitar portada</string>
+    <string name="cover_delete_title">Quitar portada</string>
+    <string name="cover_delete_body">Se recupera el icono del propio cartucho. Esta acción no se puede deshacer.</string>
+    <string name="cover_crop_title">Encuadrar portada</string>
+    <string name="cover_crop_square">La imagen ya es cuadrada: se ve entera.</string>
+    <string name="cover_crop_body">Arrastra y pellizca para elegir qué parte se ve.</string>
+    <string name="cover_save">Guardar</string>
+    <string name="cover_failed">No se pudo procesar la imagen</string>
+    <string name="cover_removed">Portada quitada</string>
+    <string name="cover_too_large">La imagen pesa demasiado</string>
+    <string name="cover_unsupported">Formato de imagen no admitido</string>
+
+    <!-- Genéricos de hoja -->
+    <string name="st_cancel">Cancelar</string>
+    <string name="st_delete">Borrar</string>
+
+    <!-- Fecha relativa de última partida -->
+    <string name="when_never">Nunca jugado</string>
+    <string name="when_today">Hoy, %1$s</string>
+    <string name="when_yesterday">Ayer</string>
+    <string name="when_days_ago">Hace %1$d días</string>
+    <string name="when_last_week">La semana pasada</string>
 </resources>

@@ -6,10 +6,12 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.navigation.NavHostController
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
 import com.moralesDev.dsForEveryone.ui.about.AboutScreen
 import com.moralesDev.dsForEveryone.ui.components.LoadingVeil
 import com.moralesDev.dsForEveryone.ui.game.GameScreen
@@ -23,10 +25,15 @@ object Routes {
     const val SPLASH = "splash"
     const val WELCOME = "welcome"
     const val LIBRARY = "library"
-    const val GAME = "game"
     const val SETTINGS = "settings"
     const val ABOUT = "about"
     const val LAYOUT_EDITOR = "layout_editor"
+
+    private const val GAME_ROM_ID_ARG = "romId"
+    const val GAME = "game?$GAME_ROM_ID_ARG={$GAME_ROM_ID_ARG}"
+
+    /** [romId] es el SHA-256 de la ROM elegida en la biblioteca. */
+    fun game(romId: String): String = "game?$GAME_ROM_ID_ARG=$romId"
 }
 
 /**
@@ -89,9 +96,9 @@ fun AppNavHost(
                     onOpenSettings = {
                         transitions.navigateWithVeil { navController.navigate(Routes.SETTINGS) }
                     },
-                    // Sin velo: la pantalla de juego traerá su propio
-                    // «Cargando ROM» a partir de la fase 3.
-                    onOpenGame = { navController.navigate(Routes.GAME) },
+                    // Sin velo: la pantalla de juego trae su propio «Cargando
+                    // ROM» (ver GameViewModel).
+                    onOpen = { rom -> navController.navigate(Routes.game(rom.id)) },
                 )
             }
 
@@ -119,7 +126,10 @@ fun AppNavHost(
                 )
             }
 
-            composable(Routes.GAME) {
+            composable(
+                Routes.GAME,
+                arguments = listOf(navArgument("romId") { type = NavType.StringType; nullable = true }),
+            ) {
                 GameScreen(
                     onExit = {
                         transitions.navigateWithVeil(ScreenTransitions.LEAVING_GAME_MS) {

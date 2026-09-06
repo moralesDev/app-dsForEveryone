@@ -1,7 +1,9 @@
 package com.moralesDev.dsForEveryone.ui.game
 
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.moralesDev.dsForEveryone.data.rom.RomRepository
 import com.moralesDev.dsForEveryone.data.settings.EmulatorSettings
 import com.moralesDev.dsForEveryone.data.settings.ImageFilter
 import com.moralesDev.dsForEveryone.data.settings.SettingsRepository
@@ -18,19 +20,25 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 /**
- * Sesión de juego contra `StubEmulatorCore` (entregable 2.6).
+ * Sesión de juego, contra `StubEmulatorCore` hasta que llegue el core nativo
+ * (fase 4).
  *
- * Abre un "cartucho" que no es ninguna ROM real —el stub sólo necesita
- * suficientes bytes para pasar su comprobación de tamaño mínimo— y arranca en
- * marcha para tener siempre algo que jugar. La sesión de verdad —ROM elegida
- * por el usuario, partidas, save states— llega con la biblioteca real en la
- * fase 3, sobre esta misma pantalla.
+ * Si la navegación trae un `romId` —desde la biblioteca (fase 3.3)— se carga
+ * esa ROM de verdad, leída a través de [RomRepository] (descomprime el `.zip`
+ * si hace falta). Sin `romId` se abre un cartucho de mentira que sólo necesita
+ * suficientes bytes para pasar la comprobación de tamaño mínimo del stub: es
+ * lo que deja seguir probando pantallas, táctil y mandos sin pasar por la
+ * biblioteca, como en las fases 2.x.
  */
 @HiltViewModel
 class GameViewModel @Inject constructor(
     private val controller: EmulatorController,
     private val settingsRepository: SettingsRepository,
+    private val romRepository: RomRepository,
+    savedStateHandle: SavedStateHandle,
 ) : ViewModel() {
+
+    private val romId: String? = savedStateHandle["romId"]
 
     val settings: StateFlow<EmulatorSettings> = settingsRepository.settings.stateIn(
         scope = viewModelScope,
@@ -50,7 +58,11 @@ class GameViewModel @Inject constructor(
 
     init {
         viewModelScope.launch {
-            controller.open(FAKE_CARTRIDGE, batterySave = null)
+            val cartridge = romId
+                ?.let { id -> romRepository.findById(id) }
+                ?.let { rom -> romRepository.readRomBytes(rom) }
+                ?: FAKE_CARTRIDGE
+            controller.open(cartridge, batterySave = null)
             controller.resume()
         }
     }

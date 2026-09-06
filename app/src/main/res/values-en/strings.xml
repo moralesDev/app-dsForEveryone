@@ -31,13 +31,10 @@
     <string name="onb_sys_f2b">The app doesn\'t include them or link to where to get them</string>
 
     <!-- Still-empty destinations in the navigation graph -->
-    <string name="scr_library_title">Library</string>
-    <string name="scr_library_body">There\'s no library yet. It arrives in phase 3, with Room, SAF and the cover extracted from each ROM\'s banner.</string>
     <string name="scr_settings_title">Settings</string>
     <string name="scr_settings_body">There are no real settings yet. Each one arrives with the feature it belongs to.</string>
     <string name="scr_about_title">About</string>
     <string name="scr_about_body">There\'s no About screen yet. The core notice and the link to the source code arrive with phase 4.</string>
-    <string name="nav_open_game">Open game (no ROM yet)</string>
     <string name="nav_open_settings">Settings</string>
     <string name="nav_open_about">About</string>
     <string name="nav_open_layout_editor">Layout editor</string>
@@ -87,4 +84,69 @@
     <string name="le_group_start">Start</string>
     <string name="le_group_select">Select</string>
     <string name="le_group_blow">Blow</string>
+
+    <!-- Library (deliverable 3.3) -->
+    <string name="lib_title">Library</string>
+    <string name="lib_search">Search</string>
+    <string name="lib_add">Add ROM</string>
+    <string name="lib_no_results">No results for \"%1$s\"</string>
+    <string name="lib_open">Open</string>
+    <string name="lib_unavailable">File not found</string>
+    <string name="lib_options_title">%1$s</string>
+    <string name="lib_remove_body">This removes the game from the library. You can keep its save in case you add it back.</string>
+    <string name="lib_remove_keep">Remove, keep the save</string>
+    <string name="lib_remove_delete">Remove and delete the save</string>
+    <string name="lib_page_indicator">%1$d of %2$d</string>
+    <string name="cd_settings">Settings</string>
+    <string name="cd_page_previous">Previous page</string>
+    <string name="cd_page_next">Next page</string>
+    <string name="cd_rom_options">Options for %1$s</string>
+    <string name="cd_cover_custom">Cover for %1$s, tap to change it</string>
+    <string name="cd_cover_default">Cover for %1$s, tap to add one</string>
+
+    <!-- Library: messages -->
+    <string name="msg_imported">%1$s added to the library</string>
+    <string name="msg_already">%1$s was already in the library; its location was updated</string>
+    <string name="msg_unrecognized_rom">The file isn\'t a recognizable Nintendo DS ROM</string>
+    <string name="msg_unreadable">The chosen file couldn\'t be read</string>
+    <string name="msg_zip_no_rom">The .zip doesn\'t contain any .nds ROM</string>
+    <string name="msg_zip_multiple">The .zip contains %1$d ROMs; add only one per file</string>
+    <string name="msg_zip_encrypted">The .zip is encrypted; its contents can\'t be read</string>
+    <string name="msg_zip_corrupt">The .zip is corrupt</string>
+    <string name="msg_rom_too_large">The uncompressed ROM is too large</string>
+    <string name="msg_removed_all">Game and save deleted</string>
+    <string name="msg_removed_keep">Game removed; the save was kept</string>
+
+    <!-- Empty library -->
+    <string name="em_title">Add your first game</string>
+    <string name="em_body">Choose an .nds file, or a .zip containing one, from your phone\'s storage.</string>
+    <string name="em_cta">Add ROM</string>
+
+    <!-- Cover -->
+    <string name="cover_add_title">Add cover</string>
+    <string name="cover_change_title">Change cover</string>
+    <string name="cover_add">Add image</string>
+    <string name="cover_change">Change image</string>
+    <string name="cover_delete">Remove cover</string>
+    <string name="cover_delete_title">Remove cover</string>
+    <string name="cover_delete_body">The cartridge\'s own icon takes its place. This can\'t be undone.</string>
+    <string name="cover_crop_title">Crop cover</string>
+    <string name="cover_crop_square">The image is already square: it shows in full.</string>
+    <string name="cover_crop_body">Drag and pinch to choose what shows.</string>
+    <string name="cover_save">Save</string>
+    <string name="cover_failed">The image couldn\'t be processed</string>
+    <string name="cover_removed">Cover removed</string>
+    <string name="cover_too_large">The image is too large</string>
+    <string name="cover_unsupported">Unsupported image format</string>
+
+    <!-- Sheet generics -->
+    <string name="st_cancel">Cancel</string>
+    <string name="st_delete">Delete</string>
+
+    <!-- Relative last-played date -->
+    <string name="when_never">Never played</string>
+    <string name="when_today">Today, %1$s</string>
+    <string name="when_yesterday">Yesterday</string>
+    <string name="when_days_ago">%1$d days ago</string>
+    <string name="when_last_week">Last week</string>
 </resources>
