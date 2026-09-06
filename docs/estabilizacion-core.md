@@ -1,11 +1,11 @@
 # Estabilización del core: lo que se rompió y lo que se midió
 
 Este documento recoge lo que salió mal —y se corrigió— al poner melonDS a
-correr de verdad en la fase 4, y las medidas de rendimiento del entregable
-4.5 en el Motorola Edge 30. Es el equivalente de este proyecto al «qué se
-corrigió por el camino» del proyecto hermano.
+correr de verdad en la fase 4 (entregables 4.5 y 4.C), y las medidas de
+rendimiento en el Motorola Edge 30. Es el equivalente de este proyecto al
+«qué se corrigió por el camino» del proyecto hermano.
 
-## 1. Dos defectos de arranque, encontrados con una ROM real
+## 1. Tres defectos, encontrados con ROMs reales
 
 Las fases 4.2, 4.3 y 4.4 se verificaron con una ROM sintética
 (`DsRomFixtures`, sin código ARM9/ARM7 real) porque las pruebas en
@@ -18,9 +18,11 @@ Al conseguir una ROM homebrew legítima para la medición de rendimiento de
 este entregable (Cave Story DS, `tilderain/CaveStoryNDS`, cuyo motor
 —NXEngine— es GPL-3 y cuyos datos de juego originales son freeware conocido
 del propio Studio Pixel; usada sólo localmente para medir y retirada al
-terminar, igual que cualquier ROM libre de prueba), aparecieron dos defectos
-reales en el puente que la ROM sintética no podía revelar. Los dos están
-corregidos y committeados por separado en `feature/fase-4-core-nativo`.
+terminar, igual que cualquier ROM libre de prueba) y, ya en el cierre de la
+fase (4.C), al ver el usuario un juego comercial real con colores propios,
+aparecieron tres defectos reales en el puente que la ROM sintética no podía
+revelar. Los tres están corregidos y committeados por separado en
+`feature/fase-4-core-nativo`.
 
 ### 1.1. Faltaba el paso de cifrado KEY2 del cartucho
 
@@ -95,7 +97,60 @@ Es la razón concreta por la que la fase 4.5 no podía cerrarse con la ROM
 sintética: una emulación que no emula nada puede parecer, en todas las
 métricas automáticas, indistinguible de una que sí funciona.
 
-## 2. Medición de rendimiento (Motorola Edge 30)
+### 1.3. Canales de color R y B intercambiados
+
+**Síntoma:** con los dos defectos de arranque ya corregidos y un juego real
+pintando de verdad, los colores salían mal. Con Cave Story DS (paleta
+sobre todo en blanco, negro y un amarillo/verde puro —simétricos ante un
+intercambio de canales, así que no delataban nada) no se notó. Con un
+juego de colores variados —Pokémon HeartGold, del usuario; ningún ROM
+comercial se usó por parte de Claude para diagnosticar ni arreglar
+esto— quedó a la vista de inmediato: Ho-Oh, que es rojo, salía azul.
+
+**Causa:** `ToAndroidArgb`, la función que convierte cada píxel del
+framebuffer de melonDS al entero `0xAARRGGBB` que espera Android dando
+por hecho que cada píxel en memoria es R,G,B,A (byte 0 = rojo). Es al
+revés: B,G,R,A (byte 0 = azul). El error llevaba desde la fase 4.2 sin
+detectarse exactamente por lo mismo que el de `Start()`: la ROM sintética
+no tiene gráficos reales con los que notarlo.
+
+**Arreglo:** intercambiar qué byte se lee como `r` y cuál como `b` dentro
+de `ToAndroidArgb` (`ds_bridge.cpp`). Verificado con Ho-Oh en Pokémon
+HeartGold (por el usuario) y con la introducción de Cave Story DS, donde
+el robot compañero (azul en el juego real) y la cruz del abrigo del
+doctor (roja en el juego real) salen ahora del color correcto.
+
+## 2. El `OutOfMemoryError` con ROMs sueltas grandes
+
+**Síntoma:** abrir un cartucho real de más de 100 MB (Pokémon Platino,
+128 MB, del usuario) cerraba la aplicación con `OutOfMemoryError`.
+
+**Causa:** `RomRepository.readRomBytes` copiaba el archivo entero a un
+único `ByteArray` de Kotlin antes de entregarlo al core. El propio
+comentario de la fase 3 ya avisaba de esto: *"cuando entre el core nativo
+(fase 4), este es el punto donde conviene pasar a `openFileDescriptor` +
+`mmap`... para evitar la copia por completo"* — una ROM suelta grande
+agotaba el heap de Java (limitado a un cuarto de GB o así en la mayoría
+de dispositivos) antes de llegar siquiera al core.
+
+**Arreglo:** `RomRepository.openRomForCore` reemplaza esa vía para ROMs
+sueltas (no dentro de un `.zip`, que sigue necesitando descomprimirse en
+memoria): abre un `ParcelFileDescriptor` real en vez de copiar bytes.
+`EmulatorCore.loadFromDescriptor` es la nueva entrada de la frontera —con
+implementación por defecto que sigue leyendo a memoria, así que
+`StubEmulatorCore` no necesitó tocarse—; `DsEmulatorCore` la sobrescribe
+para mapear el archivo con `mmap` en `ds_bridge.cpp` y pasárselo a
+`NDSCart::ParseROM` sin que exista un `ByteArray` con la ROM completa en
+ningún momento.
+
+**Verificación:** con una ROM sintética de 150 MB
+(`SyntheticRomExporter.exportarGrande`, del mismo orden de magnitud que
+Pokémon Platino), `dumpsys meminfo` confirma que el heap de Dalvik se
+queda en ~29 MB mientras el heap nativo absorbe la ROM completa (~256 MB
+redondeados por el propio core a la potencia de dos más cercana). Antes
+del arreglo, esa misma prueba repetía el `OutOfMemoryError`.
+
+## 3. Medición de rendimiento (Motorola Edge 30)
 
 Con los dos defectos corregidos, medido con Cave Story DS (misma ROM del
 diagnóstico anterior) en pantalla de título e introducción —el estado
@@ -103,7 +158,7 @@ estable más exigente al que se pudo llegar sin jugar de verdad, dado que
 la entrada de este proyecto está pensada para tocarse desde la interfaz,
 no para automatizarse—.
 
-### 2.1. Fps emulados frente a presentados, por separado
+### 3.1. Fps emulados frente a presentados, por separado
 
 | Medida | Valor |
 |---|---|
@@ -122,7 +177,7 @@ para una fase futura: limitar el modo de renderizado a
 `RENDERMODE_WHEN_DIRTY` y pedir un redibujado sólo cuando `captureFrame()`
 entregue contenido nuevo.
 
-### 2.2. Porcentaje de CPU por hilo
+### 3.2. Porcentaje de CPU por hilo
 
 Medido con `adb shell top -H -p <pid>` sobre los dos hilos propios del
 proyecto (`ds-emulation`, el hilo de emulación; `GLThread`, el de
@@ -140,7 +195,7 @@ SoC. Un gama alta como el Edge 30 va sobrado; queda pendiente, para cuando
 haya datos de un dispositivo de gama media, comprobar si estas cifras
 dejan margen suficiente.
 
-### 2.3. Nítido frente a Suavizado
+### 3.3. Nítido frente a Suavizado
 
 **Deberían costar lo mismo, y cuestan lo mismo.** `GLThread` midió
 exactamente 81,4 % en ambos filtros, sin diferencia medible; la pequeña
@@ -150,7 +205,7 @@ ningún motivo por el que debiera cambiar—. El renderizador pasa la
 comprobación que pedía el entregable: el filtro es un parámetro de
 muestreo de textura, no una geometría distinta, y así se comporta.
 
-### 2.4. Comportamiento tras varios minutos (térmico)
+### 3.4. Comportamiento tras varios minutos (térmico)
 
 Tras ~8 minutos de ejecución continua:
 
@@ -171,7 +226,7 @@ principio de limitación térmica, y queda anotada como tal para revisarla
 si en el futuro hay medidas de sesiones más largas o de un dispositivo que
 caliente más.
 
-### 2.5. Renderizador 3D por software frente a GL
+### 3.5. Renderizador 3D por software frente a GL
 
 **No se pudo comparar.** Esta compilación tiene `ENABLE_OGLRENDERER=OFF`
 (ver `docs/integracion-core.md`, sección 6): el renderizador 3D acelerado
@@ -183,7 +238,7 @@ adicional dentro del propio core—. Activar el renderizador GL y repetir
 esta comparación queda abierto para cuando haga falta de verdad exprimir
 más rendimiento; con los números de hoy, en un gama alta, no hace falta.
 
-## 3. Limitaciones que quedan abiertas
+## 4. Limitaciones que quedan abiertas
 
 - **Sin verificación con un juego jugado de verdad.** Todo lo de este
   documento se midió en la pantalla de título e introducción de Cave
@@ -199,8 +254,23 @@ más rendimiento; con los números de hoy, en un gama alta, no hace falta.
   que hiciera falta escribir un segundo puente completo sólo para
   comparar. La decisión de core se cierra con esto en
   `docs/integracion-core.md`.
-- **`RENDERMODE` continuo del `GLSurfaceView`.** Ver sección 2.1: dibuja
+- **`RENDERMODE` continuo del `GLSurfaceView`.** Ver sección 3.1: dibuja
   más veces de las necesarias. No afecta a la fluidez percibida, pero es
   trabajo de GPU de sobra.
 - **Medición hecha en un único dispositivo gama alta.** Sin datos de gama
   media, que es donde el margen de rendimiento importa de verdad.
+- **Rendimiento y audio con un juego comercial pesado, sin JIT.** El
+  usuario probó juegos reales (Brain Age, Pokémon HeartGold) durante el
+  cierre de la fase y reportó rendimiento «horrible» y audio que empieza
+  bien y se degrada —exactamente la huella de un hilo de emulación que no
+  sostiene el ritmo real de la DS: sin JIT (intérprete puro, la
+  configuración de la fase 4.1), un juego con más carga de CPU que Cave
+  Story DS puede quedarse por detrás del reloj, y el anillo de audio sin
+  sincronización (ver `docs/integracion-core.md`, sección 7, «Audio») se
+  vacía o se llena a destiempo cuando eso pasa. No se investigó más a
+  fondo ni se activó el JIT dentro de esta fase, a propósito: el propio
+  plan trata "activar el JIT" como su propia decisión, con medición
+  dedicada antes de arriesgar el ensamblador ARM64 del recompilador
+  (`docs/integracion-core.md`, sección 1), no como una reacción a un
+  síntoma. Candidato claro para el primer entregable de la próxima fase
+  que toque rendimiento.
