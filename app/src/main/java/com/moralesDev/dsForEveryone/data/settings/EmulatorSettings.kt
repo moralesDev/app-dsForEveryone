@@ -1,5 +1,7 @@
 package com.moralesDev.dsForEveryone.data.settings
 
+import com.moralesDev.dsForEveryone.emulator.layout.ControlGroup
+import com.moralesDev.dsForEveryone.emulator.layout.ControlGroupFraction
 import com.moralesDev.dsForEveryone.emulator.layout.LayoutMode
 
 /**
@@ -84,4 +86,13 @@ data class EmulatorSettings(
     val touchMode: TouchMode = TouchMode.DIRECT,
     /** Desplazamiento en dp del punto de contacto sobre el dedo, en [TouchMode.OFFSET]. */
     val touchOffsetDp: Float = 24f,
+
+    /**
+     * Perfil de mandos hecho a mano en el editor de disposición (fase 2.7),
+     * uno por orientación. `null` significa «sin perfil propio»: la pantalla
+     * de juego y el editor caen entonces al mismo perfil por defecto que
+     * calcula [com.moralesDev.dsForEveryone.emulator.layout.ControlLayout].
+     */
+    val portraitControlLayout: Map<ControlGroup, ControlGroupFraction>? = null,
+    val landscapeControlLayout: Map<ControlGroup, ControlGroupFraction>? = null,
 )

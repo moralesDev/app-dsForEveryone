@@ -10,6 +10,9 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.floatPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import com.moralesDev.dsForEveryone.emulator.layout.ControlGroup
+import com.moralesDev.dsForEveryone.emulator.layout.ControlGroupFraction
+import com.moralesDev.dsForEveryone.emulator.layout.ControlLayout
 import com.moralesDev.dsForEveryone.emulator.layout.LayoutMode
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -43,6 +46,8 @@ class SettingsRepository(private val context: Context) {
                 ?: DEFAULT.imageFilter,
             touchMode = TouchMode.fromName(preferences[Keys.TOUCH_MODE]) ?: DEFAULT.touchMode,
             touchOffsetDp = preferences[Keys.TOUCH_OFFSET_DP] ?: DEFAULT.touchOffsetDp,
+            portraitControlLayout = preferences[Keys.PORTRAIT_CONTROLS]?.let(ControlLayout::decode),
+            landscapeControlLayout = preferences[Keys.LANDSCAPE_CONTROLS]?.let(ControlLayout::decode),
         )
     }
 
@@ -74,6 +79,15 @@ class SettingsRepository(private val context: Context) {
         it[Keys.TOUCH_OFFSET_DP] = offset.coerceAtLeast(0f)
     }
 
+    /** `null` borra el perfil guardado: la pantalla de juego y el editor caen entonces al perfil por defecto. */
+    suspend fun setPortraitControlLayout(fractions: Map<ControlGroup, ControlGroupFraction>?) = edit {
+        if (fractions == null) it.remove(Keys.PORTRAIT_CONTROLS) else it[Keys.PORTRAIT_CONTROLS] = ControlLayout.encode(fractions)
+    }
+
+    suspend fun setLandscapeControlLayout(fractions: Map<ControlGroup, ControlGroupFraction>?) = edit {
+        if (fractions == null) it.remove(Keys.LANDSCAPE_CONTROLS) else it[Keys.LANDSCAPE_CONTROLS] = ControlLayout.encode(fractions)
+    }
+
     private fun layoutModeFromName(name: String?): LayoutMode? =
         LayoutMode.entries.firstOrNull { it.name == name }
 
@@ -98,6 +112,8 @@ class SettingsRepository(private val context: Context) {
         val IMAGE_FILTER = stringPreferencesKey("image_filter")
         val TOUCH_MODE = stringPreferencesKey("touch_mode")
         val TOUCH_OFFSET_DP = floatPreferencesKey("touch_offset_dp")
+        val PORTRAIT_CONTROLS = stringPreferencesKey("portrait_controls")
+        val LANDSCAPE_CONTROLS = stringPreferencesKey("landscape_controls")
     }
 
     private companion object {

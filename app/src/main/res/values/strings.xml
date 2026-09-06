@@ -43,8 +43,6 @@
     <string name="scr_settings_body">Todavía no hay ajustes reales. Cada uno llega junto con la función a la que pertenece.</string>
     <string name="scr_about_title">Acerca de</string>
     <string name="scr_about_body">Todavía no hay pantalla «Acerca de». El aviso del core y el enlace al código fuente llegan con la fase 4.</string>
-    <string name="scr_layout_editor_title">Editor de disposición</string>
-    <string name="scr_layout_editor_body">Todavía no hay editor. Llega en el entregable 2.7, sobre la misma geometría que usa la pantalla de juego.</string>
     <string name="nav_open_game">Abrir juego (sin ROM todavía)</string>
     <string name="nav_open_settings">Configuración</string>
     <string name="nav_open_about">Acerca de</string>
@@ -78,4 +76,21 @@
     <string name="se_filter">Filtro de imagen</string>
     <string name="filter_sharp">Nítido</string>
     <string name="filter_smooth">Suavizado</string>
+
+    <!-- Editor de disposición (entregable 2.7) -->
+    <string name="le_title_portrait">Editor de disposición · Vertical</string>
+    <string name="le_title_landscape">Editor de disposición · Horizontal</string>
+    <string name="le_reset">Restablecer</string>
+    <string name="le_hint">Arrastra un grupo para moverlo y su esquina para cambiar el tamaño. Tócalo para ajustar su opacidad.</string>
+    <string name="le_opacity">Opacidad</string>
+    <string name="le_swap">Intercambiar pantallas</string>
+    <string name="le_screen_top">Superior</string>
+    <string name="le_screen_touch">Táctil</string>
+    <string name="le_group_dpad">Cruceta</string>
+    <string name="le_group_action">A · B · X · Y</string>
+    <string name="le_group_l">L</string>
+    <string name="le_group_r">R</string>
+    <string name="le_group_start">Start</string>
+    <string name="le_group_select">Select</string>
+    <string name="le_group_blow">Soplar</string>
 </resources>

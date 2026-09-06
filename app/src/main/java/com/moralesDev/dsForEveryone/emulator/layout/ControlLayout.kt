@@ -51,6 +51,22 @@ data class ControlLayoutProfile(
 }
 
 /**
+ * Posición, tamaño y opacidad de un grupo como fracción del hueco disponible
+ * (0..1 en cada eje), independiente de en qué tamaño de pantalla se calculó.
+ * Es la forma en la que el editor de disposición (fase 2.7) persiste un
+ * perfil en `EmulatorSettings`: guardar píxeles absolutos no sobreviviría a
+ * abrir la app en otro dispositivo, o incluso en el mismo con otra barra de
+ * sistema.
+ */
+data class ControlGroupFraction(
+    val left: Float,
+    val top: Float,
+    val width: Float,
+    val height: Float,
+    val opacity: Float,
+)
+
+/**
  * Coloca los siete grupos de mandos sobre [LayoutEngine], sin solaparse entre
  * sí ni con la pantalla táctil. Solapar la pantalla superior sí está
  * permitido: no es interactiva, así que no hay ningún toque que perder.
@@ -58,6 +74,98 @@ data class ControlLayoutProfile(
  * Geometría pura: sin `Context`, sin `Composable`, sin unidades de Compose.
  */
 object ControlLayout {
+
+    /** Lado de cada grupo, como fracción del lado menor del hueco disponible, cuando no hay perfil guardado. */
+    const val DEFAULT_GROUP_SIZE_FRACTION = 0.20f
+
+    /** Opacidad de cada grupo cuando no hay perfil guardado. */
+    const val DEFAULT_OPACITY = 0.85f
+
+    /**
+     * El perfil que hay que pintar: el guardado por el usuario en
+     * [custom] si es válido y completo, o si no [defaultProfile]. La pantalla
+     * de juego y el editor de disposición llaman a esta misma función con los
+     * mismos argumentos — es lo que garantiza que uno y otro coloquen igual.
+     */
+    fun resolveProfile(
+        custom: Map<ControlGroup, ControlGroupFraction>?,
+        available: LayoutSize,
+        touchScreen: LayoutRect,
+        groupSize: LayoutSize,
+        opacity: Float = DEFAULT_OPACITY,
+    ): ControlLayoutProfile {
+        val fromCustom = custom?.let { fromFractions(it, available) }
+        return fromCustom ?: defaultProfile(available, touchScreen, groupSize, opacity)
+    }
+
+    /** [available] en las mismas unidades que las de [ControlGroupPlacement.bounds] (habitualmente píxeles). */
+    fun toFractions(
+        profile: ControlLayoutProfile,
+        available: LayoutSize,
+    ): Map<ControlGroup, ControlGroupFraction> {
+        if (available.width <= 0f || available.height <= 0f) return emptyMap()
+        return profile.groups.mapValues { (_, placement) ->
+            val bounds = placement.bounds
+            ControlGroupFraction(
+                left = bounds.left / available.width,
+                top = bounds.top / available.height,
+                width = bounds.width / available.width,
+                height = bounds.height / available.height,
+                opacity = placement.opacity,
+            )
+        }
+    }
+
+    /**
+     * Inversa de [toFractions]. Devuelve `null` si faltan grupos o si
+     * [available] no tiene área: un perfil a medias no es un perfil, y quien
+     * llama debe caer a [defaultProfile] en vez de arrastrar una lectura mala.
+     */
+    fun fromFractions(
+        fractions: Map<ControlGroup, ControlGroupFraction>,
+        available: LayoutSize,
+    ): ControlLayoutProfile? {
+        if (fractions.keys != ControlGroup.entries.toSet()) return null
+        if (available.width <= 0f || available.height <= 0f) return null
+        val groups = fractions.mapValues { (_, fraction) ->
+            ControlGroupPlacement(
+                bounds = LayoutRect(
+                    left = fraction.left * available.width,
+                    top = fraction.top * available.height,
+                    right = (fraction.left + fraction.width) * available.width,
+                    bottom = (fraction.top + fraction.height) * available.height,
+                ),
+                opacity = fraction.opacity,
+            )
+        }
+        return runCatching { ControlLayoutProfile(groups) }.getOrNull()
+    }
+
+    /** Texto compacto de una sola línea, para guardar un perfil en DataStore. */
+    fun encode(fractions: Map<ControlGroup, ControlGroupFraction>): String =
+        fractions.entries.joinToString(separator = ";") { (group, fraction) ->
+            "${group.name}:${fraction.left},${fraction.top},${fraction.width},${fraction.height},${fraction.opacity}"
+        }
+
+    /**
+     * Inversa de [encode]. Cualquier fallo de formato, un grupo repetido o
+     * ausente, o un número que no sea finito hacen que devuelva `null`: mejor
+     * caer al perfil por defecto que arrastrar un valor a medio leer.
+     */
+    fun decode(text: String): Map<ControlGroup, ControlGroupFraction>? {
+        if (text.isBlank()) return null
+        val result = mutableMapOf<ControlGroup, ControlGroupFraction>()
+        for (entry in text.split(";")) {
+            val parts = entry.split(":")
+            if (parts.size != 2) return null
+            val group = ControlGroup.entries.firstOrNull { it.name == parts[0] } ?: return null
+            if (result.containsKey(group)) return null
+            val values = parts[1].split(",").map { it.toFloatOrNull() ?: return null }
+            if (values.size != 5 || values.any { !it.isFinite() }) return null
+            result[group] = ControlGroupFraction(values[0], values[1], values[2], values[3], values[4])
+        }
+        return if (result.keys == ControlGroup.entries.toSet()) result else null
+    }
 
     /**
      * Si algún grupo del perfil solapa con otro o con [touchScreen].

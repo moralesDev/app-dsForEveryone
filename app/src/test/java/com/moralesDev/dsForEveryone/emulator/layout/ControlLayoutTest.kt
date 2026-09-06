@@ -2,6 +2,8 @@ package com.moralesDev.dsForEveryone.emulator.layout
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class ControlLayoutTest {
@@ -83,5 +85,88 @@ class ControlLayoutTest {
         val profile = ControlLayoutProfile(allGroups)
 
         assertEquals(true, ControlLayout.hasOverlap(profile, LayoutRect(500f, 500f, 500f, 500f)))
+    }
+
+    // --- Persistencia del perfil (entregable 2.7): fracciones y su codificación ---
+
+    @Test
+    fun `toFractions seguido de fromFractions reproduce el mismo perfil`() {
+        val available = LayoutSize(1080f, 2200f)
+        val placement = ScreenLayout.resolve(LayoutMode.STACKED, available, gap = 0.03f)
+        val original = ControlLayout.defaultProfile(available, placement.touchScreen, LayoutSize(180f, 180f), opacity = 0.6f)
+
+        val fractions = ControlLayout.toFractions(original, available)
+        val rebuilt = ControlLayout.fromFractions(fractions, available)
+
+        assertEquals(ControlGroup.entries.toSet(), fractions.keys)
+        requireNotNull(rebuilt)
+        ControlGroup.entries.forEach { group ->
+            val expected = original.groups.getValue(group).bounds
+            val actual = rebuilt.groups.getValue(group).bounds
+            assertEquals(expected.left, actual.left, 0.01f)
+            assertEquals(expected.top, actual.top, 0.01f)
+            assertEquals(expected.right, actual.right, 0.01f)
+            assertEquals(expected.bottom, actual.bottom, 0.01f)
+            assertEquals(0.6f, rebuilt.groups.getValue(group).opacity, 0.001f)
+        }
+    }
+
+    @Test
+    fun `fromFractions rechaza un mapa incompleto`() {
+        val partial = mapOf(
+            ControlGroup.L to ControlGroupFraction(0f, 0f, 0.1f, 0.1f, 1f),
+        )
+        assertNull(ControlLayout.fromFractions(partial, LayoutSize(1000f, 1000f)))
+    }
+
+    @Test
+    fun `fromFractions rechaza un hueco sin area`() {
+        val complete = ControlGroup.entries.associateWith { ControlGroupFraction(0f, 0f, 0.1f, 0.1f, 1f) }
+        assertNull(ControlLayout.fromFractions(complete, LayoutSize(0f, 0f)))
+    }
+
+    @Test
+    fun `resolveProfile sin perfil guardado cae al perfil por defecto`() {
+        val available = LayoutSize(1000f, 1000f)
+        val touchScreen = LayoutRect(0f, 600f, 1000f, 1000f)
+        val groupSize = LayoutSize(80f, 80f)
+
+        val resolved = ControlLayout.resolveProfile(null, available, touchScreen, groupSize)
+        val default = ControlLayout.defaultProfile(available, touchScreen, groupSize, ControlLayout.DEFAULT_OPACITY)
+
+        assertEquals(default, resolved)
+    }
+
+    @Test
+    fun `resolveProfile con perfil guardado no usa el perfil por defecto`() {
+        val available = LayoutSize(1000f, 1000f)
+        val touchScreen = LayoutRect(0f, 600f, 1000f, 1000f)
+        val groupSize = LayoutSize(80f, 80f)
+        val custom = ControlGroup.entries.associateWith { ControlGroupFraction(0.4f, 0.4f, 0.1f, 0.1f, 0.9f) }
+
+        val resolved = ControlLayout.resolveProfile(custom, available, touchScreen, groupSize)
+
+        assertEquals(0.9f, resolved.groups.getValue(ControlGroup.L).opacity, 0.001f)
+        assertEquals(400f, resolved.groups.getValue(ControlGroup.L).bounds.left, 0.01f)
+    }
+
+    @Test
+    fun `encode seguido de decode reproduce las mismas fracciones`() {
+        val fractions = ControlGroup.entries.associateWith { group ->
+            ControlGroupFraction(0.1f, 0.2f, 0.15f, 0.15f, if (group == ControlGroup.BLOW) 0.5f else 0.8f)
+        }
+
+        val decoded = ControlLayout.decode(ControlLayout.encode(fractions))
+
+        assertEquals(fractions, decoded)
+    }
+
+    @Test
+    fun `decode rechaza texto vacio, incompleto o con numeros invalidos`() {
+        assertNull(ControlLayout.decode(""))
+        assertNull(ControlLayout.decode("L:0,0,0.1,0.1,1"))
+        assertNull(ControlLayout.decode(ControlGroup.entries.joinToString(";") { "${it.name}:0,0,0.1,noesnumero,1" }))
+        assertNull(ControlLayout.decode(ControlGroup.entries.joinToString(";") { "${it.name}:0,0,0.1" }))
+        assertTrue(ControlLayout.decode("NO_EXISTE:0,0,0.1,0.1,1") == null)
     }
 }

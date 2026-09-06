@@ -119,14 +119,16 @@ fun GameScreen(onExit: () -> Unit) {
         }
     }
 
-    val controlProfile = remember(placement, availableSize) {
+    val activeControlLayout = if (isPortrait) settings.portraitControlLayout else settings.landscapeControlLayout
+    val controlProfile = remember(placement, availableSize, activeControlLayout) {
         val current = placement ?: return@remember null
-        val side = minOf(availableSize.width, availableSize.height) * CONTROL_GROUP_SIZE_FRACTION
-        ControlLayout.defaultProfile(
+        val side = minOf(availableSize.width, availableSize.height) * ControlLayout.DEFAULT_GROUP_SIZE_FRACTION
+        ControlLayout.resolveProfile(
+            custom = activeControlLayout,
             available = availableSize,
             touchScreen = current.touchScreen,
             groupSize = LayoutSize(side, side),
-            opacity = CONTROL_OPACITY,
+            opacity = ControlLayout.DEFAULT_OPACITY,
         )
     }
 
@@ -394,7 +396,3 @@ private tailrec fun Context.findActivity(): Activity = when (this) {
     is ContextWrapper -> baseContext.findActivity()
     else -> error("No se encontró ninguna Activity en la cadena de contextos")
 }
-
-/** Lado de cada grupo de mandos, como fracción del lado menor del hueco disponible. */
-private const val CONTROL_GROUP_SIZE_FRACTION = 0.20f
-private const val CONTROL_OPACITY = 0.85f

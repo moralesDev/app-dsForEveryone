@@ -224,8 +224,9 @@ private fun MenuRow(
     }
 }
 
+/** `internal`: la reutiliza también el editor de disposición (fase 2.7), en `ui.game.layout`. */
 @Composable
-private fun LayoutModeChips(selected: LayoutMode, onSelect: (LayoutMode) -> Unit) {
+internal fun LayoutModeChips(selected: LayoutMode, onSelect: (LayoutMode) -> Unit) {
     Row(
         modifier = Modifier.horizontalScroll(rememberScrollState()),
         horizontalArrangement = Arrangement.spacedBy(6.dp),
@@ -249,7 +250,7 @@ private fun LayoutModeChips(selected: LayoutMode, onSelect: (LayoutMode) -> Unit
     }
 }
 
-private fun LayoutMode.labelRes(): Int = when (this) {
+internal fun LayoutMode.labelRes(): Int = when (this) {
     LayoutMode.STACKED -> R.string.layout_stacked
     LayoutMode.SIDE_BY_SIDE -> R.string.layout_side_by_side
     LayoutMode.TOP_ONLY -> R.string.layout_top_only

@@ -37,8 +37,6 @@
     <string name="scr_settings_body">There are no real settings yet. Each one arrives with the feature it belongs to.</string>
     <string name="scr_about_title">About</string>
     <string name="scr_about_body">There\'s no About screen yet. The core notice and the link to the source code arrive with phase 4.</string>
-    <string name="scr_layout_editor_title">Layout editor</string>
-    <string name="scr_layout_editor_body">There\'s no editor yet. It arrives in deliverable 2.7, over the same geometry the game screen uses.</string>
     <string name="nav_open_game">Open game (no ROM yet)</string>
     <string name="nav_open_settings">Settings</string>
     <string name="nav_open_about">About</string>
@@ -72,4 +70,21 @@
     <string name="se_filter">Image filter</string>
     <string name="filter_sharp">Sharp</string>
     <string name="filter_smooth">Smooth</string>
+
+    <!-- Layout editor (deliverable 2.7) -->
+    <string name="le_title_portrait">Layout editor · Portrait</string>
+    <string name="le_title_landscape">Layout editor · Landscape</string>
+    <string name="le_reset">Reset</string>
+    <string name="le_hint">Drag a group to move it, its corner to resize it. Tap it to adjust its opacity.</string>
+    <string name="le_opacity">Opacity</string>
+    <string name="le_swap">Swap screens</string>
+    <string name="le_screen_top">Top</string>
+    <string name="le_screen_touch">Touch</string>
+    <string name="le_group_dpad">D-pad</string>
+    <string name="le_group_action">A · B · X · Y</string>
+    <string name="le_group_l">L</string>
+    <string name="le_group_r">R</string>
+    <string name="le_group_start">Start</string>
+    <string name="le_group_select">Select</string>
+    <string name="le_group_blow">Blow</string>
 </resources>
