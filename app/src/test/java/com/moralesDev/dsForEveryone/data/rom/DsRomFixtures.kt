@@ -39,6 +39,20 @@ object DsRomFixtures {
         return bytes
     }
 
+    /** Cabecera + banner en su desplazamiento real + relleno hasta el final, como una ROM de verdad. */
+    fun validRomBytes(
+        title: String = "TESTGAME",
+        gameCode: String = "ATSE",
+        bannerOffset: Long = 0x4000L,
+        titles: Map<BannerLanguage, String> = mapOf(BannerLanguage.ENGLISH to "Test Game"),
+        totalSize: Int = (bannerOffset + DsBanner.SIZE + 4096).toInt(),
+    ): ByteArray {
+        val rom = ByteArray(totalSize) { 0xFF.toByte() }
+        validHeaderBytes(title = title, gameCode = gameCode, bannerOffset = bannerOffset).copyInto(rom)
+        validBannerBytes(titles = titles).copyInto(rom, bannerOffset.toInt())
+        return rom
+    }
+
     private fun writeAscii(bytes: ByteArray, offset: Int, text: String, length: Int) {
         for (index in 0 until length) {
             bytes[offset + index] = if (index < text.length) text[index].code.toByte() else 0
