@@ -386,3 +386,94 @@ esperable para esa ROM y confirma que la tubería completa (JNI → melonDS →
 de un juego de verdad queda pendiente de una ROM homebrew legítima; no se
 usó ninguna ROM comercial del usuario para esta prueba (ver
 `docs/plan-de-trabajo.md`, protocolo de pruebas en dispositivo).
+
+## 8. Entrada, audio y savedata contra el core real (fase 4.3)
+
+### El mapa de bits, copiado del frontend de referencia
+
+`DsButton.bit` sale de `EmuInstance::buttonNames` en
+`frontend/qt_sdl/EmuInstanceInput.cpp`, el array que el propio proyecto
+melonDS usa para nombrar sus doce entradas: A, B, Select, Start, Right,
+Left, Up, Down, R, L, X, Y. Es el mismo orden que espera `NDS::SetKeyMask`
+(bits 0-9 pasan a `KeyInput`, bits 10-11 a `EXTKEYIN`). Verificado pulsando
+los doce botones por separado contra el core real en el Motorola Edge 30
+—con logging temporal en `nativeSetKeys`, retirado antes de este commit—:
+cada botón, y cada dirección de la cruceta, produjo exactamente el bit
+esperado, sin excepción. Ese resultado más una prueba de JVM
+(`DsButtonTest`) que fija los doce valores son las dos defensas contra que
+alguien reordene el enum sin darse cuenta.
+
+**Polaridad:** `KEYINPUT`/`EXTKEYIN` son activos a nivel bajo (0 = pulsado);
+en Kotlin, por convención de este proyecto, 1 = pulsado. El puente invierte
+la máscara (`~mask & 0xFFF`) justo antes de `SetKeyMask`; en ningún otro
+punto del código se piensa en «activo a nivel bajo».
+
+### Pantalla táctil
+
+`nativeSetTouch` llama a `NDS::TouchScreen(x, y)` o `NDS::ReleaseScreen()`
+tal cual, sin lógica propia: la geometría (recorte, coordenada 0..255/0..191)
+ya la resuelve `TouchRouter` antes de llegar aquí, y el contrato de «una
+llamada por fotograma mientras el dedo esté abajo» lo cumple `InputManager`
+más arriba. Verificado en dispositivo: las coordenadas que llegan al puente
+caen dentro de rango y se mueven de forma consistente con el dedo.
+
+### Micrófono
+
+`Mic_ReadInput` rellena el búfer con ruido blanco a (casi) plena escala
+mientras el botón de soplar esté activo, y devuelve 0 muestras si no —sin
+`RECORD_AUDIO`, como en toda la aplicación—. El nivel es deliberadamente
+alto: los juegos que comprueban un umbral de soplido no siempre lo cruzan
+con un ruido tibio.
+
+### Audio: AAudio con el mismo anillo sin cerrojos que `app-emulador`
+
+Mismo diseño que `mgba_bridge.c`: un anillo circular de enteros de 16 bits
+sin cerrojos (índices atómicos de lectura/escritura, potencia de dos), con
+el hilo de emulación como único productor y el callback de AAudio como
+único consumidor. La diferencia con mGBA es dónde se resamplea: mGBA entrega
+`blip_t` y el puente decide la conversión; el `SPU` de melonDS ya resamplea
+internamente si se le da la frecuencia de salida real al construir el `NDS`
+(`NDSArgs::OutputSampleRate`). Por eso el stream de AAudio se abre en
+`nativeCreate` —antes de que exista ningún `NDS`— y la frecuencia que
+devuelve de verdad (`AAudioStream_getSampleRate`, no la pedida) es la que se
+pasa a `NDSArgs` en cada `nativeLoad`.
+
+Un detalle de seguridad entre hilos: `SPU::ReadOutput` **no** es zero-safe
+frente a un lector concurrente (sus índices de lectura/escritura son
+enteros simples, no atómicos). Por eso el vaciado del SPU ocurre siempre
+dentro de `nativeRunFrame`, en el hilo de emulación —igual que
+`RunFrame()`—, y nunca desde el callback de AAudio; el callback sólo toca
+el anillo propio del puente.
+
+Verificado en el Motorola Edge 30: `AAudioStream_getSampleRate` devuelve
+32768 Hz exactos (el dispositivo acepta la frecuencia nativa de la DS sin
+remuestreo), el stream arranca sin error y no hay caídas tras varios
+minutos con el botón de soplar mantenido. Sigue pendiente una comprobación
+con sonido real de un juego (la ROM sintética de prueba no lleva código que
+produzca audio); es la misma limitación que con el vídeo, y se resuelve
+igual: con una ROM homebrew legítima cuando haya una a mano.
+
+### Partida de batería: se lee siempre en vivo, nunca se copia
+
+`NDSCart::ParseROM` recibe `emu` como `userdata`, y ese mismo puntero es el
+`userdata` de `NDS` (igual que hace el frontend de referencia). Con eso:
+
+- `WriteNDSSave` sólo marca `batteryDirty`; nunca copia el contenido.
+- `nativeReadBattery` lee siempre `NDS::GetNDSSave()` /
+  `GetNDSSaveLength()` —el búfer que posee el propio cartucho— en el
+  momento en que se llama, así que no hay dos copias que puedan
+  desincronizarse.
+- Al cargar, si hay partida previa, se entrega como `NDSCartArgs::SRAM` en
+  memoria antes de `ParseROM`; el tamaño real de la savedata lo decide el
+  propio core (su detección de tipo de cartucho, `ROMList`), no Kotlin.
+
+**Pendiente de verificar con un juego real:** la ROM sintética de prueba no
+tiene una entrada reconocida en `ROMList` (`ROM entry not found for
+gamecode...`, visto en logcat), así que no se pudo comprobar en dispositivo
+el circuito completo de guardar, cerrar la app, reabrir y encontrar la
+partida — el "está hecho cuando" exacto de este entregable para la parte de
+savedata. La plomería (tipos, JNI, lectura en vivo) está verificada por
+inspección y no rompe nada en las pruebas hechas; falta el round-trip real,
+que requiere un juego libre que guarde de verdad. Es el mismo tipo de
+limitación que el vídeo y el audio: exige una ROM homebrew legítima, no la
+sintética.

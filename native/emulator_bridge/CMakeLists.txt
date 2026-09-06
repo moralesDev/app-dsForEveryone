@@ -61,6 +61,7 @@ target_include_directories(dsemu PRIVATE
 
 target_link_libraries(dsemu
     core
+    aaudio
     android
     log
 )

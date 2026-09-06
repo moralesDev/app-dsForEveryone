@@ -12,18 +12,27 @@
  *
  * Este archivo cumple dos papeles a la vez: implementa la interfaz
  * melonDS::Platform que el core necesita para enlazar (archivos, hilos,
- * mutex/semáforo, log...) y expone las funciones nativas que Kotlin declara
- * en NativeBridge.kt.
+ * mutex/semáforo, log, mic...) y expone las funciones nativas que Kotlin
+ * declara en NativeBridge.kt.
+ *
+ * El audio (AAudio, 32768 Hz estéreo) usa el mismo anillo sin cerrojos que
+ * `app-emulador`: el hilo de emulación empuja en nativeRunFrame, el callback
+ * de AAudio saca. Sigue vigente la misma limitación heredada: sin
+ * sincronización por audio, el ritmo lo marca el reloj de la emulación.
  */
 
 #include <jni.h>
 
+#include <aaudio/AAudio.h>
 #include <android/log.h>
 
+#include <atomic>
 #include <chrono>
 #include <condition_variable>
 #include <cstdarg>
 #include <cstdio>
+#include <cstdlib>
+#include <cstring>
 #include <ctime>
 #include <memory>
 #include <mutex>
@@ -34,6 +43,7 @@
 #include <NDSCart.h>
 #include <GPU.h>
 #include <Platform.h>
+#include <SPU.h>
 
 #define TAG "ds-bridge"
 #define LOGE(...) __android_log_print(ANDROID_LOG_ERROR, TAG, __VA_ARGS__)
@@ -59,16 +69,35 @@ constexpr jint kLoadOk = 0;
 constexpr jint kLoadInvalidRom = 1;
 constexpr jint kLoadFailed = 2;
 
+// Anillo de audio sin cerrojos, mismo diseño que app-emulador (mgba_bridge.c):
+// un productor (el hilo de emulación, en nativeRunFrame) y un consumidor (el
+// callback de AAudio), potencia de dos para recortar el índice con una
+// máscara. 16384 fotogramas estéreo son ~0,5 s a 32768 Hz: de sobra para
+// absorber que el hilo de emulación entregue a ráfagas de un fotograma.
+constexpr unsigned kAudioRingFrames = 16384u;
+constexpr unsigned kAudioRingMask = kAudioRingFrames - 1u;
+constexpr int32_t kAudioSampleRateHint = 32768;  // frecuencia nativa de la DS.
+constexpr int kAudioDrainMax = 4096;
+
 struct Emulator {
     std::unique_ptr<melonDS::NDS> nds;
     bool loaded = false;
+
+    std::atomic<bool> micNoiseActive{false};
+    std::atomic<bool> batteryDirty{false};
+
+    std::unique_ptr<int16_t[]> ring{new int16_t[kAudioRingFrames * 2]};
+    std::atomic<unsigned> ringRead{0};
+    std::atomic<unsigned> ringWrite{0};
+    AAudioStream* audioStream = nullptr;
+    double audioSampleRate = kAudioSampleRateHint;
 };
 
 Emulator* FromHandle(jlong handle) {
     return reinterpret_cast<Emulator*>(static_cast<intptr_t>(handle));
 }
 
-melonDS::NDSArgs MakeArgs() {
+melonDS::NDSArgs MakeArgs(double outputSampleRate) {
     // Sin argumentos explícitos, NDSArgs ya trae FreeBIOS (ARM9BIOS/ARM7BIOS
     // por defecto) y firmware generado (Firmware{0}): arranca sin que el
     // usuario tenga que aportar BIOS ni firmware reales. Los archivos de
@@ -76,7 +105,91 @@ melonDS::NDSArgs MakeArgs() {
     melonDS::NDSArgs args{};
     args.JIT = std::nullopt;  // ENABLE_JIT=OFF en esta compilación.
     args.GDB = std::nullopt;  // ENABLE_GDBSTUB=OFF: sin socket de depuración.
+    // El SPU resamplea internamente de 32768 Hz a esta frecuencia; hay que
+    // decirle la que de verdad entrega AAudio (puede no ser la pedida), no la
+    // nominal de la DS.
+    args.OutputSampleRate = outputSampleRate;
     return args;
+}
+
+// Productor: el hilo de emulación, una vez por fotograma (ver nativeRunFrame).
+void RingPush(Emulator* emu, const int16_t* frames, unsigned count) {
+    const unsigned write = emu->ringWrite.load(std::memory_order_relaxed);
+    const unsigned read = emu->ringRead.load(std::memory_order_acquire);
+    unsigned freeSlots = kAudioRingFrames - (write - read);
+    if (count > freeSlots) count = freeSlots;
+    for (unsigned i = 0; i < count; ++i) {
+        unsigned slot = ((write + i) & kAudioRingMask) * 2u;
+        emu->ring[slot] = frames[i * 2];
+        emu->ring[slot + 1] = frames[i * 2 + 1];
+    }
+    emu->ringWrite.store(write + count, std::memory_order_release);
+}
+
+// Consumidor: el hilo de AAudio (ver AudioCallback).
+unsigned RingPop(Emulator* emu, int16_t* out, unsigned count) {
+    const unsigned read = emu->ringRead.load(std::memory_order_relaxed);
+    const unsigned write = emu->ringWrite.load(std::memory_order_acquire);
+    unsigned available = write - read;
+    if (available > count) available = count;
+    for (unsigned i = 0; i < available; ++i) {
+        unsigned slot = ((read + i) & kAudioRingMask) * 2u;
+        out[i * 2] = emu->ring[slot];
+        out[i * 2 + 1] = emu->ring[slot + 1];
+    }
+    emu->ringRead.store(read + available, std::memory_order_release);
+    return available;
+}
+
+aaudio_data_callback_result_t AudioCallback(
+    AAudioStream*, void* userData, void* audioData, int32_t numFrames) {
+    auto* emu = static_cast<Emulator*>(userData);
+    auto* out = static_cast<int16_t*>(audioData);
+    unsigned got = RingPop(emu, out, static_cast<unsigned>(numFrames));
+    if (got < static_cast<unsigned>(numFrames)) {
+        // El anillo se vacía si la emulación no ha entregado nada todavía o
+        // no llega a tiempo: se completa con silencio en vez de repetir la
+        // última muestra o dejar memoria sin inicializar.
+        memset(out + static_cast<size_t>(got) * 2, 0,
+               (static_cast<size_t>(numFrames) - got) * 2 * sizeof(int16_t));
+    }
+    return AAUDIO_CALLBACK_RESULT_CONTINUE;
+}
+
+// Abre la salida de audio una sola vez, al crear el manejador: la frecuencia
+// real que devuelve AAudio hace falta ANTES de construir el NDS (se le pasa
+// como OutputSampleRate en NDSArgs), y el manejador vive lo que vive el
+// proceso. Que falle no es motivo para no jugar: sólo silencio, con el
+// mensaje en logcat.
+void OpenAudio(Emulator* emu) {
+    AAudioStreamBuilder* builder = nullptr;
+    if (AAudio_createStreamBuilder(&builder) != AAUDIO_OK || !builder) {
+        LOGE("No se pudo crear el constructor de AAudio");
+        return;
+    }
+    AAudioStreamBuilder_setFormat(builder, AAUDIO_FORMAT_PCM_I16);
+    AAudioStreamBuilder_setChannelCount(builder, 2);
+    AAudioStreamBuilder_setSampleRate(builder, kAudioSampleRateHint);
+    AAudioStreamBuilder_setPerformanceMode(builder, AAUDIO_PERFORMANCE_MODE_LOW_LATENCY);
+    AAudioStreamBuilder_setSharingMode(builder, AAUDIO_SHARING_MODE_SHARED);
+    AAudioStreamBuilder_setDataCallback(builder, AudioCallback, emu);
+
+    AAudioStream* stream = nullptr;
+    aaudio_result_t opened = AAudioStreamBuilder_openStream(builder, &stream);
+    AAudioStreamBuilder_delete(builder);
+    if (opened != AAUDIO_OK || !stream) {
+        LOGE("No se pudo abrir AAudio: %s", AAudio_convertResultToText(opened));
+        return;
+    }
+
+    emu->audioSampleRate = static_cast<double>(AAudioStream_getSampleRate(stream));
+    if (AAudioStream_requestStart(stream) != AAUDIO_OK) {
+        LOGE("No se pudo arrancar AAudio");
+        AAudioStream_close(stream);
+        return;
+    }
+    emu->audioStream = stream;
+    LOGI("Audio a %.0f Hz", emu->audioSampleRate);
 }
 
 /*
@@ -102,8 +215,7 @@ inline uint32_t ToAndroidArgb(uint32_t pixel) {
 // proyecto (JIT/OGL/GDB/red apagados) se comprobó con `llvm-nm --undefined-
 // only` sobre libcore.a; sólo se implementa esa lista. Multijugador, cámara,
 // AAC (DSi) y los addons (Guitar Grip, Rumble Pak, Motion Pak) no se usan en
-// este proyecto y quedan como no-operación; la partida de batería y el
-// micrófono se conectan de verdad en la fase 4.3.
+// este proyecto y quedan como no-operación.
 // ---------------------------------------------------------------------------
 namespace melonDS::Platform {
 
@@ -332,8 +444,13 @@ u64 GetUSCount() {
     return static_cast<u64>(ts.tv_sec) * 1000000u + static_cast<u64>(ts.tv_nsec) / 1000u;
 }
 
-void WriteNDSSave(const u8*, u32, u32, u32, void*) {
-    // La partida de batería se conecta de verdad en la fase 4.3.
+void WriteNDSSave(const u8*, u32, u32, u32, void* userdata) {
+    // `userdata` es el mismo Emulator* que se pasó a NDSCart::ParseROM: sólo
+    // marca la bandera. El contenido en sí se lee siempre en vivo desde
+    // NDS::GetNDSSave() (ver nativeReadBattery), nunca se copia aquí.
+    if (auto* emu = static_cast<::Emulator*>(userdata)) {
+        emu->batteryDirty.store(true, std::memory_order_relaxed);
+    }
 }
 
 void WriteGBASave(const u8*, u32, u32, u32, void*) {
@@ -366,9 +483,15 @@ void Camera_CaptureFrame(int, u32*, int, int, bool, void*) {}
 void Mic_Start(void*) {}
 void Mic_Stop(void*) {}
 
-int Mic_ReadInput(s16*, int, void*) {
-    // El botón de soplar se conecta de verdad en la fase 4.3.
-    return 0;
+int Mic_ReadInput(s16* data, int maxlength, void* userdata) {
+    auto* emu = static_cast<::Emulator*>(userdata);
+    if (!emu || !emu->micNoiseActive.load(std::memory_order_relaxed)) return 0;
+    // Ruido blanco a (casi) plena escala: los juegos que esperan un soplido
+    // comprueban un umbral de nivel, y un ruido tibio no siempre lo cruza.
+    for (int i = 0; i < maxlength; ++i) {
+        data[i] = static_cast<s16>((rand() % 65536) - 32768);
+    }
+    return maxlength;
 }
 
 AACDecoder* AAC_Init() { return nullptr; }
@@ -391,12 +514,13 @@ extern "C" {
 JNIEXPORT jlong JNICALL
 Java_com_moralesDev_dsForEveryone_emulator_core_NativeBridge_nativeCreate(JNIEnv*, jobject) {
     auto* emu = new Emulator();
+    OpenAudio(emu);
     return reinterpret_cast<jlong>(emu);
 }
 
 JNIEXPORT jint JNICALL
 Java_com_moralesDev_dsForEveryone_emulator_core_NativeBridge_nativeLoad(
-    JNIEnv* env, jobject, jlong handle, jbyteArray romArray) {
+    JNIEnv* env, jobject, jlong handle, jbyteArray romArray, jbyteArray saveArray) {
     Emulator* emu = FromHandle(handle);
     if (!emu || !romArray) return kLoadFailed;
 
@@ -406,16 +530,39 @@ Java_com_moralesDev_dsForEveryone_emulator_core_NativeBridge_nativeLoad(
     jbyte* romBytes = env->GetByteArrayElements(romArray, nullptr);
     if (!romBytes) return kLoadFailed;
 
-    // ParseROM copia el contenido a su propio búfer: los bytes de Java se
-    // pueden liberar en cuanto vuelve, sin que el core se quede con un
-    // puntero a memoria que la JVM podría mover o recolectar.
+    // Si hay partida de batería previa, se entrega en memoria al construir el
+    // cartucho: el core la lee ya con el tamaño que él mismo detecte como el
+    // real (ver docs/integracion-core.md, sección 7 — "algunos juegos no
+    // declaran bien su tipo" es un problema del propio formato, no de este
+    // puente).
+    melonDS::NDSCart::NDSCartArgs cartArgs{};
+    if (saveArray) {
+        jsize saveLen = env->GetArrayLength(saveArray);
+        if (saveLen > 0) {
+            jbyte* saveBytes = env->GetByteArrayElements(saveArray, nullptr);
+            if (saveBytes) {
+                cartArgs.SRAM = std::make_unique<melonDS::u8[]>(static_cast<size_t>(saveLen));
+                memcpy(cartArgs.SRAM.get(), saveBytes, static_cast<size_t>(saveLen));
+                cartArgs.SRAMLength = static_cast<melonDS::u32>(saveLen);
+                env->ReleaseByteArrayElements(saveArray, saveBytes, JNI_ABORT);
+            }
+        }
+    }
+
+    // ParseROM copia el contenido de la ROM a su propio búfer: los bytes de
+    // Java se pueden liberar en cuanto vuelve. `emu` viaja como userdata:
+    // WriteNDSSave lo recibirá tal cual (ver esa función más arriba).
     auto cart = melonDS::NDSCart::ParseROM(
-        reinterpret_cast<const melonDS::u8*>(romBytes), static_cast<melonDS::u32>(romLen));
+        reinterpret_cast<const melonDS::u8*>(romBytes), static_cast<melonDS::u32>(romLen), emu,
+        std::move(cartArgs));
     env->ReleaseByteArrayElements(romArray, romBytes, JNI_ABORT);
 
     if (!cart) return kLoadInvalidRom;
 
-    emu->nds = std::make_unique<melonDS::NDS>(MakeArgs());
+    // `emu` también viaja como userdata del propio NDS (mismo puntero que el
+    // del cartucho, igual que hace el frontend de referencia): es lo que
+    // Mic_ReadInput recibe para saber si el soplido está activo.
+    emu->nds = std::make_unique<melonDS::NDS>(MakeArgs(emu->audioSampleRate), emu);
     emu->nds->NDSCartSlot.SetCart(std::move(cart));
     emu->nds->Reset();
 
@@ -423,6 +570,7 @@ Java_com_moralesDev_dsForEveryone_emulator_core_NativeBridge_nativeLoad(
         emu->nds->SetupDirectBoot();
     }
 
+    emu->batteryDirty.store(false, std::memory_order_relaxed);
     emu->loaded = true;
     return kLoadOk;
 }
@@ -441,8 +589,21 @@ JNIEXPORT void JNICALL
 Java_com_moralesDev_dsForEveryone_emulator_core_NativeBridge_nativeRunFrame(
     JNIEnv*, jobject, jlong handle) {
     Emulator* emu = FromHandle(handle);
-    if (emu && emu->loaded) {
-        emu->nds->RunFrame();
+    if (!emu || !emu->loaded) return;
+
+    emu->nds->RunFrame();
+
+    // Vaciar el SPU aquí, en el hilo de emulación, y nunca desde el callback
+    // de AAudio: su búfer de salida no es thread-safe frente a un lector
+    // concurrente (son índices simples, no atómicos). El callback sólo toca
+    // el anillo propio del puente.
+    melonDS::SPU& spu = emu->nds->SPU;
+    int available = spu.GetOutputSize();
+    if (available > 0) {
+        if (available > kAudioDrainMax) available = kAudioDrainMax;
+        int16_t buffer[kAudioDrainMax * 2];
+        int got = spu.ReadOutput(buffer, available);
+        if (got > 0) RingPush(emu, buffer, static_cast<unsigned>(got));
     }
 }
 
@@ -476,28 +637,33 @@ Java_com_moralesDev_dsForEveryone_emulator_core_NativeBridge_nativeCaptureFrame(
 JNIEXPORT void JNICALL
 Java_com_moralesDev_dsForEveryone_emulator_core_NativeBridge_nativeSetKeys(
     JNIEnv*, jobject, jlong handle, jint mask) {
-    // La correspondencia real de bits (qué botón es cuál) se investiga y se
-    // conecta en la fase 4.3; por ahora la entrada no llega al core.
-    (void) handle;
-    (void) mask;
+    Emulator* emu = FromHandle(handle);
+    if (!emu || !emu->loaded) return;
+    // DsButton.bit ya está en el orden que espera NDS::SetKeyMask (copiado de
+    // EmuInstance::buttonNames, ver DsButton.kt); aquí sólo cambia la
+    // polaridad: en Kotlin 1 = pulsado, pero KEYINPUT/EXTKEYIN son activos a
+    // nivel bajo (0 = pulsado).
+    melonDS::u32 coreMask = (~static_cast<melonDS::u32>(mask)) & 0xFFFu;
+    emu->nds->SetKeyMask(coreMask);
 }
 
 JNIEXPORT void JNICALL
 Java_com_moralesDev_dsForEveryone_emulator_core_NativeBridge_nativeSetTouch(
     JNIEnv*, jobject, jlong handle, jint x, jint y, jboolean down) {
-    // El cableado real de la pantalla táctil llega en la fase 4.3.
-    (void) handle;
-    (void) x;
-    (void) y;
-    (void) down;
+    Emulator* emu = FromHandle(handle);
+    if (!emu || !emu->loaded) return;
+    if (down) {
+        emu->nds->TouchScreen(static_cast<melonDS::u16>(x), static_cast<melonDS::u16>(y));
+    } else {
+        emu->nds->ReleaseScreen();
+    }
 }
 
 JNIEXPORT void JNICALL
 Java_com_moralesDev_dsForEveryone_emulator_core_NativeBridge_nativeSetMicNoise(
     JNIEnv*, jobject, jlong handle, jboolean active) {
-    // El ruido de soplido llega en la fase 4.3.
-    (void) handle;
-    (void) active;
+    Emulator* emu = FromHandle(handle);
+    if (emu) emu->micNoiseActive.store(active == JNI_TRUE, std::memory_order_relaxed);
 }
 
 JNIEXPORT jint JNICALL
@@ -525,17 +691,30 @@ Java_com_moralesDev_dsForEveryone_emulator_core_NativeBridge_nativeDeserializeSt
 
 JNIEXPORT jbyteArray JNICALL
 Java_com_moralesDev_dsForEveryone_emulator_core_NativeBridge_nativeReadBattery(
-    JNIEnv*, jobject, jlong handle) {
-    // La partida de batería contra el core real llega en la fase 4.3.
-    (void) handle;
-    return nullptr;
+    JNIEnv* env, jobject, jlong handle) {
+    Emulator* emu = FromHandle(handle);
+    if (!emu || !emu->loaded) return nullptr;
+
+    // Siempre en vivo desde el búfer que posee el cartucho: no se mantiene
+    // copia propia en el puente, así que no hay dos versiones que puedan
+    // desincronizarse.
+    const melonDS::u8* save = emu->nds->GetNDSSave();
+    melonDS::u32 len = emu->nds->GetNDSSaveLength();
+    if (!save || len == 0) return nullptr;
+
+    jbyteArray result = env->NewByteArray(static_cast<jsize>(len));
+    if (!result) return nullptr;
+    env->SetByteArrayRegion(result, 0, static_cast<jsize>(len),
+                             reinterpret_cast<const jbyte*>(save));
+    return result;
 }
 
 JNIEXPORT jboolean JNICALL
 Java_com_moralesDev_dsForEveryone_emulator_core_NativeBridge_nativeConsumeBatteryDirty(
     JNIEnv*, jobject, jlong handle) {
-    (void) handle;
-    return JNI_FALSE;
+    Emulator* emu = FromHandle(handle);
+    if (!emu) return JNI_FALSE;
+    return emu->batteryDirty.exchange(false, std::memory_order_relaxed) ? JNI_TRUE : JNI_FALSE;
 }
 
 JNIEXPORT jstring JNICALL

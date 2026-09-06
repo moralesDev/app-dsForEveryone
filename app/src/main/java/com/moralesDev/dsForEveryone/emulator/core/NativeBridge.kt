@@ -27,7 +27,7 @@ internal object NativeBridge {
     external fun nativeCreate(): Long
 
     /** @return 0 correcto, 1 ROM no válida, 2 fallo de inicialización. */
-    external fun nativeLoad(handle: Long, rom: ByteArray): Int
+    external fun nativeLoad(handle: Long, rom: ByteArray, batterySave: ByteArray?): Int
 
     external fun nativeUnload(handle: Long)
 

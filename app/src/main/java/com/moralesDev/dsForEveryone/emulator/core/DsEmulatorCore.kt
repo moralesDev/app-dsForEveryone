@@ -10,12 +10,11 @@ import android.view.Surface
  * proyecto, asume que todas las operaciones llegan desde el hilo de
  * emulación salvo [attachSurface].
  *
- * Entregable 4.2 («cargar y pintar»): sólo [load], [runFrame] y
- * [captureFrame] hablan de verdad con el core. La entrada ([setKeys],
- * [setTouch], [setMicNoise]), la partida de batería ([readBattery],
- * [consumeBatteryDirty]) y los save states ([serializeState],
- * [deserializeState]) llegan en las fases 4.3 y 4.4; hasta entonces sus
- * llamadas al puente existen pero no hacen nada.
+ * Desde el entregable 4.3, [load], [runFrame], [captureFrame], la entrada
+ * ([setKeys], [setTouch], [setMicNoise]) y la partida de batería
+ * ([readBattery], [consumeBatteryDirty]) hablan de verdad con el core. Los
+ * save states ([serializeState], [deserializeState]) llegan en la fase 4.4;
+ * hasta entonces sus llamadas al puente existen pero no hacen nada.
  *
  * El manejador nativo se crea una sola vez y vive lo que viva el proceso, con
  * el mismo motivo que en `app-emulador`: la superficie puede engancharse
@@ -42,9 +41,7 @@ class DsEmulatorCore : EmulatorCore {
 
     override fun load(rom: ByteArray, batterySave: ByteArray?): CoreLoadResult {
         if (!isUsable) return CoreLoadResult.CoreUnavailable
-        // batterySave se conecta en la fase 4.3, junto con el resto de la
-        // partida de batería (readBattery/consumeBatteryDirty).
-        return when (NativeBridge.nativeLoad(handle, rom)) {
+        return when (NativeBridge.nativeLoad(handle, rom, batterySave)) {
             LOAD_OK -> CoreLoadResult.Success
             LOAD_INVALID_ROM -> CoreLoadResult.InvalidRom
             else -> CoreLoadResult.Failure("melonDS no pudo inicializar la ROM.")
