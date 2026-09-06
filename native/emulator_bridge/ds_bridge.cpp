@@ -27,6 +27,7 @@
 #include <android/log.h>
 
 #include <atomic>
+#include <cerrno>
 #include <chrono>
 #include <condition_variable>
 #include <cstdarg>
@@ -36,6 +37,7 @@
 #include <ctime>
 #include <memory>
 #include <mutex>
+#include <sys/mman.h>
 #include <thread>
 #include <unistd.h>
 
@@ -519,18 +521,19 @@ Java_com_moralesDev_dsForEveryone_emulator_core_NativeBridge_nativeCreate(JNIEnv
     return reinterpret_cast<jlong>(emu);
 }
 
-JNIEXPORT jint JNICALL
-Java_com_moralesDev_dsForEveryone_emulator_core_NativeBridge_nativeLoad(
-    JNIEnv* env, jobject, jlong handle, jbyteArray romArray, jbyteArray saveArray) {
-    Emulator* emu = FromHandle(handle);
-    if (!emu || !romArray) return kLoadFailed;
+namespace {
 
-    jsize romLen = env->GetArrayLength(romArray);
-    if (romLen <= 0) return kLoadInvalidRom;
-
-    jbyte* romBytes = env->GetByteArrayElements(romArray, nullptr);
-    if (!romBytes) return kLoadFailed;
-
+/*
+ * Todo lo que hace falta para dejar un cartucho jugando, a partir de un
+ * puntero a la ROM ya en memoria (venga de un `jbyteArray` copiado o de un
+ * `mmap`) y de la partida de batería opcional. Comparten esto `nativeLoad`
+ * (ROM pequeña o dentro de un `.zip`, entregada como `ByteArray`) y
+ * `nativeLoadFd` (ROM suelta y grande, mapeada en memoria sin copiarla a
+ * Java) — la única diferencia entre las dos es cómo se consigue `romData`.
+ */
+jint FinishLoad(
+    Emulator* emu, const melonDS::u8* romData, melonDS::u32 romLen, JNIEnv* env,
+    jbyteArray saveArray) {
     // Si hay partida de batería previa, se entrega en memoria al construir el
     // cartucho: el core la lee ya con el tamaño que él mismo detecte como el
     // real (ver docs/integracion-core.md, sección 7 — "algunos juegos no
@@ -550,14 +553,11 @@ Java_com_moralesDev_dsForEveryone_emulator_core_NativeBridge_nativeLoad(
         }
     }
 
-    // ParseROM copia el contenido de la ROM a su propio búfer: los bytes de
-    // Java se pueden liberar en cuanto vuelve. `emu` viaja como userdata:
-    // WriteNDSSave lo recibirá tal cual (ver esa función más arriba).
-    auto cart = melonDS::NDSCart::ParseROM(
-        reinterpret_cast<const melonDS::u8*>(romBytes), static_cast<melonDS::u32>(romLen), emu,
-        std::move(cartArgs));
-    env->ReleaseByteArrayElements(romArray, romBytes, JNI_ABORT);
-
+    // ParseROM copia el contenido de la ROM a su propio búfer: `romData` se
+    // puede liberar (o desmapear) en cuanto vuelve. `emu` viaja como
+    // userdata: WriteNDSSave lo recibirá tal cual (ver esa función más
+    // arriba).
+    auto cart = melonDS::NDSCart::ParseROM(romData, romLen, emu, std::move(cartArgs));
     if (!cart) return kLoadInvalidRom;
 
     // `emu` también viaja como userdata del propio NDS (mismo puntero que el
@@ -597,6 +597,63 @@ Java_com_moralesDev_dsForEveryone_emulator_core_NativeBridge_nativeLoad(
     emu->batteryDirty.store(false, std::memory_order_relaxed);
     emu->loaded = true;
     return kLoadOk;
+}
+
+}  // namespace
+
+JNIEXPORT jint JNICALL
+Java_com_moralesDev_dsForEveryone_emulator_core_NativeBridge_nativeLoad(
+    JNIEnv* env, jobject, jlong handle, jbyteArray romArray, jbyteArray saveArray) {
+    Emulator* emu = FromHandle(handle);
+    if (!emu || !romArray) return kLoadFailed;
+
+    jsize romLen = env->GetArrayLength(romArray);
+    if (romLen <= 0) return kLoadInvalidRom;
+
+    jbyte* romBytes = env->GetByteArrayElements(romArray, nullptr);
+    if (!romBytes) return kLoadFailed;
+
+    jint result = FinishLoad(
+        emu, reinterpret_cast<const melonDS::u8*>(romBytes), static_cast<melonDS::u32>(romLen),
+        env, saveArray);
+    env->ReleaseByteArrayElements(romArray, romBytes, JNI_ABORT);
+    return result;
+}
+
+JNIEXPORT jint JNICALL
+Java_com_moralesDev_dsForEveryone_emulator_core_NativeBridge_nativeLoadFd(
+    JNIEnv* env, jobject, jlong handle, jint fd, jlong length, jbyteArray saveArray) {
+    Emulator* emu = FromHandle(handle);
+    // Este puente es el único dueño de `fd` desde aquí: Kotlin lo entrega con
+    // ParcelFileDescriptor.detachFd() precisamente para no cerrarlo dos veces.
+    // Cualquier salida de esta función tiene que cerrarlo.
+    if (!emu || fd < 0 || length <= 0) {
+        if (fd >= 0) close(fd);
+        return kLoadFailed;
+    }
+
+    // MAP_PRIVATE: copy-on-write de sólo lectura. No se escribe nunca en este
+    // mapeo (ParseROM sólo lee), así que no hace falta pensar en qué pasaría
+    // si el archivo cambiara por debajo durante la partida.
+    void* mapped = mmap(
+        nullptr, static_cast<size_t>(length), PROT_READ, MAP_PRIVATE, fd, 0);
+    if (mapped == MAP_FAILED) {
+        LOGE("mmap falló para la ROM (%lld bytes): %s", static_cast<long long>(length),
+             strerror(errno));
+        close(fd);
+        return kLoadFailed;
+    }
+
+    jint result = FinishLoad(
+        emu, static_cast<const melonDS::u8*>(mapped), static_cast<melonDS::u32>(length), env,
+        saveArray);
+
+    // ParseROM ya copió lo que necesitaba a su propio búfer (sección 7 de
+    // integracion-core.md): el mapeo no hace falta conservarlo más allá de
+    // esta llamada.
+    munmap(mapped, static_cast<size_t>(length));
+    close(fd);
+    return result;
 }
 
 JNIEXPORT void JNICALL

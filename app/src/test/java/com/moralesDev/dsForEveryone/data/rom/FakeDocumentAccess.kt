@@ -1,5 +1,6 @@
 package com.moralesDev.dsForEveryone.data.rom
 
+import android.os.ParcelFileDescriptor
 import java.io.ByteArrayInputStream
 import java.io.InputStream
 
@@ -31,6 +32,16 @@ class FakeDocumentAccess : DocumentAccess {
     }
 
     override fun openInputStream(uri: String): InputStream? = documents[uri]?.let { ByteArrayInputStream(it) }
+
+    /**
+     * Siempre `null`: `ParcelFileDescriptor` no se puede construir en una
+     * prueba de JVM sin Robolectric, que este proyecto no usa. La vía de
+     * descriptor de `RomRepository.openRomForCore` queda sin poder probarse
+     * de extremo a extremo aquí a propósito; lo que sí prueba
+     * `RomRepositoryTest` es que, cuando esto devuelve `null`, el método no
+     * revienta y se limita a no ofrecer esa vía.
+     */
+    override fun openFileDescriptor(uri: String): ParcelFileDescriptor? = null
 
     override fun displayNameOf(uri: String): String? = displayNames[uri]
 

@@ -2,6 +2,7 @@ package com.moralesDev.dsForEveryone.data.rom
 
 import android.content.ContentResolver
 import android.content.Intent
+import android.os.ParcelFileDescriptor
 import android.provider.OpenableColumns
 import androidx.core.net.toUri
 import java.io.InputStream
@@ -18,6 +19,15 @@ import java.io.InputStream
  */
 interface DocumentAccess {
     fun openInputStream(uri: String): InputStream?
+
+    /**
+     * Descriptor de archivo abierto sobre el documento, para ROMs sueltas que
+     * no conviene copiar a memoria (ver `RomRepository.openRomForCore`).
+     * `null` si el proveedor no lo permite; quien llame cae entonces a
+     * [openInputStream].
+     */
+    fun openFileDescriptor(uri: String): ParcelFileDescriptor?
+
     fun displayNameOf(uri: String): String?
 
     /** `false` si el proveedor no concede permiso persistente; la ROM sigue jugable en esta sesión. */
@@ -34,6 +44,9 @@ class ContentResolverDocumentAccess(
 
     override fun openInputStream(uri: String): InputStream? =
         contentResolver.openInputStream(uri.toUri())
+
+    override fun openFileDescriptor(uri: String): ParcelFileDescriptor? =
+        contentResolver.openFileDescriptor(uri.toUri(), "r")
 
     override fun displayNameOf(uri: String): String? =
         contentResolver.query(uri.toUri(), arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)

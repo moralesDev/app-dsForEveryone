@@ -27,9 +27,23 @@ import java.util.zip.CRC32
 class SyntheticRomExporter {
 
     @Test
-    fun exportar() {
-        val bytes = DsRomFixtures.validRomBytes()
-        val out = File("build/synthetic-rom/sample.nds")
+    fun exportar() = export(DsRomFixtures.validRomBytes(), "sample.nds")
+
+    /**
+     * Variante grande (150 MB), del mismo tamaño de orden de magnitud que un
+     * cartucho real de DS pesado (Pokémon Platino pesa 128 MB). Sirve para
+     * probar el camino de `RomSource.Descriptor` / `mmap` sin necesitar una
+     * ROM real: ver `EmulatorCore.loadFromDescriptor` y
+     * `docs/estabilizacion-core.md`.
+     */
+    @Test
+    fun exportarGrande() = export(
+        DsRomFixtures.validRomBytes(totalSize = 150 * 1024 * 1024),
+        "large.nds",
+    )
+
+    private fun export(bytes: ByteArray, fileName: String) {
+        val out = File("build/synthetic-rom/$fileName")
         out.parentFile?.mkdirs()
         out.writeBytes(bytes)
 

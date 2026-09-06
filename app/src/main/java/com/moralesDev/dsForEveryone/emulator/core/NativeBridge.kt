@@ -29,6 +29,20 @@ internal object NativeBridge {
     /** @return 0 correcto, 1 ROM no válida, 2 fallo de inicialización. */
     external fun nativeLoad(handle: Long, rom: ByteArray, batterySave: ByteArray?): Int
 
+    /**
+     * Como [nativeLoad], pero mapea la ROM en memoria en el lado nativo en
+     * vez de recibirla copiada en un `ByteArray`: es la vía para ROMs sueltas
+     * que pueden pesar más de lo que cabe cómodo en el heap de Java (ver
+     * RomRepository.openRomForCore).
+     *
+     * Se queda con la propiedad de [fd] —debe venir de
+     * `ParcelFileDescriptor.detachFd()`— y lo cierra siempre él mismo, tenga
+     * éxito o no.
+     *
+     * @return 0 correcto, 1 ROM no válida, 2 fallo de inicialización.
+     */
+    external fun nativeLoadFd(handle: Long, fd: Int, length: Long, batterySave: ByteArray?): Int
+
     external fun nativeUnload(handle: Long)
 
     external fun nativeRunFrame(handle: Long)

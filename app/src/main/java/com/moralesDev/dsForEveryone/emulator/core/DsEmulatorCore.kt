@@ -1,5 +1,6 @@
 package com.moralesDev.dsForEveryone.emulator.core
 
+import android.os.ParcelFileDescriptor
 import android.view.Surface
 
 /**
@@ -9,12 +10,6 @@ import android.view.Surface
  * hace nada más: la emulación entera ocurre en C++. Igual que el resto del
  * proyecto, asume que todas las operaciones llegan desde el hilo de
  * emulación salvo [attachSurface].
- *
- * Desde el entregable 4.3, [load], [runFrame], [captureFrame], la entrada
- * ([setKeys], [setTouch], [setMicNoise]) y la partida de batería
- * ([readBattery], [consumeBatteryDirty]) hablan de verdad con el core. Los
- * save states ([serializeState], [deserializeState]) llegan en la fase 4.4;
- * hasta entonces sus llamadas al puente existen pero no hacen nada.
  *
  * El manejador nativo se crea una sola vez y vive lo que viva el proceso, con
  * el mismo motivo que en `app-emulador`: la superficie puede engancharse
@@ -42,6 +37,30 @@ class DsEmulatorCore : EmulatorCore {
     override fun load(rom: ByteArray, batterySave: ByteArray?): CoreLoadResult {
         if (!isUsable) return CoreLoadResult.CoreUnavailable
         return when (NativeBridge.nativeLoad(handle, rom, batterySave)) {
+            LOAD_OK -> CoreLoadResult.Success
+            LOAD_INVALID_ROM -> CoreLoadResult.InvalidRom
+            else -> CoreLoadResult.Failure("melonDS no pudo inicializar la ROM.")
+        }
+    }
+
+    /**
+     * Mapea la ROM en memoria en el lado nativo en vez de copiarla a un
+     * `ByteArray`: es lo que evita el `OutOfMemoryError` con ROMs sueltas
+     * grandes (ver `EmulatorCore.loadFromDescriptor` y
+     * `docs/estabilizacion-core.md`).
+     */
+    override fun loadFromDescriptor(
+        fd: ParcelFileDescriptor,
+        length: Long,
+        batterySave: ByteArray?,
+    ): CoreLoadResult {
+        if (!isUsable) {
+            fd.close()
+            return CoreLoadResult.CoreUnavailable
+        }
+        // detachFd() traspasa la propiedad del descriptor: a partir de aquí
+        // es ds_bridge.cpp quien lo cierra, siempre, tenga éxito o no.
+        return when (NativeBridge.nativeLoadFd(handle, fd.detachFd(), length, batterySave)) {
             LOAD_OK -> CoreLoadResult.Success
             LOAD_INVALID_ROM -> CoreLoadResult.InvalidRom
             else -> CoreLoadResult.Failure("melonDS no pudo inicializar la ROM.")

@@ -1,5 +1,6 @@
 package com.moralesDev.dsForEveryone.emulator
 
+import android.os.ParcelFileDescriptor
 import android.os.Process
 import android.util.Log
 import android.view.Surface
@@ -86,11 +87,26 @@ class EmulatorController(private val core: EmulatorCore) {
      * pausa**. Arrancar es una decisión de la UI: [resume].
      */
     suspend fun open(rom: ByteArray, batterySave: ByteArray?): CoreLoadResult =
+        finishOpen { core.load(rom, batterySave) }
+
+    /**
+     * Como [open], pero a partir de un descriptor de archivo abierto sobre la
+     * ROM (ver [com.moralesDev.dsForEveryone.emulator.core.EmulatorCore.loadFromDescriptor]):
+     * la vía para ROMs sueltas que pueden pesar más de lo que cabe cómodo en
+     * el heap de Java.
+     */
+    suspend fun openFromDescriptor(
+        fd: ParcelFileDescriptor,
+        length: Long,
+        batterySave: ByteArray?,
+    ): CoreLoadResult = finishOpen { core.loadFromDescriptor(fd, length, batterySave) }
+
+    private suspend fun finishOpen(load: () -> CoreLoadResult): CoreLoadResult =
         withContext(Dispatchers.Default) {
             close()
             _status.value = EmulatorStatus.LOADING
 
-            val result = core.load(rom, batterySave)
+            val result = load()
             if (result is CoreLoadResult.Success) {
                 EmulationThread().also { thread = it; it.start() }
                 _status.value = EmulatorStatus.PAUSED

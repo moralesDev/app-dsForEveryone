@@ -1,5 +1,6 @@
 package com.moralesDev.dsForEveryone.emulator.core
 
+import android.os.ParcelFileDescriptor
 import android.view.Surface
 
 /**
@@ -51,6 +52,32 @@ interface EmulatorCore {
      *   core en estado utilizable.
      */
     fun load(rom: ByteArray, batterySave: ByteArray?): CoreLoadResult
+
+    /**
+     * Como [load], pero a partir de un descriptor abierto sobre el archivo
+     * real de la ROM en vez de un `ByteArray` ya copiado. Existe para ROMs
+     * sueltas (no dentro de un `.zip`) que pueden pesar más de lo que cabe
+     * cómodo en el heap de Java —ver `RomRepository.openRomForCore`—: cargar
+     * un cartucho de 128 MB con [load] exige tenerlo entero en un único
+     * `ByteArray` de Kotlin, y eso es lo que agotaba el heap.
+     *
+     * La implementación por defecto simplemente lee el descriptor entero y
+     * delega en [load]: es lo que basta para [StubEmulatorCore], donde el
+     * tamaño de la ROM nunca es un problema real. Un core que sí lo sea
+     * sobrescribe este método para mapear el archivo en el lado nativo, sin
+     * que llegue a existir un `ByteArray` con la ROM completa.
+     *
+     * Se queda con la propiedad de [fd] y lo cierra siempre, tenga éxito o
+     * no la carga.
+     */
+    fun loadFromDescriptor(
+        fd: ParcelFileDescriptor,
+        length: Long,
+        batterySave: ByteArray?,
+    ): CoreLoadResult {
+        val bytes = ParcelFileDescriptor.AutoCloseInputStream(fd).use { it.readBytes() }
+        return load(bytes, batterySave)
+    }
 
     /** Libera la ROM y todos los recursos nativos asociados. Idempotente. */
     fun unload()

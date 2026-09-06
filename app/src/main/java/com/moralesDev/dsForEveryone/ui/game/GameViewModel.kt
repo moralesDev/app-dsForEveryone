@@ -7,6 +7,7 @@ import com.moralesDev.dsForEveryone.R
 import com.moralesDev.dsForEveryone.data.rom.RomIdentity
 import com.moralesDev.dsForEveryone.data.rom.RomInfo
 import com.moralesDev.dsForEveryone.data.rom.RomRepository
+import com.moralesDev.dsForEveryone.data.rom.RomSource
 import com.moralesDev.dsForEveryone.data.save.SaveManager
 import com.moralesDev.dsForEveryone.data.save.SaveStateManager
 import com.moralesDev.dsForEveryone.data.save.SaveStateSlot
@@ -119,17 +120,31 @@ class GameViewModel @Inject constructor(
         viewModelScope.launch {
             val rom = romId?.let { romRepository.findById(it) }
             _rom.value = rom
-            val cartridge = rom?.let { romRepository.readRomBytes(it) } ?: FAKE_CARTRIDGE
             val battery = romId?.let { saveManager.loadBattery(it) }
 
-            val result = controller.open(cartridge, battery)
+            // openRomForCore evita cargar la ROM entera en un ByteArray de
+            // Kotlin cuando se puede: una ROM suelta grande (128 MB no es
+            // raro en un cartucho real de DS) agotaba el heap antes de
+            // llegar siquiera al core (ver docs/estabilizacion-core.md).
+            val source = rom?.let { romRepository.openRomForCore(it) } ?: RomSource.Bytes(FAKE_CARTRIDGE)
+            val result = when (source) {
+                is RomSource.Bytes -> controller.open(source.data, battery)
+                is RomSource.Descriptor -> controller.openFromDescriptor(source.fd, source.length, battery)
+            }
+
             if (result is CoreLoadResult.Success && romId != null) {
                 identity = StateIdentity(
                     romSha256 = romId,
                     // Se calcula sobre los bytes que acaban de entrar en el
                     // core, no sobre los que se leyeron al dar de alta la ROM:
-                    // es lo que se está emulando de verdad.
-                    romCrc32 = RomIdentity.crc32(cartridge),
+                    // es lo que se está emulando de verdad. Con Descriptor el
+                    // core ya se quedó con ese descriptor, así que hace falta
+                    // un flujo propio para el CRC32.
+                    romCrc32 = when (source) {
+                        is RomSource.Bytes -> RomIdentity.crc32(source.data)
+                        is RomSource.Descriptor ->
+                            rom?.let { romRepository.openRawStream(it)?.use(RomIdentity::crc32) } ?: 0L
+                    },
                     coreName = controller.coreName,
                     coreVersion = controller.coreVersion,
                     stateSize = controller.stateSize(),
