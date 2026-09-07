@@ -59,6 +59,7 @@ import com.moralesDev.dsForEveryone.emulator.layout.LayoutRect
 import com.moralesDev.dsForEveryone.emulator.layout.LayoutSize
 import com.moralesDev.dsForEveryone.emulator.layout.ScreenLayout
 import com.moralesDev.dsForEveryone.emulator.layout.ScreenPlacement
+import com.moralesDev.dsForEveryone.emulator.layout.shiftedDown
 import com.moralesDev.dsForEveryone.ui.components.GlassIconButton
 import com.moralesDev.dsForEveryone.ui.game.LayoutModeChips
 import com.moralesDev.dsForEveryone.ui.theme.Accent
@@ -108,28 +109,41 @@ fun LayoutEditorScreen(onBack: () -> Unit) {
     LaunchedEffect(settings.screenGap) { if (!isDraggingScreens) gapState = settings.screenGap }
     LaunchedEffect(settings.secondaryScale) { if (!isDraggingScreens) scaleState = settings.secondaryScale }
 
-    val placement = remember(activeMode, availableSize, gapState, scaleState, settings.screensSwapped) {
+    // Mismos márgenes que usa GameScreen —ver ese archivo—: las pantallas se
+    // corren por debajo de la barra de estado, y los mandos cuentan con el
+    // hueco completo menos la barra de navegación.
+    val topInsetPx = WindowInsets.systemBars.getTop(density).toFloat()
+    val bottomInsetPx = WindowInsets.systemBars.getBottom(density).toFloat()
+
+    val placement = remember(activeMode, availableSize, topInsetPx, gapState, scaleState, settings.screensSwapped) {
         if (availableSize.width > 0f && availableSize.height > 0f) {
-            ScreenLayout.resolve(
+            val screensAvailable = LayoutSize(availableSize.width, (availableSize.height - topInsetPx).coerceAtLeast(0f))
+            val raw = ScreenLayout.resolve(
                 mode = activeMode,
-                available = availableSize,
+                available = screensAvailable,
                 gap = gapState,
                 secondaryScale = scaleState,
                 swapped = settings.screensSwapped,
+            )
+            ScreenPlacement(
+                topScreen = raw.topScreen.shiftedDown(topInsetPx),
+                touchScreen = raw.touchScreen.shiftedDown(topInsetPx),
             )
         } else {
             null
         }
     }
 
-    val controlProfile = remember(placement, availableSize, customControlLayout) {
+    val minTouchTargetPx = with(density) { ControlLayout.MIN_TOUCH_TARGET_DP.dp.toPx() }
+    val controlAvailableSize = LayoutSize(availableSize.width, (availableSize.height - bottomInsetPx).coerceAtLeast(0f))
+
+    val controlProfile = remember(placement, controlAvailableSize, customControlLayout, minTouchTargetPx) {
         val current = placement ?: return@remember null
-        val side = minOf(availableSize.width, availableSize.height) * ControlLayout.DEFAULT_GROUP_SIZE_FRACTION
         ControlLayout.resolveProfile(
             custom = customControlLayout,
-            available = availableSize,
+            available = controlAvailableSize,
             touchScreen = current.touchScreen,
-            groupSize = LayoutSize(side, side),
+            minTouchTarget = minTouchTargetPx,
             opacity = ControlLayout.DEFAULT_OPACITY,
         )
     }
@@ -188,7 +202,7 @@ fun LayoutEditorScreen(onBack: () -> Unit) {
 
         controlProfile?.let { profile ->
             val touchRect = placement?.touchScreen ?: LayoutRect(0f, 0f, 0f, 0f)
-            val area = LayoutRect(0f, 0f, availableSize.width, availableSize.height)
+            val area = LayoutRect(0f, 0f, controlAvailableSize.width, controlAvailableSize.height)
 
             profile.groups.forEach { (group, groupPlacement) ->
                 key(group) {
@@ -202,16 +216,16 @@ fun LayoutEditorScreen(onBack: () -> Unit) {
                         density = density,
                         onSelect = { selectedGroup = group },
                         onCommit = { newBounds ->
-                            val fractions = ControlLayout.toFractions(profile, availableSize)
+                            val fractions = ControlLayout.toFractions(profile, controlAvailableSize)
                             viewModel.setControlGroup(
                                 portrait = isPortrait,
                                 base = fractions,
                                 group = group,
                                 placement = ControlGroupFraction(
-                                    left = newBounds.left / availableSize.width,
-                                    top = newBounds.top / availableSize.height,
-                                    width = newBounds.width / availableSize.width,
-                                    height = newBounds.height / availableSize.height,
+                                    left = newBounds.left / controlAvailableSize.width,
+                                    top = newBounds.top / controlAvailableSize.height,
+                                    width = newBounds.width / controlAvailableSize.width,
+                                    height = newBounds.height / controlAvailableSize.height,
                                     opacity = groupPlacement.opacity,
                                 ),
                             )
@@ -267,16 +281,16 @@ fun LayoutEditorScreen(onBack: () -> Unit) {
                     opacity = profile.groups.getValue(selected).opacity,
                     onOpacityChange = { newOpacity ->
                         val bounds = profile.groups.getValue(selected).bounds
-                        val fractions = ControlLayout.toFractions(profile, availableSize)
+                        val fractions = ControlLayout.toFractions(profile, controlAvailableSize)
                         viewModel.setControlGroup(
                             portrait = isPortrait,
                             base = fractions,
                             group = selected,
                             placement = ControlGroupFraction(
-                                left = bounds.left / availableSize.width,
-                                top = bounds.top / availableSize.height,
-                                width = bounds.width / availableSize.width,
-                                height = bounds.height / availableSize.height,
+                                left = bounds.left / controlAvailableSize.width,
+                                top = bounds.top / controlAvailableSize.height,
+                                width = bounds.width / controlAvailableSize.width,
+                                height = bounds.height / controlAvailableSize.height,
                                 opacity = newOpacity,
                             ),
                         )

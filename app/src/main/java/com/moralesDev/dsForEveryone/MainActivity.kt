@@ -1,7 +1,9 @@
 package com.moralesDev.dsForEveryone
 
+import android.graphics.Color
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
@@ -30,7 +32,15 @@ class MainActivity : ComponentActivity() {
     private val viewModel: MainViewModel by viewModels()
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        enableEdgeToEdge()
+        // `enableEdgeToEdge()` sin argumentos elige iconos claros u oscuros
+        // según el modo día/noche del sistema, pero `DsEmuTheme` sólo tiene
+        // un esquema —oscuro— sin importar ese ajuste: con el sistema en
+        // modo claro, la llamada por defecto pintaba iconos oscuros que se
+        // volvían invisibles sobre el fondo, siempre oscuro, de la app.
+        enableEdgeToEdge(
+            statusBarStyle = SystemBarStyle.dark(Color.TRANSPARENT),
+            navigationBarStyle = SystemBarStyle.dark(Color.TRANSPARENT),
+        )
         super.onCreate(savedInstanceState)
 
         setContent {

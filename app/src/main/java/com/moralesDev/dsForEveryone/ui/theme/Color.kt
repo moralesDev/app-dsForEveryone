@@ -38,12 +38,38 @@ internal val Neutral900 = Color(0xFF292B31)
 
 /**
  * Vidrio traslúcido: relleno al 7 % y 12 % de blanco, borde al 13 %.
- * Es el material de todos los controles; sustituye a los degradados y relieves
- * falsos que usaría un mando de plástico dibujado.
+ * Es el material del *chrome* de menú —el botón de pausa, las hojas, los
+ * diálogos—. Los mandos de la partida usan el caucho con relieve de más
+ * abajo: ver [RubberNeutral] y [RubberAccent].
  */
 internal val Glass = Color(0x12E9E9ED)
 internal val GlassStrong = Color(0x1FE9E9ED)
 internal val GlassBorder = Color(0x21E9E9ED)
+
+/**
+ * Caucho oscuro con relieve: la superficie de los siete grupos de mandos
+ * (fase 2.8). Bisel superior claro, caída a un centro y un borde oscuros, y
+ * un «zócalo» sólido debajo que se hunde al pulsar —ver
+ * `RubberButtonStyle.kt`—. Sustituye aquí al vidrio traslúcido porque un
+ * mando físico se lee mejor con relieve que con transparencia.
+ *
+ * [RubberAccent] es la misma estructura con una paleta violeta, reservada
+ * para el botón A: es el que más se pulsa y el que necesita distinguirse a
+ * simple vista del resto del rombo.
+ */
+internal val RubberTop = Color(0xFF565B62)
+internal val RubberMid = Color(0xFF33373D)
+internal val RubberBottom = Color(0xFF181B1F)
+internal val RubberBorder = Color(0xFF07080A)
+internal val RubberLedge = Color(0xFF0A0B0D)
+internal val RubberText = Color(0xFFC7CCD8)
+
+internal val RubberAccentTop = Color(0xFF6A6785)
+internal val RubberAccentMid = Color(0xFF3A3A49)
+internal val RubberAccentBottom = Color(0xFF1B1A24)
+internal val RubberAccentBorder = Color(0xFF0B0A12)
+internal val RubberAccentLedge = Color(0xFF0D0C14)
+internal val RubberAccentText = Color(0xFFE7E4FF)
 
 internal val Divider = Color(0x29E9E9ED)
 

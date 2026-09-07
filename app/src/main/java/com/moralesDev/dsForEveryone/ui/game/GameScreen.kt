@@ -1,9 +1,5 @@
 package com.moralesDev.dsForEveryone.ui.game
 
-import android.app.Activity
-import android.content.Context
-import android.content.ContextWrapper
-import android.content.pm.ActivityInfo
 import android.content.res.Configuration
 import android.opengl.GLSurfaceView
 import androidx.activity.compose.BackHandler
@@ -25,7 +21,6 @@ import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -38,7 +33,6 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalConfiguration
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.Density
@@ -57,6 +51,7 @@ import com.moralesDev.dsForEveryone.emulator.layout.LayoutSize
 import com.moralesDev.dsForEveryone.emulator.layout.ScreenLayout
 import com.moralesDev.dsForEveryone.emulator.layout.ScreenPlacement
 import com.moralesDev.dsForEveryone.emulator.layout.TouchRouter
+import com.moralesDev.dsForEveryone.emulator.layout.shiftedDown
 import com.moralesDev.dsForEveryone.emulator.render.DsGLRenderer
 import com.moralesDev.dsForEveryone.ui.components.GlassIconButton
 import com.moralesDev.dsForEveryone.ui.game.controls.ActionButtons
@@ -82,6 +77,14 @@ import com.moralesDev.dsForEveryone.ui.theme.Surface
  *
  * La ROM real, la biblioteca y el sistema de partidas llegan con la fase 3,
  * sobre esta misma pantalla.
+ *
+ * Sólo vertical por ahora: esta pantalla ya no libera la orientación (antes
+ * lo hacía para `LayoutMode.SIDE_BY_SIDE`), porque encajar doce mandos
+ * táctiles en horizontal sin tapar la táctil no compensa frente a lo simple
+ * que es jugar en vertical. `landscapeLayoutMode`/`landscapeControlLayout` en
+ * `EmulatorSettings` y la rama horizontal de `ControlLayout.defaultProfile`
+ * se quedan sin usar pero no se borran: cuando haya mandos USB no hará falta
+ * pintar ningún botón en pantalla, y ahí sí compensará jugar en horizontal.
  */
 @Composable
 fun GameScreen(onExit: () -> Unit) {
@@ -97,8 +100,6 @@ fun GameScreen(onExit: () -> Unit) {
     val message by viewModel.message.collectAsStateWithLifecycle()
     var isMenuOpen by remember { mutableStateOf(false) }
 
-    FreeOrientation()
-
     BackHandler {
         if (isMenuOpen) {
             isMenuOpen = false
@@ -112,36 +113,57 @@ fun GameScreen(onExit: () -> Unit) {
     val isPortrait = LocalConfiguration.current.orientation == Configuration.ORIENTATION_PORTRAIT
     val activeMode = if (isPortrait) settings.portraitLayoutMode else settings.landscapeLayoutMode
 
+    val density = LocalDensity.current
+    val minTouchTargetPx = with(density) { ControlLayout.MIN_TOUCH_TARGET_DP.dp.toPx() }
+
+    // Ni la barra de estado ni la de navegación consumen touches para la
+    // app, pero por motivos distintos hay que dejarles hueco: la de estado
+    // taparía parte del dibujo de la pantalla superior si empezara en
+    // y = 0, así que las dos pantallas se calculan en el hueco que queda
+    // por debajo y se corren hacia abajo esa misma distancia. La de
+    // navegación no tapa dibujo (las pantallas no llegan tan abajo), pero sí
+    // haría inalcanzable cualquier mando que cayera ahí, así que a los
+    // mandos —más abajo— se les da el hueco completo menos ese margen.
+    val topInsetPx = WindowInsets.systemBars.getTop(density).toFloat()
+    val bottomInsetPx = WindowInsets.systemBars.getBottom(density).toFloat()
+
     var availableSize by remember { mutableStateOf(LayoutSize(0f, 0f)) }
     val placement = remember(
         activeMode,
         availableSize,
+        topInsetPx,
         settings.screenGap,
         settings.secondaryScale,
         settings.screensSwapped,
     ) {
         if (availableSize.width > 0f && availableSize.height > 0f) {
-            ScreenLayout.resolve(
+            val screensAvailable = LayoutSize(availableSize.width, (availableSize.height - topInsetPx).coerceAtLeast(0f))
+            val raw = ScreenLayout.resolve(
                 mode = activeMode,
-                available = availableSize,
+                available = screensAvailable,
                 gap = settings.screenGap,
                 secondaryScale = settings.secondaryScale,
                 swapped = settings.screensSwapped,
+            )
+            ScreenPlacement(
+                topScreen = raw.topScreen.shiftedDown(topInsetPx),
+                touchScreen = raw.touchScreen.shiftedDown(topInsetPx),
             )
         } else {
             null
         }
     }
 
+    val controlAvailableSize = LayoutSize(availableSize.width, (availableSize.height - bottomInsetPx).coerceAtLeast(0f))
+
     val activeControlLayout = if (isPortrait) settings.portraitControlLayout else settings.landscapeControlLayout
-    val controlProfile = remember(placement, availableSize, activeControlLayout) {
+    val controlProfile = remember(placement, controlAvailableSize, activeControlLayout, minTouchTargetPx) {
         val current = placement ?: return@remember null
-        val side = minOf(availableSize.width, availableSize.height) * ControlLayout.DEFAULT_GROUP_SIZE_FRACTION
         ControlLayout.resolveProfile(
             custom = activeControlLayout,
-            available = availableSize,
+            available = controlAvailableSize,
             touchScreen = current.touchScreen,
-            groupSize = LayoutSize(side, side),
+            minTouchTarget = minTouchTargetPx,
             opacity = ControlLayout.DEFAULT_OPACITY,
         )
     }
@@ -150,7 +172,6 @@ fun GameScreen(onExit: () -> Unit) {
     LaunchedEffect(placement) { placement?.let(renderer::setPlacement) }
     LaunchedEffect(settings.imageFilter) { renderer.setFilter(settings.imageFilter) }
 
-    val density = LocalDensity.current
     val touchOffsetPx = with(density) { settings.touchOffsetDp.dp.toPx() }
 
     Box(
@@ -437,23 +458,3 @@ private fun ControlGroups(
     }
 }
 
-/**
- * Libera la orientación mientras esta pantalla esté visible; el resto de la
- * app sigue en vertical por manifiesto.
- */
-@Composable
-private fun FreeOrientation() {
-    val context = LocalContext.current
-    DisposableEffect(Unit) {
-        val activity = context.findActivity()
-        val previousOrientation = activity.requestedOrientation
-        activity.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_FULL_SENSOR
-        onDispose { activity.requestedOrientation = previousOrientation }
-    }
-}
-
-private tailrec fun Context.findActivity(): Activity = when (this) {
-    is Activity -> this
-    is ContextWrapper -> baseContext.findActivity()
-    else -> error("No se encontró ninguna Activity en la cadena de contextos")
-}

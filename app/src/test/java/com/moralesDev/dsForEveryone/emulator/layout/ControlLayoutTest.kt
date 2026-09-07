@@ -13,13 +13,13 @@ class ControlLayoutTest {
         "horizontal" to LayoutSize(2200f, 1080f),
     )
 
-    private val groupSizes = listOf(
-        LayoutSize(1f, 1f),
-        LayoutSize(80f, 80f),
-        LayoutSize(300f, 300f),
+    private val minTouchTargets = listOf(
+        1f,
+        48f,
+        80f,
         // Mucho más grande que cualquier margen disponible: el recorte a la
         // celda es lo único que puede evitar el solape aquí.
-        LayoutSize(5000f, 5000f),
+        5000f,
     )
 
     @Test
@@ -27,10 +27,10 @@ class ControlLayoutTest {
         for ((label, size) in orientations) {
             for (mode in LayoutMode.entries) {
                 val placement = ScreenLayout.resolve(mode, size, gap = 0.03f, secondaryScale = 0.35f)
-                for (groupSize in groupSizes) {
-                    val profile = ControlLayout.defaultProfile(size, placement.touchScreen, groupSize)
+                for (minTouchTarget in minTouchTargets) {
+                    val profile = ControlLayout.defaultProfile(size, placement.touchScreen, minTouchTarget)
                     assertFalse(
-                        "$mode en $label con grupos de $groupSize solapa",
+                        "$mode en $label con objetivo táctil de $minTouchTarget solapa",
                         ControlLayout.hasOverlap(profile, placement.touchScreen),
                     )
                 }
@@ -43,7 +43,7 @@ class ControlLayoutTest {
         val profile = ControlLayout.defaultProfile(
             LayoutSize(1000f, 1000f),
             LayoutRect(0f, 600f, 1000f, 1000f),
-            LayoutSize(80f, 80f),
+            48f,
         )
 
         assertEquals(ControlGroup.entries.toSet(), profile.groups.keys)
@@ -54,11 +54,47 @@ class ControlLayoutTest {
         val profile = ControlLayout.defaultProfile(
             LayoutSize(1000f, 1000f),
             LayoutRect(0f, 600f, 1000f, 1000f),
-            LayoutSize(80f, 80f),
+            48f,
             opacity = 0.5f,
         )
 
         profile.groups.values.forEach { assertEquals(0.5f, it.opacity, 0.001f) }
+    }
+
+    @Test
+    fun `la cruceta y el rombo de accion son mas grandes que L, R, Start, Select y soplar`() {
+        val profile = ControlLayout.defaultProfile(
+            LayoutSize(1080f, 2200f),
+            ScreenLayout.resolve(LayoutMode.STACKED, LayoutSize(1080f, 2200f), gap = 0.03f).touchScreen,
+            48f,
+        )
+
+        val dpadArea = profile.groups.getValue(ControlGroup.DIRECTIONAL_PAD).bounds.let { it.width * it.height }
+        val actionArea = profile.groups.getValue(ControlGroup.ACTION_BUTTONS).bounds.let { it.width * it.height }
+        val lArea = profile.groups.getValue(ControlGroup.L).bounds.let { it.width * it.height }
+        val rArea = profile.groups.getValue(ControlGroup.R).bounds.let { it.width * it.height }
+        val startArea = profile.groups.getValue(ControlGroup.START).bounds.let { it.width * it.height }
+        val selectArea = profile.groups.getValue(ControlGroup.SELECT).bounds.let { it.width * it.height }
+        val blowArea = profile.groups.getValue(ControlGroup.BLOW).bounds.let { it.width * it.height }
+
+        assertTrue(dpadArea > lArea && dpadArea > rArea)
+        assertTrue(actionArea > lArea && actionArea > rArea)
+        assertTrue(lArea > startArea && lArea > selectArea && lArea > blowArea)
+        assertTrue(rArea > startArea && rArea > selectArea && rArea > blowArea)
+    }
+
+    @Test
+    fun `ningun objetivo tactil queda por debajo del minimo pedido, cuando hay banda suficiente`() {
+        val available = LayoutSize(1080f, 2200f)
+        val touchScreen = ScreenLayout.resolve(LayoutMode.STACKED, available, gap = 0.03f).touchScreen
+        val minTouchTarget = 48f
+
+        val profile = ControlLayout.defaultProfile(available, touchScreen, minTouchTarget)
+
+        profile.groups.values.forEach { placement ->
+            assertTrue(placement.bounds.width >= minTouchTarget - 0.01f)
+            assertTrue(placement.bounds.height >= minTouchTarget - 0.01f)
+        }
     }
 
     @Test(expected = IllegalArgumentException::class)
@@ -93,7 +129,7 @@ class ControlLayoutTest {
     fun `toFractions seguido de fromFractions reproduce el mismo perfil`() {
         val available = LayoutSize(1080f, 2200f)
         val placement = ScreenLayout.resolve(LayoutMode.STACKED, available, gap = 0.03f)
-        val original = ControlLayout.defaultProfile(available, placement.touchScreen, LayoutSize(180f, 180f), opacity = 0.6f)
+        val original = ControlLayout.defaultProfile(available, placement.touchScreen, 48f, opacity = 0.6f)
 
         val fractions = ControlLayout.toFractions(original, available)
         val rebuilt = ControlLayout.fromFractions(fractions, available)
@@ -129,10 +165,10 @@ class ControlLayoutTest {
     fun `resolveProfile sin perfil guardado cae al perfil por defecto`() {
         val available = LayoutSize(1000f, 1000f)
         val touchScreen = LayoutRect(0f, 600f, 1000f, 1000f)
-        val groupSize = LayoutSize(80f, 80f)
+        val minTouchTarget = 48f
 
-        val resolved = ControlLayout.resolveProfile(null, available, touchScreen, groupSize)
-        val default = ControlLayout.defaultProfile(available, touchScreen, groupSize, ControlLayout.DEFAULT_OPACITY)
+        val resolved = ControlLayout.resolveProfile(null, available, touchScreen, minTouchTarget)
+        val default = ControlLayout.defaultProfile(available, touchScreen, minTouchTarget, ControlLayout.DEFAULT_OPACITY)
 
         assertEquals(default, resolved)
     }
@@ -141,10 +177,10 @@ class ControlLayoutTest {
     fun `resolveProfile con perfil guardado no usa el perfil por defecto`() {
         val available = LayoutSize(1000f, 1000f)
         val touchScreen = LayoutRect(0f, 600f, 1000f, 1000f)
-        val groupSize = LayoutSize(80f, 80f)
+        val minTouchTarget = 48f
         val custom = ControlGroup.entries.associateWith { ControlGroupFraction(0.4f, 0.4f, 0.1f, 0.1f, 0.9f) }
 
-        val resolved = ControlLayout.resolveProfile(custom, available, touchScreen, groupSize)
+        val resolved = ControlLayout.resolveProfile(custom, available, touchScreen, minTouchTarget)
 
         assertEquals(0.9f, resolved.groups.getValue(ControlGroup.L).opacity, 0.001f)
         assertEquals(400f, resolved.groups.getValue(ControlGroup.L).bounds.left, 0.01f)
