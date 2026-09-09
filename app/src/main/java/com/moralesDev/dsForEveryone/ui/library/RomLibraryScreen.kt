@@ -64,6 +64,7 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -122,6 +123,7 @@ fun RomLibraryScreen(
     viewModel: RomLibraryViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val contentResolver = LocalContext.current.contentResolver
 
     // Los proveedores de documentos rara vez declaran un MIME para .nds, así
     // que se aceptan todos y es la cabecera del archivo la que decide si vale.
@@ -143,6 +145,24 @@ fun RomLibraryScreen(
             PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly),
         )
     }
+
+    // A qué juego pertenece el resultado lo dice el estado del ViewModel
+    // ([RomOptionsState]), no una variable de esta pantalla: el selector de
+    // documentos es otra aplicación y puede recomponer la biblioteca al volver.
+    val savExportPicker = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.CreateDocument("application/octet-stream"),
+        onResult = { uri ->
+            uiState.romOptions?.rom?.id?.let { romId -> viewModel.exportSav(romId, contentResolver, uri) }
+        },
+    )
+    val savImportPicker = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument(),
+        onResult = { uri ->
+            uiState.romOptions?.rom?.id?.let { romId ->
+                viewModel.onSavImportPicked(romId, contentResolver, uri)
+            }
+        },
+    )
 
     Column(
         modifier = Modifier
@@ -212,15 +232,31 @@ fun RomLibraryScreen(
         }
     }
 
-    uiState.romOptions?.let { rom ->
+    uiState.romOptions?.let { options ->
         RomOptionsSheet(
-            rom = rom,
-            onKeep = { viewModel.remove(rom.id, deleteSaves = false) },
-            onDeleteAll = { viewModel.remove(rom.id, deleteSaves = true) },
+            rom = options.rom,
+            hasBatterySave = options.hasBatterySave,
+            pendingSavImport = uiState.pendingSavImport,
+            pendingSavDelete = uiState.pendingSavDelete,
+            onExtractSav = {
+                savExportPicker.launch(suggestedSavFileName(options.rom.fileName))
+            },
+            onImportSav = { savImportPicker.launch(arrayOf("*/*")) },
+            onConfirmSavImport = viewModel::confirmSavImport,
+            onCancelSavImport = viewModel::cancelSavImport,
+            onDeleteSav = viewModel::requestSavDeletion,
+            onConfirmSavDelete = viewModel::confirmSavDelete,
+            onCancelSavDelete = viewModel::cancelSavDelete,
+            onKeep = { viewModel.remove(options.rom.id, deleteSaves = false) },
+            onDeleteAll = { viewModel.remove(options.rom.id, deleteSaves = true) },
             onDismiss = viewModel::dismissRomOptions,
         )
     }
 }
+
+/** `<nombre original sin extensión>.sav`, para que otros emuladores lo reconozcan. */
+private fun suggestedSavFileName(originalFileName: String): String =
+    originalFileName.substringBeforeLast('.', originalFileName) + ".sav"
 
 @Composable
 private fun LibraryHeader(
@@ -340,7 +376,7 @@ private fun LibraryList(
     query: String,
     hasNoResults: Boolean,
     onOpen: (RomInfo) -> Unit,
-    onOptions: (RomInfo) -> Unit,
+    onOptions: (LibraryItem) -> Unit,
     onEditCover: (LibraryItem) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -371,7 +407,7 @@ private fun LibraryList(
                         RomRow(
                             item = item,
                             onOpen = { onOpen(item.rom) },
-                            onOptions = { onOptions(item.rom) },
+                            onOptions = { onOptions(item) },
                             onEditCover = { onEditCover(item) },
                         )
                     }
@@ -745,22 +781,40 @@ private fun LibraryToast(text: String, onDismiss: () -> Unit) {
 }
 
 /**
- * Opciones de un juego: por ahora, sólo quitarlo de la biblioteca. Extraer,
- * importar o borrar su partida de batería llega con el sistema de partidas
- * (fase 3.4).
+ * Opciones de un juego: extraer, importar o borrar su partida de batería, y
+ * quitarlo de la biblioteca.
  *
- * Se dibuja dentro de la propia pantalla y no como diálogo de Material: el
- * sistema visual no usa diálogos en ningún sitio, y una ventana emergente
- * abre su propia raíz de composición, donde no llega el idioma elegido en la
- * aplicación.
+ * Se dibuja dentro de la propia pantalla y no como diálogo de Material, por dos
+ * razones: el sistema visual no usa diálogos en ningún sitio, y una ventana
+ * emergente abre su propia raíz de composición, donde no llega el idioma
+ * elegido en la aplicación y los textos volverían al del sistema.
+ *
+ * Importar y borrar sustituyen el contenido por una confirmación —igual que al
+ * sobrescribir o borrar un save state— porque las dos son irreversibles y un
+ * `.sav` de DS no lleva ninguna identidad dentro: a diferencia de los save
+ * states, aquí no hay forma de comprobar que el archivo importado sea de este
+ * juego, así que la única red de seguridad es poder empezar en blanco otra vez.
  */
 @Composable
 private fun RomOptionsSheet(
     rom: RomInfo,
+    hasBatterySave: Boolean,
+    pendingSavImport: PendingSavImport?,
+    pendingSavDelete: Boolean,
+    onExtractSav: () -> Unit,
+    onImportSav: () -> Unit,
+    onConfirmSavImport: () -> Unit,
+    onCancelSavImport: () -> Unit,
+    onDeleteSav: () -> Unit,
+    onConfirmSavDelete: () -> Unit,
+    onCancelSavDelete: () -> Unit,
     onKeep: () -> Unit,
     onDeleteAll: () -> Unit,
     onDismiss: () -> Unit,
 ) {
+    val confirming = pendingSavImport != null || pendingSavDelete
+    val onCancelConfirmation = if (pendingSavImport != null) onCancelSavImport else onCancelSavDelete
+
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -768,7 +822,9 @@ private fun RomOptionsSheet(
             .clickable(
                 interactionSource = remember { MutableInteractionSource() },
                 indication = null,
-                onClick = onDismiss,
+                // Con una confirmación en pantalla, tocar fuera la cancela en vez
+                // de cerrarlo todo: nunca cierra ejecutando la acción destructiva.
+                onClick = { if (confirming) onCancelConfirmation() else onDismiss() },
             )
             .padding(22.dp),
         contentAlignment = Alignment.Center,
@@ -785,6 +841,47 @@ private fun RomOptionsSheet(
                 )
                 .padding(22.dp),
         ) {
+            if (pendingSavImport != null || pendingSavDelete) {
+                val title: String
+                val body: String
+                val confirmLabel: String
+                val onConfirm: () -> Unit
+                if (pendingSavImport != null) {
+                    title = stringResource(R.string.lib_sav_replace_title, rom.displayName)
+                    body = stringResource(R.string.lib_sav_replace_body)
+                    confirmLabel = stringResource(R.string.st_replace)
+                    onConfirm = onConfirmSavImport
+                } else {
+                    title = stringResource(R.string.lib_sav_delete_title, rom.displayName)
+                    body = stringResource(R.string.lib_sav_delete_body)
+                    confirmLabel = stringResource(R.string.lib_sav_delete)
+                    onConfirm = onConfirmSavDelete
+                }
+
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleLarge,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+                Text(
+                    text = body,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = textAlpha(0.58f),
+                    modifier = Modifier.padding(top = 8.dp),
+                )
+                Column(
+                    modifier = Modifier.padding(top = 18.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    SheetAction(text = confirmLabel, onClick = onConfirm, contentColor = Danger)
+                    SheetAction(
+                        text = stringResource(R.string.st_cancel),
+                        onClick = onCancelConfirmation,
+                    )
+                }
+                return@Column
+            }
+
             Text(
                 text = stringResource(R.string.lib_options_title, rom.displayName),
                 style = MaterialTheme.typography.titleLarge,
@@ -807,6 +904,18 @@ private fun RomOptionsSheet(
                     onClick = onDeleteAll,
                     contentColor = Danger,
                 )
+                SheetAction(
+                    text = stringResource(R.string.lib_sav_extract),
+                    onClick = onExtractSav,
+                    enabled = hasBatterySave,
+                )
+                SheetAction(text = stringResource(R.string.lib_sav_import), onClick = onImportSav)
+                SheetAction(
+                    text = stringResource(R.string.lib_sav_delete),
+                    onClick = onDeleteSav,
+                    contentColor = Danger,
+                    enabled = hasBatterySave,
+                )
                 SheetAction(text = stringResource(R.string.st_cancel), onClick = onDismiss)
             }
         }
@@ -818,6 +927,7 @@ private fun SheetAction(
     text: String,
     onClick: () -> Unit,
     contentColor: Color = MaterialTheme.colorScheme.onSurface,
+    enabled: Boolean = true,
 ) {
     val shape = RoundedCornerShape(11.dp)
     Box(
@@ -827,10 +937,14 @@ private fun SheetAction(
             .clip(shape)
             .background(Glass)
             .border(1.dp, GlassBorder, shape)
-            .clickable(onClick = onClick),
+            .clickable(enabled = enabled, onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
-        Text(text = text, style = MaterialTheme.typography.titleSmall, color = contentColor)
+        Text(
+            text = text,
+            style = MaterialTheme.typography.titleSmall,
+            color = if (enabled) contentColor else textAlpha(0.30f),
+        )
     }
 }
 

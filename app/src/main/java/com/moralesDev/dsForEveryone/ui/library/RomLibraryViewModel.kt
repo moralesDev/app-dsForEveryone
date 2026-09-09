@@ -8,9 +8,11 @@ import com.moralesDev.dsForEveryone.data.cover.CoverError
 import com.moralesDev.dsForEveryone.data.cover.CoverRepository
 import com.moralesDev.dsForEveryone.data.cover.PickResult
 import com.moralesDev.dsForEveryone.data.cover.PickedImage
+import android.content.ContentResolver
 import com.moralesDev.dsForEveryone.data.rom.RomImportResult
 import com.moralesDev.dsForEveryone.data.rom.RomInfo
 import com.moralesDev.dsForEveryone.data.rom.RomRepository
+import com.moralesDev.dsForEveryone.data.save.SaveManager
 import com.moralesDev.dsForEveryone.ui.UiMessage
 import dagger.hilt.android.lifecycle.HiltViewModel
 import java.util.Locale
@@ -34,19 +36,34 @@ data class LibraryUiState(
     val isProcessingCover: Boolean = false,
     val message: UiMessage? = null,
     /** El juego cuyo menú de opciones («…») está abierto. */
-    val romOptions: RomInfo? = null,
+    val romOptions: RomOptionsState? = null,
+    /** Un `.sav` ya leído del selector, esperando que se confirme la sobrescritura. */
+    val pendingSavImport: PendingSavImport? = null,
+    val pendingSavDelete: Boolean = false,
 ) {
     val isEmpty: Boolean get() = allRoms.isEmpty()
     val hasNoResults: Boolean get() = !isEmpty && roms.isEmpty()
 }
 
+/** El juego del menú de opciones, con lo que decide qué acciones de partida tienen sentido. */
+data class RomOptionsState(val rom: RomInfo, val hasBatterySave: Boolean)
+
+/** Un `.sav` leído del selector, pendiente de confirmar que reemplace al actual. */
+data class PendingSavImport(val romId: String, val payload: ByteArray) {
+    override fun equals(other: Any?): Boolean =
+        other is PendingSavImport && romId == other.romId && payload.contentEquals(other.payload)
+
+    override fun hashCode(): Int = 31 * romId.hashCode() + payload.contentHashCode()
+}
+
 /**
  * Una ROM de la biblioteca junto con su portada.
  *
- * No hay «continuar partida» ni fecha del último guardado todavía: eso
- * depende del sistema de partidas (fase 3.4), que no existe en este
- * entregable. [RomInfo.lastPlayedAt] sí es de aquí —lo pone [markPlayed] al
- * abrir el juego— y no depende de nada de eso.
+ * Sin «continuar partida» ni fecha del último guardado todavía: eso es un
+ * entregable propio. [hasBatterySave] es la única pieza del sistema de
+ * partidas que hace falta aquí —habilita o no «Extraer .sav» / «Eliminar
+ * .sav» en el menú de opciones—. [RomInfo.lastPlayedAt] es de la biblioteca
+ * en sí —lo pone [markPlayed] al abrir el juego— y no depende de nada de eso.
  */
 data class LibraryItem(
     val rom: RomInfo,
@@ -60,6 +77,7 @@ data class LibraryItem(
      * reemplazar la imagen, así que sin esto se quedaría en pantalla la vieja.
      */
     val coverVersion: Long = 0L,
+    val hasBatterySave: Boolean = false,
 ) {
     val hasCustomCover: Boolean get() = coverPath != null
 }
@@ -80,6 +98,7 @@ sealed interface CoverAction {
 class RomLibraryViewModel @Inject constructor(
     private val romRepository: RomRepository,
     private val coverRepository: CoverRepository,
+    private val saveManager: SaveManager,
 ) : ViewModel() {
 
     private val transient = MutableStateFlow(TransientState())
@@ -103,6 +122,7 @@ class RomLibraryViewModel @Inject constructor(
                 rom = rom,
                 coverPath = coverRepository.coverFile(rom.id).takeIf { it.exists() }?.absolutePath,
                 coverVersion = coverRepository.coverVersion(rom.id),
+                hasBatterySave = saveManager.hasBattery(rom.id),
             )
         }
         LibraryUiState(
@@ -114,6 +134,8 @@ class RomLibraryViewModel @Inject constructor(
             isProcessingCover = state.isProcessingCover,
             message = state.message,
             romOptions = state.romOptions,
+            pendingSavImport = state.pendingSavImport,
+            pendingSavDelete = state.pendingSavDelete,
         )
     }.stateIn(
         scope = viewModelScope,
@@ -170,9 +192,114 @@ class RomLibraryViewModel @Inject constructor(
     }
 
     /** Toque sobre el «…» de una fila: abre el menú de opciones del juego. */
-    fun onRomOptionsRequested(rom: RomInfo) = transient.update { it.copy(romOptions = rom) }
+    fun onRomOptionsRequested(item: LibraryItem) {
+        transient.update { it.copy(romOptions = RomOptionsState(item.rom, item.hasBatterySave)) }
+    }
 
-    fun dismissRomOptions() = transient.update { it.copy(romOptions = null) }
+    fun dismissRomOptions() =
+        transient.update { it.copy(romOptions = null, pendingSavImport = null, pendingSavDelete = false) }
+
+    // --------------------------------------------------- partida de batería
+
+    /**
+     * Vuelca la partida de batería al documento elegido en el selector del
+     * sistema. Un `uri` nulo sólo significa que el usuario cerró el selector
+     * sin elegir dónde guardarlo.
+     */
+    fun exportSav(romId: String, contentResolver: ContentResolver, uri: Uri?) {
+        if (uri == null) return
+        viewModelScope.launch {
+            val data = saveManager.loadBattery(romId)
+            val written = data != null && runCatching {
+                contentResolver.openOutputStream(uri)?.use { it.write(data) }
+                true
+            }.getOrDefault(false)
+            transient.update {
+                it.copy(
+                    romOptions = null,
+                    message = UiMessage(
+                        if (written) R.string.msg_sav_exported else R.string.msg_sav_export_failed,
+                    ),
+                )
+            }
+        }
+    }
+
+    /**
+     * Recibe el `.sav` elegido para importar. Un archivo de DS no lleva
+     * ninguna identidad dentro —a diferencia de los save states, aquí no hay
+     * forma de comprobar que pertenezca a este juego—, así que si ya había
+     * una partida se pide confirmar antes de sobrescribirla; si no había
+     * ninguna, se escribe directo porque no hay nada que perder.
+     */
+    fun onSavImportPicked(romId: String, contentResolver: ContentResolver, uri: Uri?) {
+        if (uri == null) return
+        viewModelScope.launch {
+            val bytes = runCatching {
+                contentResolver.openInputStream(uri)?.use { it.readBytes() }
+            }.getOrNull()
+            when {
+                bytes == null -> transient.update {
+                    it.copy(romOptions = null, message = UiMessage(R.string.msg_sav_import_failed))
+                }
+
+                bytes.size > MAX_SAV_BYTES -> transient.update {
+                    it.copy(romOptions = null, message = UiMessage(R.string.msg_sav_too_large))
+                }
+
+                saveManager.hasBattery(romId) -> transient.update {
+                    it.copy(pendingSavImport = PendingSavImport(romId, bytes))
+                }
+
+                else -> writeSavImport(romId, bytes)
+            }
+        }
+    }
+
+    fun confirmSavImport() {
+        val pending = transient.value.pendingSavImport ?: return
+        viewModelScope.launch { writeSavImport(pending.romId, pending.payload) }
+    }
+
+    fun cancelSavImport() = transient.update { it.copy(pendingSavImport = null) }
+
+    private suspend fun writeSavImport(romId: String, data: ByteArray) {
+        val written = saveManager.persistBattery(romId, data)
+        transient.update {
+            it.copy(
+                romOptions = null,
+                pendingSavImport = null,
+                message = UiMessage(
+                    if (written) R.string.msg_sav_imported else R.string.msg_sav_import_failed,
+                ),
+            )
+        }
+    }
+
+    /**
+     * Pide confirmar el borrado. Es el rescate cuando un import salió mal: no
+     * hay forma de deshacerlo, pero sí de volver a empezar en blanco en vez de
+     * quedarse con una partida corrupta para siempre.
+     */
+    fun requestSavDeletion() = transient.update { it.copy(pendingSavDelete = true) }
+
+    fun cancelSavDelete() = transient.update { it.copy(pendingSavDelete = false) }
+
+    fun confirmSavDelete() {
+        val romId = transient.value.romOptions?.rom?.id ?: return
+        viewModelScope.launch {
+            val deleted = saveManager.deleteBattery(romId)
+            transient.update {
+                it.copy(
+                    romOptions = null,
+                    pendingSavDelete = false,
+                    message = UiMessage(
+                        if (deleted) R.string.msg_sav_deleted else R.string.msg_sav_delete_failed,
+                    ),
+                )
+            }
+        }
+    }
 
     // ------------------------------------------------------------- portadas
 
@@ -273,10 +400,20 @@ class RomLibraryViewModel @Inject constructor(
         val coverAction: CoverAction? = null,
         val isProcessingCover: Boolean = false,
         val message: UiMessage? = null,
-        val romOptions: RomInfo? = null,
+        val romOptions: RomOptionsState? = null,
+        val pendingSavImport: PendingSavImport? = null,
+        val pendingSavDelete: Boolean = false,
     )
 
     private companion object {
         const val STOP_TIMEOUT_MS = 5_000L
+
+        /**
+         * Una partida de DS real no pasa de 1 Mbit (128 KiB, EEPROM/FRAM) o,
+         * en cartuchos con Flash grande, de 8 Mbit (1 MiB). El margen es para
+         * no rechazar por poco un chip atípico sin abrir la puerta a que
+         * alguien importe por error una ROM entera pensando que es un `.sav`.
+         */
+        const val MAX_SAV_BYTES = 4L * 1024 * 1024
     }
 }
