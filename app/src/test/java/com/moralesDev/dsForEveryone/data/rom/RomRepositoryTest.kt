@@ -160,6 +160,25 @@ class RomRepositoryTest {
     }
 
     @Test
+    fun `openRomForCore no cae a leer la rom entera en memoria cuando esta dentro de un zip`() = runTest {
+        // Mismo caso que el de arriba, pero con la ROM dentro de un .zip:
+        // Pokémon HeartGold (128 MB) reventó el heap por esta vía porque
+        // openRomForCore usaba RomZipReader.extractRom (ByteArray) para el
+        // caso .zip en vez de la copia de emergencia a archivo. Si volviera
+        // a usar esa vía, esta prueba fallaría: RomZipReader.extractRom no
+        // necesita ParcelFileDescriptor, así que devolvería RomSource.Bytes
+        // sin problema incluso en esta prueba, en vez de rendirse con null.
+        val rom = DsRomFixtures.validRomBytes()
+        documentAccess.put(URI, zipOf("Juego.nds" to rom), "Juego.zip")
+        val imported = (repository.import(URI) as RomImportResult.Imported).rom
+
+        val source = repository.openRomForCore(imported)
+
+        assertNull(source)
+        assertEquals(1, documentAccess.openLocalFileDescriptorCalls)
+    }
+
+    @Test
     fun `readRomBytes descomprime la unica entrada de un zip`() = runTest {
         val rom = DsRomFixtures.validRomBytes()
         documentAccess.put(URI, zipOf("Juego.nds" to rom), "Juego.zip")
