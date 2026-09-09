@@ -116,12 +116,11 @@ fun GameScreen(onExit: () -> Unit) {
 
     BackHandler {
         when {
-            // La hoja de trucos vive dentro del menú de pausa: cerrarla
-            // vuelve al menú, no reanuda la partida.
-            isCheatsOpen -> {
-                viewModel.closeCheats()
-                isMenuOpen = true
-            }
+            // La hoja de ranuras y la de trucos viven dentro del menú de
+            // pausa (isMenuOpen sigue en true por debajo, ver más abajo):
+            // cerrarlas vuelve a mostrar el menú, no reanuda la partida.
+            slotAction != null -> viewModel.dismissSlotPicker()
+            isCheatsOpen -> viewModel.closeCheats()
             isMenuOpen -> {
                 isMenuOpen = false
                 viewModel.resume()
@@ -267,10 +266,13 @@ fun GameScreen(onExit: () -> Unit) {
                 onChooseSlot = viewModel::chooseSlot,
                 cheatsActive = cheats.count { it.enabled },
                 cheatsTotal = cheats.size,
-                onCheats = {
-                    isMenuOpen = false
-                    viewModel.openCheats()
-                },
+                // isMenuOpen se queda en true a propósito: Trucos se pinta
+                // encima del menú de pausa, no en su lugar, igual que ya pasa
+                // con la hoja de ranuras al elegir «Guardar partida» más
+                // abajo. Así, al cerrar Trucos (con la X, tocando fuera, o
+                // porque «Guardar estado» terminó de guardar) reaparece el
+                // menú de pausa en vez de dejar la pantalla sin overlay.
+                onCheats = viewModel::openCheats,
                 onResume = {
                     isMenuOpen = false
                     viewModel.resume()
@@ -292,10 +294,7 @@ fun GameScreen(onExit: () -> Unit) {
                 onToggle = viewModel::toggleCheat,
                 onDelete = viewModel::deleteCheat,
                 onBackupNow = viewModel::openSaveFromCheats,
-                onDismiss = {
-                    viewModel.closeCheats()
-                    isMenuOpen = true
-                },
+                onDismiss = viewModel::closeCheats,
             )
         }
 

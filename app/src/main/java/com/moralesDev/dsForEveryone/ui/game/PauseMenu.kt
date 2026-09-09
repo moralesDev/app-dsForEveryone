@@ -63,8 +63,10 @@ import com.moralesDev.dsForEveryone.ui.theme.textAlpha
  *
  * Respecto a `app-emulador`: con dos filas propias de esta fase —disposición
  * de pantallas y modo de toque—, cambiables aquí mismo sin salir del juego.
- * `onCheats` abre [CheatsSheet], que sustituye a este menú (no se apilan
- * encima) mientras dure.
+ * `onCheats` abre [CheatsSheet] **encima** de este menú, no en su lugar —el
+ * menú se queda «abierto» por debajo (mismo criterio que ya usan las ranuras
+ * de guardado) para que, al cerrar Trucos, el menú de pausa reaparezca solo
+ * en vez de dejar la pantalla sin ningún overlay.
  */
 @Composable
 fun PauseMenu(
