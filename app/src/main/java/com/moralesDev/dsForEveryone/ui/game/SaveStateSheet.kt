@@ -10,12 +10,15 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -99,7 +102,11 @@ fun SaveStateSheet(
                 // Con una confirmación en pantalla, tocar fuera la cancela en
                 // lugar de cerrarlo todo: nunca cierra ejecutando la acción.
                 onClick = { if (pending != null) onCancelConfirmation() else onDismiss() },
-            ),
+            )
+            // La hoja sube desde abajo: sin esto, en horizontal, «cerrar» y el
+            // botón de confirmar de ConfirmationPanel quedaban debajo de la
+            // barra de navegación del sistema, sin forma de tocarlos.
+            .windowInsetsPadding(WindowInsets.systemBars),
         verticalArrangement = Arrangement.Bottom,
     ) {
         Column(
