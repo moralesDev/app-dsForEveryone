@@ -88,6 +88,21 @@ class DsEmulatorCore : EmulatorCore {
         if (isUsable) NativeBridge.nativeSetMicNoise(handle, active)
     }
 
+    override fun applyCheats(entries: List<CheatEntry>): List<CheatRejection?> {
+        if (!isUsable) return entries.map { null }
+        val lines = Array(entries.size) { entries[it].lines.joinToString("\n") }
+        val enabled = BooleanArray(entries.size) { entries[it].enabled }
+        val rejections = NativeBridge.nativeApplyCheats(handle, lines, enabled)
+            ?: return entries.map { null }
+        return rejections.map(::parseCheatRejection)
+    }
+
+    /** Inversa de la codificación que hace `ds_bridge.cpp`: ver `NativeBridge.nativeApplyCheats`. */
+    private fun parseCheatRejection(code: String): CheatRejection? {
+        if (code.isEmpty()) return null
+        return code.removePrefix("L").toIntOrNull()?.let(CheatRejection::InvalidLine)
+    }
+
     override fun attachSurface(surface: Surface?) {
         // melonDS no dibuja en esta superficie: el vídeo de la DS sale por
         // captureFrame (ver la documentación de EmulatorCore.attachSurface).

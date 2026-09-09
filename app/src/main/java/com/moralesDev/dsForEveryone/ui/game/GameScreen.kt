@@ -47,6 +47,7 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.moralesDev.dsForEveryone.R
+import com.moralesDev.dsForEveryone.data.cheats.CheatsManager
 import com.moralesDev.dsForEveryone.data.settings.TouchMode
 import com.moralesDev.dsForEveryone.emulator.DsButton
 import com.moralesDev.dsForEveryone.emulator.layout.ControlGroup
@@ -106,17 +107,28 @@ fun GameScreen(onExit: () -> Unit) {
     val pendingConfirmation by viewModel.pendingConfirmation.collectAsStateWithLifecycle()
     val message by viewModel.message.collectAsStateWithLifecycle()
     val isGamepadConnected by viewModel.isGamepadConnected.collectAsStateWithLifecycle()
+    val isCheatsOpen by viewModel.isCheatsOpen.collectAsStateWithLifecycle()
+    val cheats by viewModel.cheats.collectAsStateWithLifecycle()
+    val hasAnySaveState by viewModel.hasAnySaveState.collectAsStateWithLifecycle()
     var isMenuOpen by remember { mutableStateOf(false) }
 
     FreeOrientationWhileGamepadConnected(isGamepadConnected)
 
     BackHandler {
-        if (isMenuOpen) {
-            isMenuOpen = false
-            viewModel.resume()
-        } else {
-            isMenuOpen = true
-            viewModel.pause()
+        when {
+            // La hoja de ranuras y la de trucos viven dentro del menú de
+            // pausa (isMenuOpen sigue en true por debajo, ver más abajo):
+            // cerrarlas vuelve a mostrar el menú, no reanuda la partida.
+            slotAction != null -> viewModel.dismissSlotPicker()
+            isCheatsOpen -> viewModel.closeCheats()
+            isMenuOpen -> {
+                isMenuOpen = false
+                viewModel.resume()
+            }
+            else -> {
+                isMenuOpen = true
+                viewModel.pause()
+            }
         }
     }
 
@@ -252,6 +264,15 @@ fun GameScreen(onExit: () -> Unit) {
                 imageFilter = settings.imageFilter,
                 onImageFilterChange = viewModel::setImageFilter,
                 onChooseSlot = viewModel::chooseSlot,
+                cheatsActive = cheats.count { it.enabled },
+                cheatsTotal = cheats.size,
+                // isMenuOpen se queda en true a propósito: Trucos se pinta
+                // encima del menú de pausa, no en su lugar, igual que ya pasa
+                // con la hoja de ranuras al elegir «Guardar partida» más
+                // abajo. Así, al cerrar Trucos (con la X, tocando fuera, o
+                // porque «Guardar estado» terminó de guardar) reaparece el
+                // menú de pausa en vez de dejar la pantalla sin overlay.
+                onCheats = viewModel::openCheats,
                 onResume = {
                     isMenuOpen = false
                     viewModel.resume()
@@ -260,6 +281,20 @@ fun GameScreen(onExit: () -> Unit) {
                     viewModel.pause()
                     onExit()
                 },
+            )
+        }
+
+        if (isCheatsOpen) {
+            CheatsSheet(
+                gameTitle = rom?.displayName ?: stringResource(R.string.app_name),
+                cheats = cheats,
+                maxEntries = CheatsManager.MAX_ENTRIES,
+                hasAnySaveState = hasAnySaveState,
+                onAdd = viewModel::addCheat,
+                onToggle = viewModel::toggleCheat,
+                onDelete = viewModel::deleteCheat,
+                onBackupNow = viewModel::openSaveFromCheats,
+                onDismiss = viewModel::closeCheats,
             )
         }
 

@@ -3,6 +3,7 @@ package com.moralesDev.dsForEveryone.di
 import android.content.ContentResolver
 import android.content.Context
 import androidx.room.Room
+import com.moralesDev.dsForEveryone.data.cheats.CheatsManager
 import com.moralesDev.dsForEveryone.data.cover.CoverRepository
 import com.moralesDev.dsForEveryone.data.db.DsEmuDatabase
 import com.moralesDev.dsForEveryone.data.db.RomDao
@@ -108,6 +109,13 @@ object AppModule {
         storageManager: StorageManager,
         @IoDispatcher ioDispatcher: CoroutineDispatcher,
     ): BatterySaveManager = BatterySaveManager(storageManager, ioDispatcher)
+
+    @Provides
+    @Singleton
+    fun provideCheatsManager(
+        storageManager: StorageManager,
+        @IoDispatcher ioDispatcher: CoroutineDispatcher,
+    ): CheatsManager = CheatsManager(storageManager, ioDispatcher)
 
     @Provides
     @Singleton

@@ -49,6 +49,8 @@
 #include <Platform.h>
 #include <SPU.h>
 #include <Savestate.h>
+#include <AREngine.h>
+#include <ARCodeFile.h>
 
 #define TAG "ds-bridge"
 #define LOGE(...) __android_log_print(ANDROID_LOG_ERROR, TAG, __VA_ARGS__)
@@ -550,6 +552,38 @@ void* DynamicLibrary_LoadFunction(DynamicLibrary* lib, const char* name) {
 
 }  // namespace melonDS::Platform
 
+// Traduce una clave ya unida por '\n' a su forma para AREngine::Cheats:
+// cada línea son dos palabras de 8 dígitos hexadecimales -mismo formato que
+// usa el propio melonDS en ARCodeFile.cpp para su archivo de proyecto,
+// "%08X %08X"-, concatenadas todas dentro de un único std::vector<u32>. Deja
+// `rejection` vacío si todo fue bien, o "L<n>" con la línea (0-based) que no
+// tuvo esa forma; en ese caso `code` queda a medio construir y quien llama no
+// debe usarlo.
+void ParseArCodeLines(const std::string& joinedLines, std::vector<melonDS::u32>* code,
+                       std::string* rejection) {
+    size_t lineIndex = 0;
+    size_t start = 0;
+    while (start <= joinedLines.size()) {
+        size_t newline = joinedLines.find('\n', start);
+        std::string line = (newline == std::string::npos)
+                                ? joinedLines.substr(start)
+                                : joinedLines.substr(start, newline - start);
+        if (!line.empty()) {
+            unsigned int c0, c1;
+            if (std::sscanf(line.c_str(), "%8x %8x", &c0, &c1) != 2) {
+                *rejection = "L" + std::to_string(lineIndex);
+                return;
+            }
+            code->push_back(static_cast<melonDS::u32>(c0));
+            code->push_back(static_cast<melonDS::u32>(c1));
+        }
+        if (newline == std::string::npos) break;
+        start = newline + 1;
+        ++lineIndex;
+    }
+    if (code->empty()) *rejection = "L0";  // sin ninguna línea con contenido: nada que aplicar
+}
+
 // ---------------------------------------------------------------------------
 // Funciones nativas: la frontera con NativeBridge.kt
 // ---------------------------------------------------------------------------
@@ -913,6 +947,53 @@ Java_com_moralesDev_dsForEveryone_emulator_core_NativeBridge_nativeConsumeBatter
     Emulator* emu = FromHandle(handle);
     if (!emu) return JNI_FALSE;
     return emu->batteryDirty.exchange(false, std::memory_order_relaxed) ? JNI_TRUE : JNI_FALSE;
+}
+
+JNIEXPORT jobjectArray JNICALL
+Java_com_moralesDev_dsForEveryone_emulator_core_NativeBridge_nativeApplyCheats(
+    JNIEnv* env, jobject, jlong handle, jobjectArray linesArray, jbooleanArray enabledArray) {
+    Emulator* emu = FromHandle(handle);
+    if (!emu) return nullptr;
+
+    jsize count = env->GetArrayLength(linesArray);
+    jclass stringClass = env->FindClass("java/lang/String");
+    jobjectArray result = env->NewObjectArray(count, stringClass, env->NewStringUTF(""));
+    if (!result) return nullptr;
+
+    jboolean* enabledElems = env->GetBooleanArrayElements(enabledArray, nullptr);
+
+    // Se reconstruye entero cada vez -nunca una actualización incremental de
+    // AREngine.Cheats-, igual que hace el propio EmuInstance de melonDS al
+    // cargar un archivo de claves nuevo.
+    std::vector<melonDS::ARCode> newCheats;
+    newCheats.reserve(static_cast<size_t>(count));
+
+    for (jsize i = 0; i < count; ++i) {
+        auto lineObj = static_cast<jstring>(env->GetObjectArrayElement(linesArray, i));
+        const char* utf = env->GetStringUTFChars(lineObj, nullptr);
+        std::string joinedLines(utf);
+        env->ReleaseStringUTFChars(lineObj, utf);
+        env->DeleteLocalRef(lineObj);
+
+        std::vector<melonDS::u32> code;
+        std::string rejection;
+        ParseArCodeLines(joinedLines, &code, &rejection);
+
+        if (rejection.empty()) {
+            melonDS::ARCode arCode{};
+            arCode.Enabled = enabledElems[i] == JNI_TRUE;
+            arCode.Code = std::move(code);
+            newCheats.push_back(std::move(arCode));
+        } else {
+            env->SetObjectArrayElement(result, i, env->NewStringUTF(rejection.c_str()));
+        }
+    }
+
+    env->ReleaseBooleanArrayElements(enabledArray, enabledElems, JNI_ABORT);
+
+    if (emu->loaded) emu->nds->AREngine.Cheats = std::move(newCheats);
+
+    return result;
 }
 
 JNIEXPORT jstring JNICALL

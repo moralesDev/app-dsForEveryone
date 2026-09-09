@@ -111,6 +111,7 @@ acabe usando, porque cambian entre versiones mayores.
 | `captureFrame()` | Copia del búfer de vídeo |
 | `attachSurface(surface)` | Superficie de presentación |
 | `coreName` / `coreVersion` / `stateSize()` | Identidad para el contenedor `E4FS` |
+| **`applyCheats(entries)`** | **Nuevo (post-fase 4).** Sustituye `NDS::AREngine.Cheats` entero; melonDS ya trae su propio motor Action Replay compilado (`AREngine.cpp`), así que el puente sólo traduce texto a `std::vector<u32>`, nunca interpreta un opcode |
 
 La ROM y la partida se entregan al core **en memoria**, no como rutas: el
 archivo real vive tras un `Uri` del SAF y la partida la gestiona `SaveManager`,

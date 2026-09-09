@@ -57,6 +57,8 @@
     <string name="pa_touch_mode">Touch mode</string>
     <string name="pa_save">Save game</string>
     <string name="pa_load">Load game</string>
+    <string name="pa_cheats">Cheats</string>
+    <string name="pa_cheats_count">%1$d/%2$d</string>
 
     <!-- Screen layout modes -->
     <string name="layout_stacked">Stacked</string>
@@ -192,6 +194,22 @@
     <string name="cd_delete_auto">Delete the automatic backup</string>
     <string name="cd_delete_state">Delete slot %1$d</string>
 
+    <!-- Cheats sheet -->
+    <string name="ch_title">Cheats</string>
+    <string name="ch_empty">No cheats added yet.</string>
+    <string name="ch_add">Add cheat</string>
+    <string name="ch_code_placeholder">Paste the Action Replay code here. Multiple lines allowed.</string>
+    <string name="ch_name_placeholder">Name (optional)</string>
+    <string name="ch_name_fallback">Cheat %1$d</string>
+    <string name="ch_cancel">Cancel</string>
+    <string name="ch_submit">Add</string>
+    <string name="ch_limit_reached">There are already %1$d cheats; that\'s the max per game.</string>
+    <string name="ch_notice_full_title">Worth having a backup before trying this</string>
+    <string name="ch_notice_full_body">A cheat can leave the save in a weird state. Save a state now so you can go back if needed.</string>
+    <string name="ch_notice_compact">Just in case? You already have a backup, but you can update it.</string>
+    <string name="ch_notice_backup_cta">Save state</string>
+    <string name="cd_delete_cheat">Delete cheat \"%1$s\"</string>
+
     <!-- Why a slot can't be restored -->
     <string name="st_problem_other_game">Different game</string>
     <string name="st_problem_other_core">Different version</string>
@@ -240,4 +258,14 @@
     <string name="gp_target_start">Start</string>
     <string name="gp_target_select">Select</string>
     <string name="gp_target_blow">Blow</string>
+
+    <!-- Cheats: messages -->
+    <string name="msg_cheat_added">Cheat activated</string>
+    <string name="msg_cheat_too_large">That code is too long</string>
+    <string name="msg_cheat_rejected_line">Line %1$d isn\'t valid Action Replay code</string>
+    <string name="msg_cheat_enabled">Cheat activated</string>
+    <string name="msg_cheat_disabled">Cheat deactivated</string>
+    <string name="msg_cheat_deleted">Cheat deleted</string>
+    <string name="msg_cheat_save_failed">Couldn\'t save the cheat</string>
+    <string name="msg_cheats_corrupt">Couldn\'t read your saved cheats; the list was reset</string>
 </resources>

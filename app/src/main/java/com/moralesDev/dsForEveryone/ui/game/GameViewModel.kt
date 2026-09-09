@@ -4,6 +4,8 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.moralesDev.dsForEveryone.R
+import com.moralesDev.dsForEveryone.data.cheats.CheatsLoadResult
+import com.moralesDev.dsForEveryone.data.cheats.CheatsManager
 import com.moralesDev.dsForEveryone.data.rom.RomIdentity
 import com.moralesDev.dsForEveryone.data.rom.RomInfo
 import com.moralesDev.dsForEveryone.data.rom.RomRepository
@@ -21,6 +23,8 @@ import com.moralesDev.dsForEveryone.di.ApplicationScope
 import com.moralesDev.dsForEveryone.emulator.DsButton
 import com.moralesDev.dsForEveryone.emulator.EmulatorController
 import com.moralesDev.dsForEveryone.emulator.EmulatorStatus
+import com.moralesDev.dsForEveryone.emulator.core.CheatEntry
+import com.moralesDev.dsForEveryone.emulator.core.CheatRejection
 import com.moralesDev.dsForEveryone.emulator.core.CoreLoadResult
 import com.moralesDev.dsForEveryone.emulator.gamepad.GamepadInput
 import com.moralesDev.dsForEveryone.emulator.gamepad.GamepadInputRouter
@@ -34,8 +38,10 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.nio.ByteBuffer
 
@@ -73,6 +79,7 @@ class GameViewModel @Inject constructor(
     private val settingsRepository: SettingsRepository,
     private val romRepository: RomRepository,
     private val saveManager: SaveManager,
+    private val cheatsManager: CheatsManager,
     private val gamepadManager: GamepadManager,
     private val gamepadInputRouter: GamepadInputRouter,
     @param:ApplicationScope private val applicationScope: CoroutineScope,
@@ -122,6 +129,25 @@ class GameViewModel @Inject constructor(
      * entró sin `romId`—, y entonces guardar y cargar no hacen nada.
      */
     private var identity: StateIdentity? = null
+
+    private val _isCheatsOpen = MutableStateFlow(false)
+    val isCheatsOpen: StateFlow<Boolean> = _isCheatsOpen.asStateFlow()
+
+    private val _cheats = MutableStateFlow<List<CheatEntry>>(emptyList())
+    val cheats: StateFlow<List<CheatEntry>> = _cheats.asStateFlow()
+
+    /** Si hay algún estado guardado, ranura de usuario o respaldo. Ver [CheatsSheet]. */
+    val hasAnySaveState: StateFlow<Boolean> = combine(_stateSlots, _autoSlot) { slots, auto ->
+        slots.any { !it.isEmpty } || auto?.isEmpty == false
+    }.stateIn(scope = viewModelScope, started = SharingStarted.Eagerly, initialValue = false)
+
+    /**
+     * `null` sin `romId`: sin una ROM real de por medio no hay `cheats.json`
+     * que leer ni escribir, igual que guardar y cargar un estado no hacen
+     * nada en ese caso. Ver el docstring de [CheatsCoordinator].
+     */
+    private val cheatsCoordinator: CheatsCoordinator? =
+        romId?.let { CheatsCoordinator(it, cheatsManager, controller) }
 
     /** Si hay al menos un mando físico conectado: oculta los mandos en pantalla en horizontal (ver `GameScreen`). */
     val isGamepadConnected: StateFlow<Boolean> = gamepadManager.connectedDevices
@@ -182,6 +208,7 @@ class GameViewModel @Inject constructor(
                 )
                 romRepository.markPlayed(romId)
                 refreshSlots()
+                loadCheats()
             }
             controller.resume()
         }
@@ -346,6 +373,85 @@ class GameViewModel @Inject constructor(
 
     fun consumeMessage() {
         _message.value = null
+    }
+
+    // ------------------------------------------------------------- trucos
+
+    fun openCheats() = _isCheatsOpen.update { true }
+
+    fun closeCheats() = _isCheatsOpen.update { false }
+
+    /** Cierra la hoja de trucos y abre la de guardado: el atajo del aviso de respaldo. */
+    fun openSaveFromCheats() {
+        _isCheatsOpen.value = false
+        chooseSlot(SlotAction.SAVE)
+    }
+
+    /**
+     * Añade una clave nueva. No hace falta preguntar el formato —a diferencia
+     * de `app-emulador`, melonDS sólo entiende Action Replay— así que la
+     * candidata se prueba directamente contra el core.
+     */
+    fun addCheat(rawCode: String, label: String) {
+        val coordinator = cheatsCoordinator ?: return
+        val lines = rawCode.lines().map(String::trim).filter(String::isNotEmpty)
+        viewModelScope.launch {
+            when (val result = coordinator.add(lines, label)) {
+                CheatsCoordinator.AddResult.LimitReached ->
+                    _message.value = UiMessage(R.string.ch_limit_reached, CheatsManager.MAX_ENTRIES)
+
+                CheatsCoordinator.AddResult.TooLarge ->
+                    _message.value = UiMessage(R.string.msg_cheat_too_large)
+
+                is CheatsCoordinator.AddResult.Rejected -> {
+                    val rejection = result.rejection
+                    _message.value = when (rejection) {
+                        is CheatRejection.InvalidLine ->
+                            UiMessage(R.string.msg_cheat_rejected_line, rejection.lineIndex + 1)
+                    }
+                }
+
+                is CheatsCoordinator.AddResult.Added -> {
+                    _cheats.value = coordinator.entries
+                    _message.value = if (result.persisted) {
+                        UiMessage(R.string.msg_cheat_added)
+                    } else {
+                        UiMessage(R.string.msg_cheat_save_failed)
+                    }
+                }
+            }
+        }
+    }
+
+    fun toggleCheat(id: String, enabled: Boolean) {
+        val coordinator = cheatsCoordinator ?: return
+        viewModelScope.launch {
+            val persisted = coordinator.toggle(id, enabled)
+            _cheats.value = coordinator.entries
+            _message.value = when {
+                !persisted -> UiMessage(R.string.msg_cheat_save_failed)
+                enabled -> UiMessage(R.string.msg_cheat_enabled)
+                else -> UiMessage(R.string.msg_cheat_disabled)
+            }
+        }
+    }
+
+    fun deleteCheat(id: String) {
+        val coordinator = cheatsCoordinator ?: return
+        viewModelScope.launch {
+            val persisted = coordinator.delete(id)
+            _cheats.value = coordinator.entries
+            _message.value =
+                if (persisted) UiMessage(R.string.msg_cheat_deleted) else UiMessage(R.string.msg_cheat_save_failed)
+        }
+    }
+
+    private suspend fun loadCheats() {
+        val coordinator = cheatsCoordinator ?: return
+        when (val result = coordinator.load()) {
+            is CheatsLoadResult.Loaded -> _cheats.value = result.entries
+            CheatsLoadResult.Corrupt -> _message.value = UiMessage(R.string.msg_cheats_corrupt)
+        }
     }
 
     /**
