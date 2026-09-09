@@ -1,5 +1,6 @@
 package com.moralesDev.dsForEveryone.data.rom
 
+import android.os.ParcelFileDescriptor
 import com.moralesDev.dsForEveryone.data.db.RomDao
 import com.moralesDev.dsForEveryone.data.db.RomEntity
 import com.moralesDev.dsForEveryone.data.db.toIconBytes
@@ -9,7 +10,10 @@ import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
+import java.io.File
 import java.io.FileNotFoundException
+import java.io.FileOutputStream
+import java.io.IOException
 import java.io.InputStream
 import java.io.PushbackInputStream
 
@@ -21,7 +25,8 @@ import java.io.PushbackInputStream
  * permiso persistente sobre él, que sobrevive a reinicios del dispositivo. Así
  * la biblioteca recuerda los juegos sin duplicar cientos de megas por título
  * ni pedir permisos de almacenamiento global, que en Android moderno además ya
- * no se conceden para esto.
+ * no se conceden para esto. La única excepción es transitoria, no una copia
+ * duradera: ver [copyToScratchDescriptor].
  *
  * El precio es que el usuario puede mover o borrar el archivo por debajo. Ese
  * caso se detecta ([isAvailable]) y se marca en la biblioteca en lugar de
@@ -108,9 +113,11 @@ class RomRepository(
      * descomprimido de su única entrada de ROM — el core nunca ve el
      * contenedor.
      *
-     * Cuando entre el core nativo (fase 4), este es el punto donde conviene
-     * pasar a `openFileDescriptor` + `mmap` para ROMs sueltas grandes y evitar
-     * la copia por completo; un `.zip` seguirá necesitando descomprimirse.
+     * Copia el archivo entero a un `ByteArray`: para una ROM suelta grande
+     * (128 MB no es raro en cartuchos reales de DS) eso puede agotar el heap
+     * de Java. [openRomForCore] es la vía que lo evita cuando se puede; este
+     * método sigue existiendo para el caso `.zip`, que sí necesita
+     * descomprimirse en memoria, y para pruebas.
      */
     suspend fun readRomBytes(rom: RomInfo): ByteArray? = withContext(ioDispatcher) {
         try {
@@ -128,6 +135,95 @@ class RomRepository(
         } catch (error: FileNotFoundException) {
             null
         }
+    }
+
+    /**
+     * Como [readRomBytes], pero entrega la vía más barata para el core: un
+     * descriptor de archivo sin copiar nada a un `ByteArray` de Kotlin cuando
+     * la ROM está suelta (no dentro de un `.zip`), y sólo cae a bytes en
+     * memoria cuando hace falta descomprimir. Ver
+     * [com.moralesDev.dsForEveryone.emulator.core.EmulatorCore.loadFromDescriptor].
+     *
+     * Cuando el proveedor SAF no da descriptor directo para una ROM suelta,
+     * o cuando la ROM viene dentro de un `.zip` y hace falta descomprimirla,
+     * la vía de emergencia es [openScratchDescriptor] — copia en flujo a un
+     * archivo temporal, nunca [readRomBytes] ni `RomZipReader.extractRom`:
+     * caer en cualquiera de los dos revive el `OutOfMemoryError` que este
+     * método existe para evitar. Pasó primero con Pokémon Platino (128 MB,
+     * suelto, en un proveedor sin descriptor) y después con Pokémon
+     * HeartGold (128 MB, dentro de un `.zip`) — ver
+     * `docs/estabilizacion-core.md`.
+     */
+    suspend fun openRomForCore(rom: RomInfo): RomSource? = withContext(ioDispatcher) {
+        try {
+            val rawStream = documentAccess.openInputStream(rom.documentUri) ?: return@withContext null
+            val pushback = PushbackInputStream(rawStream, ZIP_SIGNATURE_SIZE)
+            val isZip = sniffIsZip(pushback)
+            pushback.close()
+
+            if (isZip) {
+                extractZipToScratchDescriptor(rom)
+            } else {
+                val fd = documentAccess.openFileDescriptor(rom.documentUri)
+                if (fd != null) RomSource.Descriptor(fd, fd.statSize) else copyToScratchDescriptor(rom)
+            }
+        } catch (error: SecurityException) {
+            null
+        } catch (error: FileNotFoundException) {
+            null
+        }
+    }
+
+    /** Copia la ROM suelta en [rom] a un archivo temporal, sin decodificar nada — ver [openScratchDescriptor]. */
+    private fun copyToScratchDescriptor(rom: RomInfo): RomSource.Descriptor? =
+        openScratchDescriptor { scratch ->
+            val input = documentAccess.openInputStream(rom.documentUri) ?: return@openScratchDescriptor false
+            input.use { source -> FileOutputStream(scratch).use(source::copyTo) }
+            true
+        }
+
+    /** Descomprime la única entrada de ROM del `.zip` de [rom] a un archivo temporal — ver [openScratchDescriptor]. */
+    private fun extractZipToScratchDescriptor(rom: RomInfo): RomSource.Descriptor? =
+        openScratchDescriptor { scratch -> RomZipReader.extractRomToFile({ openOrThrow(rom.documentUri) }, scratch) }
+
+    /**
+     * Crea un archivo temporal de [StorageManager.newRomScratchFile], deja
+     * que [fill] lo llene —`true` si tuvo éxito— y abre un descriptor real
+     * sobre él para el core. Ni [fill] copia a un `ByteArray` de Kotlin en
+     * ningún punto: es la parte que importa, sea la fuente una ROM suelta o
+     * una entrada de `.zip` por descomprimir.
+     *
+     * El archivo se borra apenas se abre el descriptor, tenga éxito [fill] o
+     * no: en Linux el inodo sigue vivo mientras el descriptor esté abierto,
+     * así que el core lo sigue leyendo con normalidad y nunca queda una
+     * copia duradera de la ROM en el almacenamiento de la app — la promesa
+     * de la clase ("las ROMs no se copian") sigue valiendo, esto es sólo un
+     * puente.
+     */
+    private fun openScratchDescriptor(fill: (scratch: File) -> Boolean): RomSource.Descriptor? {
+        val scratch = storageManager.newRomScratchFile()
+        return try {
+            if (!fill(scratch)) return null
+            val length = scratch.length()
+            documentAccess.openLocalFileDescriptor(scratch)?.let { fd -> RomSource.Descriptor(fd, length) }
+        } catch (error: IOException) {
+            null
+        } catch (error: SecurityException) {
+            null
+        } finally {
+            scratch.delete()
+        }
+    }
+
+    /**
+     * Flujo sin tocar sobre el documento de la ROM. Sirve para calcular su
+     * CRC32 sin cargarlo en memoria cuando [openRomForCore] entregó un
+     * [RomSource.Descriptor]: ese descriptor ya viaja hacia el core y no se
+     * puede leer dos veces, así que la identidad del save state necesita su
+     * propio flujo.
+     */
+    suspend fun openRawStream(rom: RomInfo): InputStream? = withContext(ioDispatcher) {
+        documentAccess.openInputStream(rom.documentUri)
     }
 
     suspend fun markPlayed(romId: String) = withContext(ioDispatcher) {
@@ -244,4 +340,21 @@ sealed interface RomImportResult {
 
     /** La ROM descomprimida supera [RomZipReader.MAX_UNCOMPRESSED_BYTES]. */
     data object RomTooLarge : RomImportResult
+}
+
+/** Lo que devuelve [RomRepository.openRomForCore]: la vía más barata disponible para esta ROM. */
+sealed interface RomSource {
+    /** Ya está en memoria: una ROM `.zip` recién descomprimida, o una ROM suelta cuando no hubo más remedio. */
+    data class Bytes(val data: ByteArray) : RomSource {
+        override fun equals(other: Any?): Boolean =
+            other is Bytes && data.contentEquals(other.data)
+
+        override fun hashCode(): Int = data.contentHashCode()
+    }
+
+    /**
+     * Descriptor abierto sobre el archivo real de la ROM, sin copiar su
+     * contenido. [length] es su tamaño en bytes ([ParcelFileDescriptor.getStatSize]).
+     */
+    data class Descriptor(val fd: ParcelFileDescriptor, val length: Long) : RomSource
 }

@@ -7,6 +7,7 @@ import com.moralesDev.dsForEveryone.R
 import com.moralesDev.dsForEveryone.data.rom.RomIdentity
 import com.moralesDev.dsForEveryone.data.rom.RomInfo
 import com.moralesDev.dsForEveryone.data.rom.RomRepository
+import com.moralesDev.dsForEveryone.data.rom.RomSource
 import com.moralesDev.dsForEveryone.data.save.SaveManager
 import com.moralesDev.dsForEveryone.data.save.SaveStateManager
 import com.moralesDev.dsForEveryone.data.save.SaveStateSlot
@@ -21,6 +22,9 @@ import com.moralesDev.dsForEveryone.emulator.DsButton
 import com.moralesDev.dsForEveryone.emulator.EmulatorController
 import com.moralesDev.dsForEveryone.emulator.EmulatorStatus
 import com.moralesDev.dsForEveryone.emulator.core.CoreLoadResult
+import com.moralesDev.dsForEveryone.emulator.gamepad.GamepadInput
+import com.moralesDev.dsForEveryone.emulator.gamepad.GamepadInputRouter
+import com.moralesDev.dsForEveryone.emulator.gamepad.GamepadManager
 import com.moralesDev.dsForEveryone.emulator.layout.LayoutMode
 import com.moralesDev.dsForEveryone.ui.UiMessage
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -30,8 +34,10 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import java.nio.ByteBuffer
 
 /** Qué se está eligiendo en la hoja de ranuras. */
 enum class SlotAction { SAVE, LOAD }
@@ -67,6 +73,8 @@ class GameViewModel @Inject constructor(
     private val settingsRepository: SettingsRepository,
     private val romRepository: RomRepository,
     private val saveManager: SaveManager,
+    private val gamepadManager: GamepadManager,
+    private val gamepadInputRouter: GamepadInputRouter,
     @param:ApplicationScope private val applicationScope: CoroutineScope,
     savedStateHandle: SavedStateHandle,
 ) : ViewModel() {
@@ -87,7 +95,7 @@ class GameViewModel @Inject constructor(
     val micNoiseActive: StateFlow<Boolean> get() = controller.input.micNoiseActive
 
     /** Lo lee el hilo de GL directamente; no pasa por Compose ni por corrutinas. */
-    val currentFrame: IntArray? get() = controller.currentFrame
+    val currentFrame: ByteBuffer? get() = controller.currentFrame
 
     private val _slotAction = MutableStateFlow<SlotAction?>(null)
     val slotAction: StateFlow<SlotAction?> = _slotAction.asStateFlow()
@@ -115,21 +123,59 @@ class GameViewModel @Inject constructor(
      */
     private var identity: StateIdentity? = null
 
+    /** Si hay al menos un mando físico conectado: oculta los mandos en pantalla en horizontal (ver `GameScreen`). */
+    val isGamepadConnected: StateFlow<Boolean> = gamepadManager.connectedDevices
+        .map { it.isNotEmpty() }
+        .stateIn(scope = viewModelScope, started = SharingStarted.Eagerly, initialValue = false)
+
     init {
+        // Mientras esta pantalla esté viva, un botón de mando entra al juego
+        // en vez de a la navegación normal — ver `GamepadInputRouter.isActive`.
+        gamepadInputRouter.isActive = true
+
+        viewModelScope.launch {
+            gamepadManager.connections.collect { device ->
+                _message.value = UiMessage(R.string.msg_gamepad_detected, device.name)
+            }
+        }
+
+        viewModelScope.launch {
+            gamepadInputRouter.events.collect { input ->
+                when (input) {
+                    is GamepadInput.Button -> controller.input.setPressed(input.button, input.isPressed)
+                    is GamepadInput.Blow -> controller.input.setMicNoise(input.active)
+                }
+            }
+        }
+
         viewModelScope.launch {
             val rom = romId?.let { romRepository.findById(it) }
             _rom.value = rom
-            val cartridge = rom?.let { romRepository.readRomBytes(it) } ?: FAKE_CARTRIDGE
             val battery = romId?.let { saveManager.loadBattery(it) }
 
-            val result = controller.open(cartridge, battery)
+            // openRomForCore evita cargar la ROM entera en un ByteArray de
+            // Kotlin cuando se puede: una ROM suelta grande (128 MB no es
+            // raro en un cartucho real de DS) agotaba el heap antes de
+            // llegar siquiera al core (ver docs/estabilizacion-core.md).
+            val source = rom?.let { romRepository.openRomForCore(it) } ?: RomSource.Bytes(FAKE_CARTRIDGE)
+            val result = when (source) {
+                is RomSource.Bytes -> controller.open(source.data, battery)
+                is RomSource.Descriptor -> controller.openFromDescriptor(source.fd, source.length, battery)
+            }
+
             if (result is CoreLoadResult.Success && romId != null) {
                 identity = StateIdentity(
                     romSha256 = romId,
                     // Se calcula sobre los bytes que acaban de entrar en el
                     // core, no sobre los que se leyeron al dar de alta la ROM:
-                    // es lo que se está emulando de verdad.
-                    romCrc32 = RomIdentity.crc32(cartridge),
+                    // es lo que se está emulando de verdad. Con Descriptor el
+                    // core ya se quedó con ese descriptor, así que hace falta
+                    // un flujo propio para el CRC32.
+                    romCrc32 = when (source) {
+                        is RomSource.Bytes -> RomIdentity.crc32(source.data)
+                        is RomSource.Descriptor ->
+                            rom?.let { romRepository.openRawStream(it)?.use(RomIdentity::crc32) } ?: 0L
+                    },
                     coreName = controller.coreName,
                     coreVersion = controller.coreVersion,
                     stateSize = controller.stateSize(),
@@ -312,6 +358,7 @@ class GameViewModel @Inject constructor(
      * tendría ya con quién hablar.
      */
     override fun onCleared() {
+        gamepadInputRouter.isActive = false
         val rid = romId
         applicationScope.launch {
             if (rid != null) {

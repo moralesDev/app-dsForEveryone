@@ -1,6 +1,5 @@
 package com.moralesDev.dsForEveryone.ui.game.controls
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -16,19 +15,14 @@ import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.unit.dp
 import com.moralesDev.dsForEveryone.R
 import com.moralesDev.dsForEveryone.emulator.DirectionalPadZones
 import com.moralesDev.dsForEveryone.emulator.DsButton
-import com.moralesDev.dsForEveryone.ui.theme.Accent
-import com.moralesDev.dsForEveryone.ui.theme.Accent100
-import com.moralesDev.dsForEveryone.ui.theme.GlassStrong
-import com.moralesDev.dsForEveryone.ui.theme.textAlpha
 
 /**
  * Cruceta de ocho direcciones.
@@ -40,9 +34,12 @@ import com.moralesDev.dsForEveryone.ui.theme.textAlpha
  * otra —diagonales incluidas— sin levantarse: cada movimiento sustituye el
  * conjunto entero, así que la anterior se suelta sola.
  *
- * A diferencia de `app-emulador`, el tamaño no es una constante de diseño
- * (150 dp): lo decide `ControlLayout` y esta rejilla de 3×3 con pesos iguales
- * llena entero lo que le den, cuadrado o no.
+ * Visualmente es un disco de caucho —[RubberSurface] en reposo, nunca
+ * pulsado como conjunto— con cuatro flechas independientes en relieve
+ * encima, cada una redondeada por el lado de fuera y recta por el que mira
+ * al centro, y el nudo de [RubberHub] en medio. Sigue siendo la misma
+ * rejilla de 3×3 con pesos iguales de siempre: el tamaño no es una constante
+ * de diseño, lo decide `ControlLayout`.
  */
 @Composable
 fun DirectionalPad(
@@ -54,7 +51,7 @@ fun DirectionalPad(
 ) {
     val dpadLabel = stringResource(R.string.cd_dpad)
 
-    Column(
+    Box(
         modifier = modifier
             .fillMaxSize()
             .semantics { contentDescription = dpadLabel }
@@ -67,21 +64,28 @@ fun DirectionalPad(
                     },
                 )
             },
+        contentAlignment = Alignment.Center,
     ) {
-        Row(Modifier.weight(1f).fillMaxWidth()) {
-            Spacer(Modifier.weight(1f))
-            Arm(DsButton.UP, rotation = 0f, pressedMask, opacity, Modifier.weight(1f).fillMaxHeight())
-            Spacer(Modifier.weight(1f))
-        }
-        Row(Modifier.weight(1f).fillMaxWidth()) {
-            Arm(DsButton.LEFT, rotation = -90f, pressedMask, opacity, Modifier.weight(1f).fillMaxHeight())
-            Hub(opacity, Modifier.weight(1f).fillMaxHeight())
-            Arm(DsButton.RIGHT, rotation = 90f, pressedMask, opacity, Modifier.weight(1f).fillMaxHeight())
-        }
-        Row(Modifier.weight(1f).fillMaxWidth()) {
-            Spacer(Modifier.weight(1f))
-            Arm(DsButton.DOWN, rotation = 180f, pressedMask, opacity, Modifier.weight(1f).fillMaxHeight())
-            Spacer(Modifier.weight(1f))
+        RubberSurface(shape = CircleShape, pressed = false, opacity = opacity, modifier = Modifier.fillMaxSize())
+
+        Column(Modifier.fillMaxSize(INNER_FRACTION)) {
+            Row(Modifier.weight(1f).fillMaxWidth()) {
+                Spacer(Modifier.weight(1f))
+                Arm(DsButton.UP, rotation = 0f, pressedMask, opacity, Modifier.weight(1f).fillMaxHeight())
+                Spacer(Modifier.weight(1f))
+            }
+            Row(Modifier.weight(1f).fillMaxWidth()) {
+                Arm(DsButton.LEFT, rotation = -90f, pressedMask, opacity, Modifier.weight(1f).fillMaxHeight())
+                Box(Modifier.weight(1f).fillMaxHeight(), contentAlignment = Alignment.Center) {
+                    RubberHub(opacity, Modifier.fillMaxSize(HUB_FRACTION))
+                }
+                Arm(DsButton.RIGHT, rotation = 90f, pressedMask, opacity, Modifier.weight(1f).fillMaxHeight())
+            }
+            Row(Modifier.weight(1f).fillMaxWidth()) {
+                Spacer(Modifier.weight(1f))
+                Arm(DsButton.DOWN, rotation = 180f, pressedMask, opacity, Modifier.weight(1f).fillMaxHeight())
+                Spacer(Modifier.weight(1f))
+            }
         }
     }
 }
@@ -95,18 +99,16 @@ private fun Arm(
     modifier: Modifier,
 ) {
     val pressed = pressedMask and direction.mask != 0
-    Box(
-        modifier = modifier
-            .clip(RoundedCornerShape(8.dp))
-            .background(
-                if (pressed) Accent.copy(alpha = 0.30f) else GlassStrong.copy(alpha = GlassStrong.alpha * opacity),
-            ),
-        contentAlignment = Alignment.Center,
+    RubberSurface(
+        shape = armShape(direction),
+        pressed = pressed,
+        opacity = opacity,
+        modifier = modifier,
     ) {
         Icon(
             imageVector = Icons.Filled.ArrowDropUp,
             contentDescription = null,
-            tint = if (pressed) Accent100 else textAlpha(0.70f * opacity),
+            tint = RubberNeutral.text,
             modifier = Modifier
                 .fillMaxSize(ARROW_FRACTION)
                 .rotate(rotation),
@@ -114,20 +116,22 @@ private fun Arm(
     }
 }
 
-@Composable
-private fun Hub(opacity: Float, modifier: Modifier) {
-    Box(
-        modifier = modifier.background(GlassStrong.copy(alpha = GlassStrong.alpha * opacity)),
-        contentAlignment = Alignment.Center,
-    ) {
-        Box(
-            Modifier
-                .fillMaxSize(HUB_DOT_FRACTION)
-                .clip(CircleShape)
-                .background(textAlpha(0.22f)),
-        )
-    }
+/**
+ * Redondeado por el lado que mira hacia fuera del disco, recto por el que
+ * mira al nudo central: es lo que hace que las cuatro flechas se lean como
+ * parte de un círculo y no como cuatro botones cuadrados sueltos.
+ */
+private fun armShape(direction: DsButton): Shape = when (direction) {
+    DsButton.UP -> RoundedCornerShape(topStartPercent = OUTER_PERCENT, topEndPercent = OUTER_PERCENT, bottomEndPercent = INNER_PERCENT, bottomStartPercent = INNER_PERCENT)
+    DsButton.DOWN -> RoundedCornerShape(topStartPercent = INNER_PERCENT, topEndPercent = INNER_PERCENT, bottomEndPercent = OUTER_PERCENT, bottomStartPercent = OUTER_PERCENT)
+    DsButton.LEFT -> RoundedCornerShape(topStartPercent = OUTER_PERCENT, topEndPercent = INNER_PERCENT, bottomEndPercent = INNER_PERCENT, bottomStartPercent = OUTER_PERCENT)
+    DsButton.RIGHT -> RoundedCornerShape(topStartPercent = INNER_PERCENT, topEndPercent = OUTER_PERCENT, bottomEndPercent = OUTER_PERCENT, bottomStartPercent = INNER_PERCENT)
+    else -> RoundedCornerShape(INNER_PERCENT)
 }
 
+/** Fracción del cuadrado que ocupa la rejilla de flechas, dejando ver el aro del disco base alrededor. */
+private const val INNER_FRACTION = 0.84f
 private const val ARROW_FRACTION = 0.55f
-private const val HUB_DOT_FRACTION = 0.28f
+private const val HUB_FRACTION = 0.42f
+private const val OUTER_PERCENT = 45
+private const val INNER_PERCENT = 15

@@ -57,6 +57,7 @@ import com.moralesDev.dsForEveryone.emulator.layout.LayoutSize
 import com.moralesDev.dsForEveryone.emulator.layout.ScreenLayout
 import com.moralesDev.dsForEveryone.emulator.layout.ScreenPlacement
 import com.moralesDev.dsForEveryone.emulator.layout.TouchRouter
+import com.moralesDev.dsForEveryone.emulator.layout.shiftedDown
 import com.moralesDev.dsForEveryone.emulator.render.DsGLRenderer
 import com.moralesDev.dsForEveryone.ui.components.GlassIconButton
 import com.moralesDev.dsForEveryone.ui.game.controls.ActionButtons
@@ -82,6 +83,15 @@ import com.moralesDev.dsForEveryone.ui.theme.Surface
  *
  * La ROM real, la biblioteca y el sistema de partidas llegan con la fase 3,
  * sobre esta misma pantalla.
+ *
+ * Vertical por defecto: encajar doce mandos táctiles en horizontal sin tapar
+ * la táctil no compensa frente a lo simple que es jugar en vertical, así que
+ * la orientación sigue bloqueada mientras no haya mando físico. Con un mando
+ * Bluetooth o USB conectado (`GamepadManager`) esa cuenta cambia —no hace
+ * falta pintar ningún botón en pantalla— y es entonces cuando
+ * [FreeOrientationWhileGamepadConnected] libera la orientación y
+ * `landscapeLayoutMode`/`landscapeControlLayout` de `EmulatorSettings` entran
+ * en juego. Ver docs/entrada.md, «Mando físico».
  */
 @Composable
 fun GameScreen(onExit: () -> Unit) {
@@ -95,9 +105,10 @@ fun GameScreen(onExit: () -> Unit) {
     val autoSlot by viewModel.autoSlot.collectAsStateWithLifecycle()
     val pendingConfirmation by viewModel.pendingConfirmation.collectAsStateWithLifecycle()
     val message by viewModel.message.collectAsStateWithLifecycle()
+    val isGamepadConnected by viewModel.isGamepadConnected.collectAsStateWithLifecycle()
     var isMenuOpen by remember { mutableStateOf(false) }
 
-    FreeOrientation()
+    FreeOrientationWhileGamepadConnected(isGamepadConnected)
 
     BackHandler {
         if (isMenuOpen) {
@@ -112,36 +123,57 @@ fun GameScreen(onExit: () -> Unit) {
     val isPortrait = LocalConfiguration.current.orientation == Configuration.ORIENTATION_PORTRAIT
     val activeMode = if (isPortrait) settings.portraitLayoutMode else settings.landscapeLayoutMode
 
+    val density = LocalDensity.current
+    val minTouchTargetPx = with(density) { ControlLayout.MIN_TOUCH_TARGET_DP.dp.toPx() }
+
+    // Ni la barra de estado ni la de navegación consumen touches para la
+    // app, pero por motivos distintos hay que dejarles hueco: la de estado
+    // taparía parte del dibujo de la pantalla superior si empezara en
+    // y = 0, así que las dos pantallas se calculan en el hueco que queda
+    // por debajo y se corren hacia abajo esa misma distancia. La de
+    // navegación no tapa dibujo (las pantallas no llegan tan abajo), pero sí
+    // haría inalcanzable cualquier mando que cayera ahí, así que a los
+    // mandos —más abajo— se les da el hueco completo menos ese margen.
+    val topInsetPx = WindowInsets.systemBars.getTop(density).toFloat()
+    val bottomInsetPx = WindowInsets.systemBars.getBottom(density).toFloat()
+
     var availableSize by remember { mutableStateOf(LayoutSize(0f, 0f)) }
     val placement = remember(
         activeMode,
         availableSize,
+        topInsetPx,
         settings.screenGap,
         settings.secondaryScale,
         settings.screensSwapped,
     ) {
         if (availableSize.width > 0f && availableSize.height > 0f) {
-            ScreenLayout.resolve(
+            val screensAvailable = LayoutSize(availableSize.width, (availableSize.height - topInsetPx).coerceAtLeast(0f))
+            val raw = ScreenLayout.resolve(
                 mode = activeMode,
-                available = availableSize,
+                available = screensAvailable,
                 gap = settings.screenGap,
                 secondaryScale = settings.secondaryScale,
                 swapped = settings.screensSwapped,
+            )
+            ScreenPlacement(
+                topScreen = raw.topScreen.shiftedDown(topInsetPx),
+                touchScreen = raw.touchScreen.shiftedDown(topInsetPx),
             )
         } else {
             null
         }
     }
 
+    val controlAvailableSize = LayoutSize(availableSize.width, (availableSize.height - bottomInsetPx).coerceAtLeast(0f))
+
     val activeControlLayout = if (isPortrait) settings.portraitControlLayout else settings.landscapeControlLayout
-    val controlProfile = remember(placement, availableSize, activeControlLayout) {
+    val controlProfile = remember(placement, controlAvailableSize, activeControlLayout, minTouchTargetPx) {
         val current = placement ?: return@remember null
-        val side = minOf(availableSize.width, availableSize.height) * ControlLayout.DEFAULT_GROUP_SIZE_FRACTION
         ControlLayout.resolveProfile(
             custom = activeControlLayout,
-            available = availableSize,
+            available = controlAvailableSize,
             touchScreen = current.touchScreen,
-            groupSize = LayoutSize(side, side),
+            minTouchTarget = minTouchTargetPx,
             opacity = ControlLayout.DEFAULT_OPACITY,
         )
     }
@@ -150,7 +182,6 @@ fun GameScreen(onExit: () -> Unit) {
     LaunchedEffect(placement) { placement?.let(renderer::setPlacement) }
     LaunchedEffect(settings.imageFilter) { renderer.setFilter(settings.imageFilter) }
 
-    val density = LocalDensity.current
     val touchOffsetPx = with(density) { settings.touchOffsetDp.dp.toPx() }
 
     Box(
@@ -182,9 +213,14 @@ fun GameScreen(onExit: () -> Unit) {
             )
         }
 
-        controlProfile?.let { profile ->
+        // Con mando físico conectado y en horizontal no hace falta pintar
+        // ningún botón: el mando cubre los doce más el soplido (ver
+        // docs/entrada.md, «Mando físico»). En vertical se mantienen —el
+        // hueco vertical entre pantallas sigue siendo el mismo tenga o no
+        // mando el usuario— y sin mando no cambia nada de lo de siempre.
+        if (controlProfile != null && !(isGamepadConnected && !isPortrait)) {
             ControlGroups(
-                profile = profile,
+                profile = controlProfile,
                 pressedMask = pressedMask,
                 micActive = micActive,
                 onButton = viewModel::onButton,
@@ -438,13 +474,18 @@ private fun ControlGroups(
 }
 
 /**
- * Libera la orientación mientras esta pantalla esté visible; el resto de la
- * app sigue en vertical por manifiesto.
+ * Libera la orientación mientras haya un mando físico conectado y esta
+ * pantalla esté visible; el resto de la app sigue en vertical por
+ * manifiesto. Sin mando, la partida se queda en vertical: encajar doce
+ * mandos táctiles en horizontal sin tapar la pantalla inferior no
+ * compensaba (ver docs/entrada.md, «Mando físico»), y un mando físico es
+ * justo lo que cambia esa cuenta.
  */
 @Composable
-private fun FreeOrientation() {
+private fun FreeOrientationWhileGamepadConnected(gamepadConnected: Boolean) {
     val context = LocalContext.current
-    DisposableEffect(Unit) {
+    DisposableEffect(gamepadConnected) {
+        if (!gamepadConnected) return@DisposableEffect onDispose {}
         val activity = context.findActivity()
         val previousOrientation = activity.requestedOrientation
         activity.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_FULL_SENSOR
@@ -457,3 +498,4 @@ private tailrec fun Context.findActivity(): Activity = when (this) {
     is ContextWrapper -> baseContext.findActivity()
     else -> error("No se encontró ninguna Activity en la cadena de contextos")
 }
+

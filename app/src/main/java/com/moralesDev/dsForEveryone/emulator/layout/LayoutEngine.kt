@@ -25,6 +25,9 @@ data class LayoutRect(val left: Float, val top: Float, val right: Float, val bot
     }
 }
 
+/** Traslada el rectángulo [dy] píxeles hacia abajo, sin tocar ancho ni alto. */
+fun LayoutRect.shiftedDown(dy: Float): LayoutRect = LayoutRect(left, top + dy, right, bottom + dy)
+
 /**
  * Geometría pura para colocar rectángulos con restricciones dentro de un
  * área: no solaparse, no salirse, mantener una proporción, ajustar a una

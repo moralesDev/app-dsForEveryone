@@ -7,15 +7,21 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.systemBars
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.PlayArrow
@@ -72,7 +78,7 @@ fun PauseMenu(
     onExit: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Box(
+    BoxWithConstraints(
         modifier = modifier
             .fillMaxSize()
             .background(ScrimColor)
@@ -81,12 +87,20 @@ fun PauseMenu(
                 indication = null,
                 onClick = onResume,
             )
+            // Antes de acolchar visualmente: en horizontal, sin esto, la
+            // tarjeta se mide contra el alto completo de la pantalla,
+            // incluido lo que tapa la barra de navegación del sistema.
+            .windowInsetsPadding(WindowInsets.systemBars)
             .padding(22.dp),
         contentAlignment = Alignment.Center,
     ) {
+        // En horizontal la tarjeta puede no caber entera: sin tope de altura
+        // ni scroll, «Cargar partida» y «Salir» —al final de la columna—
+        // quedaban fuera de la pantalla y no había forma de llegar a ellos.
         Column(
             modifier = Modifier
                 .fillMaxWidth()
+                .heightIn(max = maxHeight)
                 .clip(RoundedCornerShape(18.dp))
                 .background(Surface)
                 // Absorbe el toque para que pulsar dentro de la tarjeta no cierre.
@@ -95,7 +109,8 @@ fun PauseMenu(
                     indication = null,
                     onClick = {},
                 )
-                .padding(horizontal = 16.dp, vertical = 18.dp),
+                .padding(horizontal = 16.dp, vertical = 18.dp)
+                .verticalScroll(rememberScrollState()),
         ) {
             SectionLabel(stringResource(R.string.pa_title))
 

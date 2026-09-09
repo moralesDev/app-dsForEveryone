@@ -1,5 +1,7 @@
 package com.moralesDev.dsForEveryone.data.rom
 
+import java.io.File
+import java.io.FileOutputStream
 import java.io.IOException
 import java.io.InputStream
 import java.util.zip.ZipEntry
@@ -83,6 +85,19 @@ object RomZipReader {
      */
     fun extractRom(open: () -> InputStream): ByteArray? =
         (scanForSingleRomEntry(open) { it.readBytes() } as? ScanOutcome.Ready)?.value
+
+    /**
+     * Como [extractRom], pero escribe la ROM descomprimida en flujo a
+     * [destination] en vez de construir un `ByteArray`: para una ROM grande
+     * dentro de un `.zip` (Pokémon HeartGold, 128 MB, agotó el heap de Java
+     * así — ver `docs/estabilizacion-core.md`) el `ByteArray` es justo lo que
+     * hay que evitar. `true` si encontró y copió la única entrada de ROM;
+     * `destination` queda sin tocar (o a medio escribir, según cuándo falló)
+     * en cualquier otro caso, así que quien llame no debe fiarse del archivo
+     * si esto devuelve `false`.
+     */
+    fun extractRomToFile(open: () -> InputStream, destination: File): Boolean =
+        scanForSingleRomEntry(open) { input -> FileOutputStream(destination).use(input::copyTo) } is ScanOutcome.Ready
 
     /**
      * El recorrido de verdad, compartido por [resolveRom] y [extractRom]:

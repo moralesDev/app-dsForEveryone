@@ -75,27 +75,55 @@ data class ControlGroupFraction(
  */
 object ControlLayout {
 
-    /** Lado de cada grupo, como fracción del lado menor del hueco disponible, cuando no hay perfil guardado. */
-    const val DEFAULT_GROUP_SIZE_FRACTION = 0.20f
-
     /** Opacidad de cada grupo cuando no hay perfil guardado. */
     const val DEFAULT_OPACITY = 0.85f
+
+    /**
+     * El objetivo táctil mínimo recomendado por Material Design, en dp. Quien
+     * llama —`GameScreen`, el editor— lo convierte a píxeles con la densidad
+     * real antes de pasarlo a [defaultProfile]: esta clase no conoce
+     * unidades de Compose.
+     */
+    const val MIN_TOUCH_TARGET_DP = 48f
+
+    /**
+     * La cruceta y el rombo de acción, como múltiplo de `minTouchTarget`: son
+     * los que se usan siempre y los que más precisión piden, así que son el
+     * elemento más grande de la pantalla.
+     */
+    private const val PRIMARY_SCALE = 3f
+
+    /**
+     * L y R, como múltiplo de `minTouchTarget`: gatillos rectangulares, no
+     * cuadrados —más anchos que altos—, y con menos alto que la cruceta.
+     * [SHOULDER_HEIGHT_SCALE] decide también el grosor de la fila de arriba
+     * en [defaultProfile], así que sigue siendo mayor que el mínimo táctil.
+     */
+    private const val SHOULDER_WIDTH_SCALE = 2.4f
+    private const val SHOULDER_HEIGHT_SCALE = 1.3f
+
+    /** Start, Select y el botón de soplar: exactamente el mínimo táctil, ni un dp menos. */
+    private const val SECONDARY_SCALE = 1f
 
     /**
      * El perfil que hay que pintar: el guardado por el usuario en
      * [custom] si es válido y completo, o si no [defaultProfile]. La pantalla
      * de juego y el editor de disposición llaman a esta misma función con los
      * mismos argumentos — es lo que garantiza que uno y otro coloquen igual.
+     *
+     * @param minTouchTarget objetivo táctil mínimo (48 dp convertidos a
+     *   píxeles por quien llama; esta clase no conoce unidades de Compose).
+     *   Ver [defaultProfile].
      */
     fun resolveProfile(
         custom: Map<ControlGroup, ControlGroupFraction>?,
         available: LayoutSize,
         touchScreen: LayoutRect,
-        groupSize: LayoutSize,
+        minTouchTarget: Float,
         opacity: Float = DEFAULT_OPACITY,
     ): ControlLayoutProfile {
         val fromCustom = custom?.let { fromFractions(it, available) }
-        return fromCustom ?: defaultProfile(available, touchScreen, groupSize, opacity)
+        return fromCustom ?: defaultProfile(available, touchScreen, minTouchTarget, opacity)
     }
 
     /** [available] en las mismas unidades que las de [ControlGroupPlacement.bounds] (habitualmente píxeles). */
@@ -183,12 +211,53 @@ object ControlLayout {
     }
 
     /**
-     * Perfil de partida para un hueco disponible: coloca los siete grupos en
-     * los márgenes que deja [touchScreen] respecto al hueco completo —arriba,
-     * L, el botón de soplar y R; abajo, la cruceta, Start, Select y el rombo
-     * de acción—, sin invadirla nunca. Cada grupo pide [groupSize], pero se
-     * recorta al hueco de su celda si no cabe entero: así ningún tamaño,
-     * por grande que sea, puede hacer que dos grupos se solapen.
+     * Perfil de partida para un hueco disponible: los siete grupos en una
+     * única banda de dos filas, repartidos por frecuencia de uso, no por
+     * simetría.
+     *
+     * La banda es siempre una sola —nunca repartida en dos sitios separados
+     * de la pantalla— para que L y R queden al alcance del mismo pulgar que
+     * ya está sobre la cruceta o el rombo, no en un sitio aparte: eso es
+     * justo lo que dejaba R inalcanzable en Mario Kart en `app-emulador`
+     * (ver docs/entrada.md). Dentro de esa banda, como en un mando físico,
+     * los gatillos van en la fila de arriba y los botones de cara en la de
+     * abajo. La fila de abajo es siempre la misma:
+     *
+     * ```
+     * [ CRUCETA ] [St][Sel] [ ACCIÓN ]
+     * ```
+     *
+     * pero la de arriba cambia según [BandChoice.isSideBand]. Con la banda
+     * debajo de la táctil (vertical, banda ancha y baja) hay sitio de sobra
+     * a lo ancho y soplar queda centrado, sobre Start/Select:
+     *
+     * ```
+     * [   L   ] [ SOPLAR ] [   R    ]
+     * ```
+     *
+     * Con la banda al lado de la táctil (horizontal: docs/entrada.md dice
+     * que ahí «los mandos tienen que superponerse a los lados» porque lado a
+     * lado no deja banda inferior utilizable) sólo hay una pantalla libre —la
+     * superior, no interactiva— para los siete grupos: no hay un lado
+     * simétrico al otro lado de la táctil donde poner nada. Ahí soplar se
+     * apila encima de L, no al lado, y R queda solo en su columna:
+     *
+     * ```
+     * [ SOPLAR ]           [        ]
+     * [   L    ]           [   R    ]
+     * ```
+     *
+     * La fila de arriba necesita [SHOULDER_HEIGHT_SCALE] de grosor —o
+     * [SHOULDER_HEIGHT_SCALE] más [SECONDARY_SCALE] si soplar va apilado—; la
+     * de abajo necesita [PRIMARY_SCALE], porque ahí van los dos elementos más
+     * grandes. L y R además son más anchos que altos ([SHOULDER_WIDTH_SCALE]
+     * frente a [SHOULDER_HEIGHT_SCALE]): gatillos rectangulares, no
+     * cuadrados.
+     *
+     * Cada grupo pide su tamaño según [PRIMARY_SCALE],
+     * [SHOULDER_WIDTH_SCALE]/[SHOULDER_HEIGHT_SCALE] o [SECONDARY_SCALE],
+     * pero se recorta al hueco de su celda si no cabe entero: así ningún
+     * tamaño, por grande que sea, puede hacer que dos grupos se solapen.
      *
      * Es un punto de partida, no el resultado final: el editor (fase 2.7)
      * deja mover y redimensionar cada grupo a mano, y ese resultado se valida
@@ -197,28 +266,114 @@ object ControlLayout {
     fun defaultProfile(
         available: LayoutSize,
         touchScreen: LayoutRect,
-        groupSize: LayoutSize,
-        opacity: Float = 0.72f,
+        minTouchTarget: Float,
+        opacity: Float = DEFAULT_OPACITY,
     ): ControlLayoutProfile {
         val area = LayoutRect(0f, 0f, available.width, available.height)
-        val topMargin = LayoutRect(area.left, area.top, area.right, touchScreen.top.coerceIn(area.top, area.bottom))
-        val bottomMargin =
-            LayoutRect(area.left, touchScreen.bottom.coerceIn(area.top, area.bottom), area.right, area.bottom)
+        val bandChoice = chooseBand(area, touchScreen, minTouchTarget)
+        val band = bandChoice.rect
 
-        val (lCell, blowCell, rCell) = topMargin.splitHorizontally(3)
-        val (dpadCell, startCell, selectCell, actionCell) = bottomMargin.splitHorizontally(4)
+        val primary = LayoutSize(minTouchTarget * PRIMARY_SCALE, minTouchTarget * PRIMARY_SCALE)
+        val shoulder = LayoutSize(minTouchTarget * SHOULDER_WIDTH_SCALE, minTouchTarget * SHOULDER_HEIGHT_SCALE)
+        val secondary = LayoutSize(minTouchTarget * SECONDARY_SCALE, minTouchTarget * SECONDARY_SCALE)
+
+        val (topRow, faceRow) = band.splitRowsWeighted(
+            listOf(topRowHeightScale(bandChoice.isSideBand), PRIMARY_SCALE),
+        )
+        val (dpadCell, centerCell, actionCell) = faceRow.splitWeighted(
+            listOf(PRIMARY_SCALE, SECONDARY_SCALE * 2f, PRIMARY_SCALE),
+        )
+        val (startCell, selectCell) = centerCell.splitHorizontally(2)
+
+        val (lCell, blowCell, rCell) = if (bandChoice.isSideBand) {
+            val (leftTop, rightTop) = topRow.splitWeighted(listOf(SHOULDER_WIDTH_SCALE, SHOULDER_WIDTH_SCALE))
+            val (blowSubCell, lSubCell) = leftTop.splitRowsWeighted(listOf(SECONDARY_SCALE, SHOULDER_HEIGHT_SCALE))
+            Triple(lSubCell, blowSubCell, rightTop)
+        } else {
+            val (leftCell, blowCenterCell, rightCell) = topRow.splitWeighted(
+                listOf(SHOULDER_WIDTH_SCALE, SECONDARY_SCALE, SHOULDER_WIDTH_SCALE),
+            )
+            Triple(leftCell, blowCenterCell, rightCell)
+        }
 
         val groups = mapOf(
-            ControlGroup.L to lCell.place(groupSize, opacity),
-            ControlGroup.BLOW to blowCell.place(groupSize, opacity),
-            ControlGroup.R to rCell.place(groupSize, opacity),
-            ControlGroup.DIRECTIONAL_PAD to dpadCell.place(groupSize, opacity),
-            ControlGroup.START to startCell.place(groupSize, opacity),
-            ControlGroup.SELECT to selectCell.place(groupSize, opacity),
-            ControlGroup.ACTION_BUTTONS to actionCell.place(groupSize, opacity),
+            ControlGroup.L to lCell.place(shoulder, opacity),
+            ControlGroup.BLOW to blowCell.place(secondary, opacity),
+            ControlGroup.R to rCell.place(shoulder, opacity),
+            ControlGroup.DIRECTIONAL_PAD to dpadCell.place(primary, opacity),
+            ControlGroup.START to startCell.place(secondary, opacity),
+            ControlGroup.SELECT to selectCell.place(secondary, opacity),
+            ControlGroup.ACTION_BUTTONS to actionCell.place(primary, opacity),
         )
         return ControlLayoutProfile(groups)
     }
+
+    /**
+     * La banda única de [defaultProfile] y cómo repartir la fila de arriba
+     * dentro de ella. [isSideBand] es `true` cuando la banda vive al lado de
+     * la táctil, no debajo: es la señal que usa [defaultProfile] para saber
+     * si soplar va centrado sobre Start/Select (banda ancha y baja, típica en
+     * vertical) o apilado sobre L (banda que vive en el hueco lateral,
+     * típica en horizontal, donde además no hay sitio para un R al otro lado
+     * de la táctil —ver el propio [defaultProfile]—).
+     */
+    private class BandChoice(val rect: LayoutRect, val isSideBand: Boolean)
+
+    /**
+     * Dónde vive la banda única de [defaultProfile].
+     *
+     * Se prefiere el margen que no tapa ninguna pantalla —el que queda entre
+     * el borde de la táctil y el borde del hueco disponible en el eje en el
+     * que sobra más sitio— y, entre «abajo» y «arriba», siempre «abajo»
+     * cuando hay de sobra: «arriba» casi siempre coincide con la pantalla
+     * superior completa (pegada al borde del hueco por [ScreenLayout]), y
+     * ahí es donde quedaban L y R fuera del alcance del pulgar. Sólo si ni
+     * abajo ni a los lados queda banda utilizable se cae a «arriba», que
+     * sigue sin solapar la táctil aunque sí tape la superior —permitido,
+     * puesto que no es interactiva—.
+     */
+    private fun chooseBand(area: LayoutRect, touchScreen: LayoutRect, minTouchTarget: Float): BandChoice {
+        val topAvail = (touchScreen.top - area.top).coerceAtLeast(0f)
+        val bottomAvail = (area.bottom - touchScreen.bottom).coerceAtLeast(0f)
+        val leftAvail = (touchScreen.left - area.left).coerceAtLeast(0f)
+        val rightAvail = (area.right - touchScreen.right).coerceAtLeast(0f)
+        val sideAvail = maxOf(leftAvail, rightAvail)
+
+        return when {
+            sideAvail > bottomAvail && sideAvail > 0f -> {
+                val thickness = (minTouchTarget * topRowHeightScale(isSideBand = true) + minTouchTarget * PRIMARY_SCALE)
+                    .coerceAtMost(area.height)
+                val rect = if (leftAvail >= rightAvail) {
+                    LayoutRect(area.left, area.bottom - thickness, area.left + leftAvail, area.bottom)
+                } else {
+                    LayoutRect(area.right - rightAvail, area.bottom - thickness, area.right, area.bottom)
+                }
+                BandChoice(rect, isSideBand = true)
+            }
+
+            bottomAvail > 0f -> {
+                val thickness = (minTouchTarget * topRowHeightScale(isSideBand = false) + minTouchTarget * PRIMARY_SCALE)
+                    .coerceAtMost(bottomAvail)
+                BandChoice(LayoutRect(area.left, area.bottom - thickness, area.right, area.bottom), isSideBand = false)
+            }
+
+            topAvail > 0f -> {
+                val thickness = (minTouchTarget * topRowHeightScale(isSideBand = false) + minTouchTarget * PRIMARY_SCALE)
+                    .coerceAtMost(topAvail)
+                BandChoice(LayoutRect(area.left, area.top, area.right, area.top + thickness), isSideBand = false)
+            }
+
+            else -> BandChoice(LayoutRect(area.left, area.bottom, area.right, area.bottom), isSideBand = false)
+        }
+    }
+
+    /**
+     * Grosor de la fila de arriba, como múltiplo de `minTouchTarget`. En la
+     * banda lateral soplar se apila encima de L —ver [defaultProfile]—, así
+     * que esa fila necesita el alto de los dos, no sólo el de L.
+     */
+    private fun topRowHeightScale(isSideBand: Boolean): Float =
+        if (isSideBand) SECONDARY_SCALE + SHOULDER_HEIGHT_SCALE else SHOULDER_HEIGHT_SCALE
 
     private fun LayoutRect.place(requested: LayoutSize, opacity: Float): ControlGroupPlacement {
         val fitted = LayoutSize(
@@ -228,11 +383,40 @@ object ControlLayout {
         return ControlGroupPlacement(LayoutEngine.center(fitted, this), opacity)
     }
 
-    /** Reparte el rectángulo en [count] columnas iguales, de izquierda a derecha. */
+    /** Reparte el rectángulo en columnas iguales, de izquierda a derecha. */
     private fun LayoutRect.splitHorizontally(count: Int): List<LayoutRect> {
         val cellWidth = width / count
         return (0 until count).map { index ->
             LayoutRect(left + cellWidth * index, top, left + cellWidth * (index + 1), bottom)
+        }
+    }
+
+    /**
+     * Reparte el rectángulo en columnas cuyo ancho es proporcional a cada
+     * valor de [weights], de izquierda a derecha. Es lo que traduce «el
+     * tamaño se reparte por frecuencia de uso» a hueco reservado: la cruceta
+     * y el rombo piden más columna que L, R o el centro.
+     */
+    private fun LayoutRect.splitWeighted(weights: List<Float>): List<LayoutRect> {
+        val total = weights.sum().coerceAtLeast(0.0001f)
+        var x = left
+        return weights.map { weight ->
+            val cellWidth = width * (weight / total)
+            val cell = LayoutRect(x, top, x + cellWidth, bottom)
+            x += cellWidth
+            cell
+        }
+    }
+
+    /** Igual que [splitWeighted] pero en filas, de arriba a abajo. */
+    private fun LayoutRect.splitRowsWeighted(weights: List<Float>): List<LayoutRect> {
+        val total = weights.sum().coerceAtLeast(0.0001f)
+        var y = top
+        return weights.map { weight ->
+            val cellHeight = height * (weight / total)
+            val cell = LayoutRect(left, y, right, y + cellHeight)
+            y += cellHeight
+            cell
         }
     }
 }

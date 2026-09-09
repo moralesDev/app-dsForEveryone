@@ -21,6 +21,8 @@ import java.io.File
  * │   └── <sha256 de la ROM>.webp
  * ├── system/
  * │   └── <bios7.bin, firmware.bin, ...>   (lo que pida el core elegido)
+ * ├── scratch/
+ * │   └── rom_scratch*.nds   (vive segundos: se borra al abrir su descriptor)
  * └── saves/
  *     ├── <sha256 de la ROM>/
  *     │   ├── battery.sav
@@ -47,6 +49,7 @@ class StorageManager(filesDirectory: File) {
     private val savesRoot = File(filesDirectory, "saves")
     private val coversRoot = File(filesDirectory, "covers")
     private val systemRoot = File(filesDirectory, "system")
+    private val scratchRoot = File(filesDirectory, "scratch")
 
     fun romDirectory(romId: String): File =
         File(savesRoot, romId).also { it.mkdirs() }
@@ -112,6 +115,19 @@ class StorageManager(filesDirectory: File) {
 
     fun usedBytes(romId: String): Long =
         File(savesRoot, romId).walkBottomUp().filter(File::isFile).sumOf(File::length)
+
+    /**
+     * Archivo temporal para la copia de emergencia de una ROM suelta cuando
+     * el proveedor SAF no entrega un descriptor directo (ver
+     * `RomRepository.openRomForCore`). Nunca queda ahí: quien lo escribe lo
+     * borra apenas abre un `ParcelFileDescriptor` sobre él —el inodo sigue
+     * vivo mientras ese descriptor esté abierto—, así que esta carpeta no
+     * guarda ninguna copia duradera de ninguna ROM.
+     */
+    fun newRomScratchFile(): File {
+        scratchRoot.mkdirs()
+        return File.createTempFile("rom_scratch", ".nds", scratchRoot)
+    }
 
     companion object {
         /**

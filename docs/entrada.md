@@ -188,7 +188,72 @@ Y lo dicho en [`pantallas.md`](pantallas.md): esto y la colocación de las
 pantallas son el **mismo problema** —rectángulos con restricciones dentro de un
 área— y se resuelven con un solo `LayoutEngine`.
 
-## 5. Qué se prueba en JVM
+## 5. Mando físico (Bluetooth y USB)
+
+Android no distingue transporte para un mando de juego: uno emparejado por
+Bluetooth y uno por USB-OTG llegan **idénticos**, como un `InputDevice`
+genérico (`SOURCE_GAMEPAD` / `SOURCE_JOYSTICK`) que entrega `KeyEvent` y
+`MotionEvent` normales. No hace falta declarar `BLUETOOTH` ni ningún permiso
+nuevo — la regla de cero permisos del proyecto sigue intacta, y el soporte USB
+que ya se dejó anotado como pendiente sale del mismo código.
+
+### Detección
+
+Un componente propio (`GamepadManager`, distinto del `InputManager` del
+proyecto, que es el que ya existe para inyectar botones) envuelve el
+`InputManager` **del sistema** Android y su `InputDeviceListener`
+(`onInputDeviceAdded`/`Removed`/`Changed`), filtrando por `sources` para
+descartar teclados y dispositivos virtuales. Enumera también lo que ya estaba
+conectado al abrir la app, no sólo lo que se conecta después. Cada conexión
+nueva dispara un `UiMessage` («Mando detectado: ‹nombre›»), con el mismo
+mecanismo que ya usan los mensajes de guardado.
+
+### El mapeo es por mando, no global
+
+Se identifica cada mando por su `descriptor` (estable entre conexiones,
+sobrevive a que el usuario tenga dos mandos distintos) y cada uno guarda su
+propio mapeo, persistido con el mismo patrón de texto plano que
+`ControlLayout.encode`/`decode`. Sin mapeo guardado, arranca con la
+asignación estándar de Android para mandos (`KEYCODE_BUTTON_A/B/X/Y`,
+`DPAD_*`, `BUTTON_L1/R1`, `BUTTON_START/SELECT`), que ya normaliza
+razonablemente bien entre fabricantes — se puede jugar de inmediato con un
+mando corriente, y remapear queda para quien quiera cambiar algo o tenga un
+mando poco convencional.
+
+El botón de **soplar** entra en el mapeo igual que los doce de `DsButton`: es
+la única forma de que un juego que pide soplido (§2) sea jugable por completo
+sin tocar la pantalla. No vive en el enum `DsButton` —nunca formó parte de la
+máscara de 12 bits del core— así que el mapeo lo trata como un objetivo
+aparte, no como un botón trece.
+
+### Pantalla limpia en horizontal
+
+El editor de disposición (§4) resuelve dónde van los mandos en pantalla; esto
+resuelve cuándo **no hacen falta**. La partida está bloqueada a vertical desde
+el entregable que dio forma final a los mandos en pantalla — encajar doce
+mandos táctiles en horizontal sin tapar la pantalla inferior no compensaba, y
+por eso se retiró la liberación de orientación (`FreeOrientation`) que había
+antes. Un mando físico cambia el cálculo: ya no hay doce zonas táctiles que
+encajar, así que la orientación se libera **mientras haya un mando
+conectado**, y sólo entonces. Sin mando, sigue bloqueada a vertical como hoy.
+
+Con mando conectado y en horizontal, `ControlGroups` no se pinta —nada que
+tocar en pantalla, salvo lo que sigue igual: la pantalla táctil sigue activa
+para lápiz/dedo (un mando no sustituye al lápiz, ver §1) y el botón de menú
+—ya independiente de los siete grupos de mandos, arriba a la derecha— sigue
+donde está, dando acceso al menú de pausa existente.
+
+### Capturar «pulsa un botón»
+
+La pantalla de mapeo necesita interceptar el próximo `KeyEvent` de un mando
+concreto y **no** dejarlo llegar al juego. Se intercepta en el punto más alto
+posible (`Activity.dispatchKeyEvent`) y se enruta con el mismo patrón de
+estado compartido que ya usa el táctil: si hay un capturador activo, el evento
+va para él; si no, entra al juego por el camino de siempre
+(`InputManager.setPressed`). Nunca cola de comandos, nunca lógica de
+exclusividad añadida aparte de esa.
+
+## 6. Qué se prueba en JVM
 
 Nada de esto necesita dispositivo ni Robolectric, y todo puede fallar en
 silencio:
@@ -201,3 +266,8 @@ silencio:
   táctil, en las dos orientaciones y con cualquier tamaño de grupo.
 - `DsButton`: que la máscara producida por una combinación de botones sea la que
   el core espera. Con un `FakeEmulatorCore` que registre lo que recibe.
+- `GamepadMapping`: que `encode`/`decode` sean inversos, que el mapeo por
+  defecto cubra los doce botones más el soplido, y que dos mandos con
+  descriptores distintos no se pisen el mapeo. Lo que no se puede probar en
+  JVM —`InputDevice`, `KeyEvent` reales— queda para el dispositivo, igual que
+  ya pasa con `ParcelFileDescriptor` en `RomRepositoryTest`.

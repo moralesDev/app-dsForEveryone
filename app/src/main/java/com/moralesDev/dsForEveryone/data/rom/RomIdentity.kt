@@ -104,6 +104,24 @@ object RomIdentity {
      */
     fun crc32(bytes: ByteArray): Long = CRC32().apply { update(bytes) }.value
 
+    /**
+     * Igual que [crc32] pero leyendo por bloques desde [stream], sin cargar
+     * el archivo entero en memoria. Para cuando la ROM se entrega al core por
+     * descriptor ([RomRepository.RomSource.Descriptor]) en vez de por
+     * `ByteArray`: ese descriptor ya viaja hacia el core, así que la
+     * identidad del save state necesita su propio flujo.
+     */
+    fun crc32(stream: InputStream): Long {
+        val crc = CRC32()
+        val buffer = ByteArray(BUFFER_SIZE)
+        while (true) {
+            val read = stream.read(buffer)
+            if (read < 0) break
+            crc.update(buffer, 0, read)
+        }
+        return crc.value
+    }
+
     private fun ByteArray.toHexString(): String =
         joinToString("") { byte -> "%02x".format(byte) }
 

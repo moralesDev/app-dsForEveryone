@@ -10,6 +10,7 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.floatPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import com.moralesDev.dsForEveryone.emulator.gamepad.GamepadMapping
 import com.moralesDev.dsForEveryone.emulator.layout.ControlGroup
 import com.moralesDev.dsForEveryone.emulator.layout.ControlGroupFraction
 import com.moralesDev.dsForEveryone.emulator.layout.ControlLayout
@@ -48,6 +49,8 @@ class SettingsRepository(private val context: Context) {
             touchOffsetDp = preferences[Keys.TOUCH_OFFSET_DP] ?: DEFAULT.touchOffsetDp,
             portraitControlLayout = preferences[Keys.PORTRAIT_CONTROLS]?.let(ControlLayout::decode),
             landscapeControlLayout = preferences[Keys.LANDSCAPE_CONTROLS]?.let(ControlLayout::decode),
+            gamepadMappings = preferences[Keys.GAMEPAD_MAPPINGS]?.let(GamepadMapping::decodeAll)
+                ?: DEFAULT.gamepadMappings,
         )
     }
 
@@ -88,6 +91,18 @@ class SettingsRepository(private val context: Context) {
         if (fractions == null) it.remove(Keys.LANDSCAPE_CONTROLS) else it[Keys.LANDSCAPE_CONTROLS] = ControlLayout.encode(fractions)
     }
 
+    /** Reasigna el mapeo completo de un mando. Se guardan siempre los trece objetivos: ver `GamepadMapping.decode`. */
+    suspend fun setGamepadMapping(descriptor: String, mapping: GamepadMapping) = edit { preferences ->
+        val current = preferences[Keys.GAMEPAD_MAPPINGS]?.let(GamepadMapping::decodeAll) ?: emptyMap()
+        preferences[Keys.GAMEPAD_MAPPINGS] = GamepadMapping.encodeAll(current + (descriptor to mapping))
+    }
+
+    /** Borra el mapeo personalizado de un mando: vuelve a usar [GamepadMapping.DEFAULT]. */
+    suspend fun resetGamepadMapping(descriptor: String) = edit { preferences ->
+        val current = preferences[Keys.GAMEPAD_MAPPINGS]?.let(GamepadMapping::decodeAll) ?: emptyMap()
+        preferences[Keys.GAMEPAD_MAPPINGS] = GamepadMapping.encodeAll(current - descriptor)
+    }
+
     private fun layoutModeFromName(name: String?): LayoutMode? =
         LayoutMode.entries.firstOrNull { it.name == name }
 
@@ -114,6 +129,7 @@ class SettingsRepository(private val context: Context) {
         val TOUCH_OFFSET_DP = floatPreferencesKey("touch_offset_dp")
         val PORTRAIT_CONTROLS = stringPreferencesKey("portrait_controls")
         val LANDSCAPE_CONTROLS = stringPreferencesKey("landscape_controls")
+        val GAMEPAD_MAPPINGS = stringPreferencesKey("gamepad_mappings")
     }
 
     private companion object {

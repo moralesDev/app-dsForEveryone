@@ -1,10 +1,6 @@
 package com.moralesDev.dsForEveryone.ui.game.controls
 
 import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -15,20 +11,14 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.dp
 import com.moralesDev.dsForEveryone.emulator.DsButton
-import com.moralesDev.dsForEveryone.ui.theme.Accent
 import com.moralesDev.dsForEveryone.ui.theme.Accent100
-import com.moralesDev.dsForEveryone.ui.theme.Accent200
-import com.moralesDev.dsForEveryone.ui.theme.Glass
-import com.moralesDev.dsForEveryone.ui.theme.GlassBorder
 import com.moralesDev.dsForEveryone.ui.theme.textAlpha
 
 /** L y R: gatillos rectangulares, llenan el hueco que les da `ControlLayout`. */
@@ -42,18 +32,24 @@ fun ShoulderButton(
     onPress: (DsButton, Boolean) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    GlassSurface(
+    RubberLabelSurface(
         pressed = pressedMask and button.mask != 0,
         label = label,
         opacity = opacity,
         haptic = haptic,
-        shape = RoundedCornerShape(9.dp),
+        shape = RoundedCornerShape(14.dp),
         onPress = { isPressed -> onPress(button, isPressed) },
         modifier = modifier,
     )
 }
 
-/** Start y Select: cápsulas discretas. */
+/**
+ * Start y Select: cápsulas discretas. Son el grupo más pequeño que coloca
+ * `ControlLayout` (exactamente el mínimo táctil), así que su etiqueta va en
+ * [MaterialTheme.typography.labelSmall], no en el `titleSmall` de L/R: con
+ * una sola letra `titleSmall` cabe de sobra, pero «SELECT» en un círculo de
+ * 48dp con ese tamaño se parte en dos líneas.
+ */
 @Composable
 fun SystemButton(
     button: DsButton,
@@ -64,12 +60,13 @@ fun SystemButton(
     onPress: (DsButton, Boolean) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    GlassSurface(
+    RubberLabelSurface(
         pressed = pressedMask and button.mask != 0,
         label = label,
         opacity = opacity,
         haptic = haptic,
         shape = RoundedCornerShape(50),
+        textStyle = MaterialTheme.typography.labelSmall,
         onPress = { isPressed -> onPress(button, isPressed) },
         modifier = modifier,
     )
@@ -90,34 +87,31 @@ fun BlowButton(
     onBlow: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val scale by animateFloatAsState(if (active) 0.92f else 1f, label = "blow-scale")
-    val background by animateColorAsState(
-        if (active) Accent.copy(alpha = 0.30f * opacity) else Glass.copy(alpha = Glass.alpha * opacity),
-        label = "blow-background",
+    val iconTint by animateColorAsState(
+        if (active) Accent100 else textAlpha(0.65f * opacity),
+        label = "blow-icon-tint",
     )
 
-    Box(
+    RubberSurface(
+        shape = CircleShape,
+        pressed = active,
+        opacity = opacity,
         modifier = modifier
             .fillMaxSize()
-            .scale(scale)
-            .clip(CircleShape)
-            .background(background)
-            .border(1.dp, GlassBorder.copy(alpha = GlassBorder.alpha * opacity), CircleShape)
             .semantics { this.contentDescription = contentDescription }
             .pressable(haptic = haptic, onPressChange = onBlow),
-        contentAlignment = Alignment.Center,
     ) {
         Icon(
             imageVector = Icons.Filled.Air,
             contentDescription = null,
-            tint = if (active) Accent100 else textAlpha(0.65f * opacity),
+            tint = iconTint,
             modifier = Modifier.fillMaxSize(0.5f),
         )
     }
 }
 
 @Composable
-private fun GlassSurface(
+private fun RubberLabelSurface(
     pressed: Boolean,
     label: String,
     opacity: Float,
@@ -125,28 +119,17 @@ private fun GlassSurface(
     shape: Shape,
     onPress: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
+    textStyle: TextStyle = MaterialTheme.typography.titleSmall,
 ) {
-    val scale by animateFloatAsState(if (pressed) 0.94f else 1f, label = "glass-scale")
-    val background by animateColorAsState(
-        if (pressed) Accent.copy(alpha = 0.26f * opacity) else Glass.copy(alpha = Glass.alpha * opacity),
-        label = "glass-background",
-    )
-
-    Box(
+    RubberSurface(
+        shape = shape,
+        pressed = pressed,
+        opacity = opacity,
         modifier = modifier
             .fillMaxSize()
-            .scale(scale)
-            .clip(shape)
-            .background(background)
-            .border(1.dp, GlassBorder.copy(alpha = GlassBorder.alpha * opacity), shape)
             .semantics { contentDescription = label }
             .pressable(haptic = haptic, onPressChange = onPress),
-        contentAlignment = Alignment.Center,
     ) {
-        Text(
-            text = label,
-            style = MaterialTheme.typography.titleSmall,
-            color = if (pressed) Accent200 else textAlpha(0.72f * opacity),
-        )
+        Text(text = label, style = textStyle, color = RubberNeutral.text)
     }
 }

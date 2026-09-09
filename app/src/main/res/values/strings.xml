@@ -40,10 +40,14 @@
     <string name="scr_settings_title">Configuración</string>
     <string name="scr_settings_body">Todavía no hay ajustes reales. Cada uno llega junto con la función a la que pertenece.</string>
     <string name="scr_about_title">Acerca de</string>
-    <string name="scr_about_body">Todavía no hay pantalla «Acerca de». El aviso del core y el enlace al código fuente llegan con la fase 4.</string>
+    <string name="scr_about_body">DsForEveryone usa melonDS para emular la Nintendo DS, publicado bajo la GNU General Public License v3.0. Enlazar su código dentro de esta aplicación hace que toda ella —interfaz, sistema de partidas, puente incluido— se distribuya bajo la misma licencia. Puedes conservar, modificar y redistribuir esta aplicación en los términos de esa licencia.</string>
+    <string name="ab_core_label">Núcleo de emulación: melonDS 1.1 · GPL-3.0-or-later</string>
+    <string name="ab_core_link">Código fuente de melonDS</string>
+    <string name="ab_source_link">Código fuente de esta aplicación</string>
     <string name="nav_open_settings">Configuración</string>
     <string name="nav_open_about">Acerca de</string>
     <string name="nav_open_layout_editor">Editor de disposición</string>
+    <string name="nav_open_gamepad_mapping">Mando físico</string>
 
     <!-- Accesibilidad -->
     <string name="cd_back">Volver</string>
@@ -203,4 +207,29 @@
     <string name="msg_state_other_game">Este estado pertenece a otro juego</string>
     <string name="msg_state_other_core">Este estado se guardó con %1$s</string>
     <string name="msg_state_wrong_size">Este estado no cuadra con la versión actual del emulador</string>
+
+    <!-- Mando físico (Bluetooth y USB) -->
+    <string name="msg_gamepad_detected">Mando detectado: %1$s</string>
+    <string name="gp_title">Mando físico</string>
+    <string name="gp_no_gamepad">No hay ningún mando conectado. Conecta uno por Bluetooth o USB para mapearlo.</string>
+    <string name="gp_device_name">Mando conectado: %1$s</string>
+    <string name="gp_reassign">Reasignar</string>
+    <string name="gp_listening">Pulsa un botón en el mando…</string>
+    <string name="gp_swap_hint">Si ese botón ya está asignado a otro, se intercambian entre sí.</string>
+    <string name="gp_leave_blank">Dejar sin asignar</string>
+    <string name="gp_cancel">Cancelar</string>
+    <string name="gp_reset">Restablecer al mapeo por defecto</string>
+    <string name="gp_target_up">Arriba</string>
+    <string name="gp_target_down">Abajo</string>
+    <string name="gp_target_left">Izquierda</string>
+    <string name="gp_target_right">Derecha</string>
+    <string name="gp_target_a">A</string>
+    <string name="gp_target_b">B</string>
+    <string name="gp_target_x">X</string>
+    <string name="gp_target_y">Y</string>
+    <string name="gp_target_l">L</string>
+    <string name="gp_target_r">R</string>
+    <string name="gp_target_start">Start</string>
+    <string name="gp_target_select">Select</string>
+    <string name="gp_target_blow">Soplar</string>
 </resources>

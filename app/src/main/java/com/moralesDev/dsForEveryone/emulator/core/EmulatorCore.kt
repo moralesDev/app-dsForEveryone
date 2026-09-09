@@ -1,6 +1,8 @@
 package com.moralesDev.dsForEveryone.emulator.core
 
+import android.os.ParcelFileDescriptor
 import android.view.Surface
+import java.nio.ByteBuffer
 
 /**
  * Frontera entre la aplicación y el core de emulación.
@@ -17,8 +19,8 @@ import android.view.Surface
  *
  * - [load], [unload], [runFrame], [setKeys], [setTouch], [setMicNoise],
  *   [stateSize], [serializeState], [deserializeState], [readBattery],
- *   [consumeBatteryDirty] y [captureFrame] se llaman **siempre** desde el
- *   hilo de emulación, nunca desde el hilo principal.
+ *   [consumeBatteryDirty], [captureFrame] y [captureFrameInto] se llaman
+ *   **siempre** desde el hilo de emulación, nunca desde el hilo principal.
  * - [attachSurface] es la excepción: la llama el hilo principal, y **debe
  *   bloquear** hasta que el core deje de escribir en la superficie anterior,
  *   si es que escribe en alguna (ver su documentación).
@@ -51,6 +53,32 @@ interface EmulatorCore {
      *   core en estado utilizable.
      */
     fun load(rom: ByteArray, batterySave: ByteArray?): CoreLoadResult
+
+    /**
+     * Como [load], pero a partir de un descriptor abierto sobre el archivo
+     * real de la ROM en vez de un `ByteArray` ya copiado. Existe para ROMs
+     * sueltas (no dentro de un `.zip`) que pueden pesar más de lo que cabe
+     * cómodo en el heap de Java —ver `RomRepository.openRomForCore`—: cargar
+     * un cartucho de 128 MB con [load] exige tenerlo entero en un único
+     * `ByteArray` de Kotlin, y eso es lo que agotaba el heap.
+     *
+     * La implementación por defecto simplemente lee el descriptor entero y
+     * delega en [load]: es lo que basta para [StubEmulatorCore], donde el
+     * tamaño de la ROM nunca es un problema real. Un core que sí lo sea
+     * sobrescribe este método para mapear el archivo en el lado nativo, sin
+     * que llegue a existir un `ByteArray` con la ROM completa.
+     *
+     * Se queda con la propiedad de [fd] y lo cierra siempre, tenga éxito o
+     * no la carga.
+     */
+    fun loadFromDescriptor(
+        fd: ParcelFileDescriptor,
+        length: Long,
+        batterySave: ByteArray?,
+    ): CoreLoadResult {
+        val bytes = ParcelFileDescriptor.AutoCloseInputStream(fd).use { it.readBytes() }
+        return load(bytes, batterySave)
+    }
 
     /** Libera la ROM y todos los recursos nativos asociados. Idempotente. */
     fun unload()
@@ -123,6 +151,36 @@ interface EmulatorCore {
      * para subirlo como textura.
      */
     fun captureFrame(): IntArray?
+
+    /**
+     * Como [captureFrame], pero escribiendo los bytes ya en orden R,G,B,A
+     * directamente en [buffer] (asignado y reutilizado por quien llama, con
+     * espacio para 256×384 píxeles de 4 bytes) en vez de devolver un
+     * `IntArray` nuevo.
+     *
+     * Existe sólo para el camino caliente —una llamada por fotograma, 60
+     * veces por segundo, desde [com.moralesDev.dsForEveryone.emulator.EmulatorController]—,
+     * donde reservar un array nuevo cada vez llenaba el heap de Java de
+     * basura sin necesidad (era además la sospecha real detrás del
+     * `OutOfMemoryError` de la fase 4.C, ver docs/estabilizacion-core.md).
+     * [captureFrame] se queda para usos infrecuentes (la miniatura de un save
+     * state), donde esa reserva no importa.
+     *
+     * @return `false` si no hay fotograma que copiar (nada cargado todavía) o
+     *   si [buffer] no es válido; en ese caso no se escribe nada.
+     */
+    fun captureFrameInto(buffer: ByteBuffer): Boolean {
+        val frame = captureFrame() ?: return false
+        buffer.clear()
+        for (pixel in frame) {
+            buffer.put(((pixel shr 16) and 0xFF).toByte()) // R
+            buffer.put(((pixel shr 8) and 0xFF).toByte()) // G
+            buffer.put((pixel and 0xFF).toByte()) // B
+            buffer.put(((pixel shr 24) and 0xFF).toByte()) // A
+        }
+        buffer.position(0)
+        return true
+    }
 }
 
 /** Resultado de [EmulatorCore.load]. */
