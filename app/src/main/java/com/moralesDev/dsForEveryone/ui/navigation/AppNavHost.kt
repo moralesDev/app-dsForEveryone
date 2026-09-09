@@ -15,6 +15,7 @@ import androidx.navigation.navArgument
 import com.moralesDev.dsForEveryone.ui.about.AboutScreen
 import com.moralesDev.dsForEveryone.ui.components.LoadingVeil
 import com.moralesDev.dsForEveryone.ui.game.GameScreen
+import com.moralesDev.dsForEveryone.ui.game.gamepad.GamepadMappingScreen
 import com.moralesDev.dsForEveryone.ui.game.layout.LayoutEditorScreen
 import com.moralesDev.dsForEveryone.ui.library.RomLibraryScreen
 import com.moralesDev.dsForEveryone.ui.settings.SettingsScreen
@@ -28,6 +29,7 @@ object Routes {
     const val SETTINGS = "settings"
     const val ABOUT = "about"
     const val LAYOUT_EDITOR = "layout_editor"
+    const val GAMEPAD_MAPPING = "gamepad_mapping"
 
     private const val GAME_ROM_ID_ARG = "romId"
     const val GAME = "game?$GAME_ROM_ID_ARG={$GAME_ROM_ID_ARG}"
@@ -111,6 +113,9 @@ fun AppNavHost(
                     onOpenLayoutEditor = {
                         transitions.navigateWithVeil { navController.navigate(Routes.LAYOUT_EDITOR) }
                     },
+                    onOpenGamepadMapping = {
+                        transitions.navigateWithVeil { navController.navigate(Routes.GAMEPAD_MAPPING) }
+                    },
                 )
             }
 
@@ -122,6 +127,12 @@ fun AppNavHost(
 
             composable(Routes.LAYOUT_EDITOR) {
                 LayoutEditorScreen(
+                    onBack = { transitions.navigateWithVeil { navController.popBackStack() } },
+                )
+            }
+
+            composable(Routes.GAMEPAD_MAPPING) {
+                GamepadMappingScreen(
                     onBack = { transitions.navigateWithVeil { navController.popBackStack() } },
                 )
             }
@@ -154,7 +165,7 @@ fun AppNavHost(
         }
         BackHandler(
             enabled = !transitions.isRunning &&
-                currentRoute in setOf(Routes.SETTINGS, Routes.ABOUT, Routes.LAYOUT_EDITOR),
+                currentRoute in setOf(Routes.SETTINGS, Routes.ABOUT, Routes.LAYOUT_EDITOR, Routes.GAMEPAD_MAPPING),
         ) {
             transitions.navigateWithVeil { navController.popBackStack() }
         }

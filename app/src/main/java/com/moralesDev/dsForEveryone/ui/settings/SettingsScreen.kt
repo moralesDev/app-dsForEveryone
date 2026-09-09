@@ -34,6 +34,7 @@ fun SettingsScreen(
     onBack: () -> Unit,
     onOpenAbout: () -> Unit,
     onOpenLayoutEditor: () -> Unit,
+    onOpenGamepadMapping: () -> Unit,
 ) {
     Column(
         modifier = Modifier
@@ -61,6 +62,10 @@ fun SettingsScreen(
         AccentButton(
             text = stringResource(R.string.nav_open_layout_editor),
             onClick = onOpenLayoutEditor,
+        )
+        AccentButton(
+            text = stringResource(R.string.nav_open_gamepad_mapping),
+            onClick = onOpenGamepadMapping,
         )
         AccentButton(
             text = stringResource(R.string.nav_open_about),

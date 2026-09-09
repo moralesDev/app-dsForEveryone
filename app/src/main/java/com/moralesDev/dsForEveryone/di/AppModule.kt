@@ -17,6 +17,8 @@ import com.moralesDev.dsForEveryone.data.storage.StorageManager
 import com.moralesDev.dsForEveryone.emulator.EmulatorController
 import com.moralesDev.dsForEveryone.emulator.core.DsEmulatorCore
 import com.moralesDev.dsForEveryone.emulator.core.EmulatorCore
+import com.moralesDev.dsForEveryone.emulator.gamepad.GamepadInputRouter
+import com.moralesDev.dsForEveryone.emulator.gamepad.GamepadManager
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -53,6 +55,18 @@ object AppModule {
     @Singleton
     fun provideStorageManager(@ApplicationContext context: Context): StorageManager =
         StorageManager(context.filesDir)
+
+    @Provides
+    @Singleton
+    fun provideGamepadManager(@ApplicationContext context: Context): GamepadManager =
+        GamepadManager(context)
+
+    @Provides
+    @Singleton
+    fun provideGamepadInputRouter(
+        settingsRepository: SettingsRepository,
+        @ApplicationScope applicationScope: CoroutineScope,
+    ): GamepadInputRouter = GamepadInputRouter(settingsRepository, applicationScope)
 
     @Provides
     @Singleton

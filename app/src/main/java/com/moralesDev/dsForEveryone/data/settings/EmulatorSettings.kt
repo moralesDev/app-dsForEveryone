@@ -1,5 +1,6 @@
 package com.moralesDev.dsForEveryone.data.settings
 
+import com.moralesDev.dsForEveryone.emulator.gamepad.GamepadMapping
 import com.moralesDev.dsForEveryone.emulator.layout.ControlGroup
 import com.moralesDev.dsForEveryone.emulator.layout.ControlGroupFraction
 import com.moralesDev.dsForEveryone.emulator.layout.LayoutMode
@@ -95,4 +96,12 @@ data class EmulatorSettings(
      */
     val portraitControlLayout: Map<ControlGroup, ControlGroupFraction>? = null,
     val landscapeControlLayout: Map<ControlGroup, ControlGroupFraction>? = null,
+
+    /**
+     * Mapeo de botones por mando físico, indexado por `InputDevice.descriptor`
+     * (ver `GamepadDevice`). Un mando sin entrada aquí todavía usa
+     * [GamepadMapping.DEFAULT] — no hace falta escribir nada para poder jugar
+     * con un mando corriente, sólo para personalizarlo.
+     */
+    val gamepadMappings: Map<String, GamepadMapping> = emptyMap(),
 )

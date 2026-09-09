@@ -1,5 +1,9 @@
 package com.moralesDev.dsForEveryone.ui.game
 
+import android.app.Activity
+import android.content.Context
+import android.content.ContextWrapper
+import android.content.pm.ActivityInfo
 import android.content.res.Configuration
 import android.opengl.GLSurfaceView
 import androidx.activity.compose.BackHandler
@@ -21,6 +25,7 @@ import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -33,6 +38,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.Density
@@ -78,13 +84,14 @@ import com.moralesDev.dsForEveryone.ui.theme.Surface
  * La ROM real, la biblioteca y el sistema de partidas llegan con la fase 3,
  * sobre esta misma pantalla.
  *
- * Sólo vertical por ahora: esta pantalla ya no libera la orientación (antes
- * lo hacía para `LayoutMode.SIDE_BY_SIDE`), porque encajar doce mandos
- * táctiles en horizontal sin tapar la táctil no compensa frente a lo simple
- * que es jugar en vertical. `landscapeLayoutMode`/`landscapeControlLayout` en
- * `EmulatorSettings` y la rama horizontal de `ControlLayout.defaultProfile`
- * se quedan sin usar pero no se borran: cuando haya mandos USB no hará falta
- * pintar ningún botón en pantalla, y ahí sí compensará jugar en horizontal.
+ * Vertical por defecto: encajar doce mandos táctiles en horizontal sin tapar
+ * la táctil no compensa frente a lo simple que es jugar en vertical, así que
+ * la orientación sigue bloqueada mientras no haya mando físico. Con un mando
+ * Bluetooth o USB conectado (`GamepadManager`) esa cuenta cambia —no hace
+ * falta pintar ningún botón en pantalla— y es entonces cuando
+ * [FreeOrientationWhileGamepadConnected] libera la orientación y
+ * `landscapeLayoutMode`/`landscapeControlLayout` de `EmulatorSettings` entran
+ * en juego. Ver docs/entrada.md, «Mando físico».
  */
 @Composable
 fun GameScreen(onExit: () -> Unit) {
@@ -98,7 +105,10 @@ fun GameScreen(onExit: () -> Unit) {
     val autoSlot by viewModel.autoSlot.collectAsStateWithLifecycle()
     val pendingConfirmation by viewModel.pendingConfirmation.collectAsStateWithLifecycle()
     val message by viewModel.message.collectAsStateWithLifecycle()
+    val isGamepadConnected by viewModel.isGamepadConnected.collectAsStateWithLifecycle()
     var isMenuOpen by remember { mutableStateOf(false) }
+
+    FreeOrientationWhileGamepadConnected(isGamepadConnected)
 
     BackHandler {
         if (isMenuOpen) {
@@ -203,9 +213,14 @@ fun GameScreen(onExit: () -> Unit) {
             )
         }
 
-        controlProfile?.let { profile ->
+        // Con mando físico conectado y en horizontal no hace falta pintar
+        // ningún botón: el mando cubre los doce más el soplido (ver
+        // docs/entrada.md, «Mando físico»). En vertical se mantienen —el
+        // hueco vertical entre pantallas sigue siendo el mismo tenga o no
+        // mando el usuario— y sin mando no cambia nada de lo de siempre.
+        if (controlProfile != null && !(isGamepadConnected && !isPortrait)) {
             ControlGroups(
-                profile = profile,
+                profile = controlProfile,
                 pressedMask = pressedMask,
                 micActive = micActive,
                 onButton = viewModel::onButton,
@@ -456,5 +471,31 @@ private fun ControlGroups(
             )
         }
     }
+}
+
+/**
+ * Libera la orientación mientras haya un mando físico conectado y esta
+ * pantalla esté visible; el resto de la app sigue en vertical por
+ * manifiesto. Sin mando, la partida se queda en vertical: encajar doce
+ * mandos táctiles en horizontal sin tapar la pantalla inferior no
+ * compensaba (ver docs/entrada.md, «Mando físico»), y un mando físico es
+ * justo lo que cambia esa cuenta.
+ */
+@Composable
+private fun FreeOrientationWhileGamepadConnected(gamepadConnected: Boolean) {
+    val context = LocalContext.current
+    DisposableEffect(gamepadConnected) {
+        if (!gamepadConnected) return@DisposableEffect onDispose {}
+        val activity = context.findActivity()
+        val previousOrientation = activity.requestedOrientation
+        activity.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_FULL_SENSOR
+        onDispose { activity.requestedOrientation = previousOrientation }
+    }
+}
+
+private tailrec fun Context.findActivity(): Activity = when (this) {
+    is Activity -> this
+    is ContextWrapper -> baseContext.findActivity()
+    else -> error("No se encontró ninguna Activity en la cadena de contextos")
 }
 

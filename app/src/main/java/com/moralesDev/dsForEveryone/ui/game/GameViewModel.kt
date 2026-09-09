@@ -22,6 +22,9 @@ import com.moralesDev.dsForEveryone.emulator.DsButton
 import com.moralesDev.dsForEveryone.emulator.EmulatorController
 import com.moralesDev.dsForEveryone.emulator.EmulatorStatus
 import com.moralesDev.dsForEveryone.emulator.core.CoreLoadResult
+import com.moralesDev.dsForEveryone.emulator.gamepad.GamepadInput
+import com.moralesDev.dsForEveryone.emulator.gamepad.GamepadInputRouter
+import com.moralesDev.dsForEveryone.emulator.gamepad.GamepadManager
 import com.moralesDev.dsForEveryone.emulator.layout.LayoutMode
 import com.moralesDev.dsForEveryone.ui.UiMessage
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -31,6 +34,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.nio.ByteBuffer
@@ -69,6 +73,8 @@ class GameViewModel @Inject constructor(
     private val settingsRepository: SettingsRepository,
     private val romRepository: RomRepository,
     private val saveManager: SaveManager,
+    private val gamepadManager: GamepadManager,
+    private val gamepadInputRouter: GamepadInputRouter,
     @param:ApplicationScope private val applicationScope: CoroutineScope,
     savedStateHandle: SavedStateHandle,
 ) : ViewModel() {
@@ -117,7 +123,31 @@ class GameViewModel @Inject constructor(
      */
     private var identity: StateIdentity? = null
 
+    /** Si hay al menos un mando físico conectado: oculta los mandos en pantalla en horizontal (ver `GameScreen`). */
+    val isGamepadConnected: StateFlow<Boolean> = gamepadManager.connectedDevices
+        .map { it.isNotEmpty() }
+        .stateIn(scope = viewModelScope, started = SharingStarted.Eagerly, initialValue = false)
+
     init {
+        // Mientras esta pantalla esté viva, un botón de mando entra al juego
+        // en vez de a la navegación normal — ver `GamepadInputRouter.isActive`.
+        gamepadInputRouter.isActive = true
+
+        viewModelScope.launch {
+            gamepadManager.connections.collect { device ->
+                _message.value = UiMessage(R.string.msg_gamepad_detected, device.name)
+            }
+        }
+
+        viewModelScope.launch {
+            gamepadInputRouter.events.collect { input ->
+                when (input) {
+                    is GamepadInput.Button -> controller.input.setPressed(input.button, input.isPressed)
+                    is GamepadInput.Blow -> controller.input.setMicNoise(input.active)
+                }
+            }
+        }
+
         viewModelScope.launch {
             val rom = romId?.let { romRepository.findById(it) }
             _rom.value = rom
@@ -328,6 +358,7 @@ class GameViewModel @Inject constructor(
      * tendría ya con quién hablar.
      */
     override fun onCleared() {
+        gamepadInputRouter.isActive = false
         val rid = romId
         applicationScope.launch {
             if (rid != null) {
