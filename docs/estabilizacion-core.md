@@ -385,18 +385,66 @@ la velocidad ya sostenida, entonces sí hace falta diseñar sincronización
 de audio de verdad — y eso, tal como pidió el plan, se discute antes de
 implementarlo, no se decide aquí.
 
-## 5. Limitaciones que quedan abiertas
+## 5. El core corría sin optimizar: nadie había fijado `CMAKE_BUILD_TYPE`
 
-- **Sin verificación con un juego jugado de verdad.** Todo lo de este
-  documento se midió en la pantalla de título e introducción de Cave
-  Story DS: es lo más lejos que se pudo llegar sin automatizar la entrada
-  (los doce botones y el táctil de este proyecto están pensados para
-  tocarse, no para *scriptearse*). El guardado/carga de partida con
-  contenido real de guardado sigue pendiente, como ya anotaba
-  `docs/integracion-core.md` sección 8. Esto incluye la sección 4: el
-  beneficio real del JIT y del hilo de render 3D en un juego con más
-  carga de CPU que Cave Story DS, y si la degradación de audio
-  desaparece con ellos, quedan sin confirmar.
+**Síntoma:** después de la sección 4 (JIT, hilo de render 3D, captura sin
+copia) el usuario siguió reportando juegos «pesados» —Brain Age, Pokémon
+HeartGold, Pokémon Platino— sin la mejora que las tres correcciones hacían
+esperar.
+
+**Causa:** `app/build.gradle.kts` nunca fijaba `CMAKE_BUILD_TYPE` en los
+argumentos de CMake. Sin eso, AGP usa su mapeo implícito por variante de
+Gradle: `debug` → CMake `Debug` (`CMAKE_CXX_FLAGS_DEBUG`, vacío → Clang por
+defecto en `-O0`), `release` → CMake `RelWithDebInfo` (`-O2 -g -DNDEBUG`).
+**Todo lo medido en este documento —secciones 3 y 4 enteras, JIT incluido—
+se midió sobre un core compilado sin ninguna optimización del
+compilador.** Para un intérprete/JIT de CPU como el de melonDS, `-O0` frente
+a `-O2` es fácilmente varias veces la velocidad; probablemente explica una
+parte grande de «pesado» que ninguna de las tres correcciones de la sección
+4 podía tocar, porque ninguna era el cuello de botella real.
+
+**Arreglo:** añadir `-DCMAKE_BUILD_TYPE=RelWithDebInfo` a los argumentos de
+CMake en `defaultConfig`, aplicándolo también a la variante `debug` en vez
+de dejar sólo `release` optimizado — poder sentir el rendimiento real sin
+pasar por la firma y el minify de `release` importa más que poder depurar
+C++ paso a paso, que este proyecto no ha necesitado hasta ahora
+(`ENABLE_GDBSTUB=OFF` desde el principio).
+
+**Verificación:** `app/.cxx/RelWithDebInfo/*/arm64-v8a/CMakeCache.txt`
+confirma `CMAKE_CXX_FLAGS_RELWITHDEBINFO=-O2 -g -DNDEBUG` tras el cambio, y
+la tarea de Gradle pasa a llamarse `configureCMakeRelWithDebInfo[arm64-v8a]`
+también para `assembleDebug` (antes `configureCMakeDebug`). Probado por el
+usuario en el Motorola Edge 30 con sus propios juegos reales: mejora
+sensible y general, no puntual de un juego — y notada primero en la
+**música**, justo donde la hipótesis sin confirmar de la sección 4.4
+predecía el síntoma. Es la corroboración más directa que hay hasta ahora de
+que el audio nunca fue un defecto del propio anillo de AAudio, sino el
+efecto de una emulación que no sostenía velocidad completa: con el core
+optimizado sí la sostiene, y la degradación que reportaba el usuario deja
+de notarse. Sigue sin ser una medición instrumentada —es lo que reportó el
+usuario, no una traza de *underrun*—, pero es la señal más fuerte a favor
+de la hipótesis que ha habido hasta ahora.
+
+**Qué queda en duda por esto:** el «beneficio modesto» del JIT medido en la
+sección 4.1 y la comparación de la 3.5 se hicieron sobre el build sin
+optimizar; con `-O2` de base, el intérprete ya compilado corre bastante más
+rápido, así que el beneficio *relativo* del JIT frente al intérprete podría
+ser distinto —probablemente menor en términos relativos, aunque siga
+sumando en términos absolutos—. No se ha vuelto a medir con Cave Story DS
+sobre el build optimizado; queda igual de abierto que el resto de la
+sección 4 hasta que haya una medición con un juego real.
+
+## 6. Limitaciones que quedan abiertas
+
+- **Sin verificación instrumentada con un juego jugado de verdad.** Todo lo
+  medido con cifras (secciones 3 y 4) se hizo en la pantalla de título e
+  introducción de Cave Story DS: es lo más lejos que se pudo llegar sin
+  automatizar la entrada (los doce botones y el táctil de este proyecto
+  están pensados para tocarse, no para *scriptearse*). Lo de la sección 5
+  sí es sobre juegos reales del usuario (Brain Age, HeartGold, Platino),
+  pero es lo que reportó jugando, no una medición con `top`/`logcat`. El
+  guardado/carga de partida con contenido real de guardado sigue
+  pendiente, como ya anotaba `docs/integracion-core.md` sección 8.
 - **Sin comparación con DeSmuME.** No se llegó a integrar como segundo
   core: melonDS compiló sin fricción desde la fase 4.1, y FreeBIOS
   eliminó la que era su mayor desventaja frente a DeSmuME (pedir BIOS y
@@ -407,8 +455,13 @@ implementarlo, no se decide aquí.
 - **`RENDERMODE` continuo del `GLSurfaceView`.** Ver sección 3.1: dibuja
   más veces de las necesarias. No afecta a la fluidez percibida, pero es
   trabajo de GPU de sobra.
-- **Medición hecha en un único dispositivo gama alta.** Sin datos de gama
-  media, que es donde el margen de rendimiento importa de verdad.
-- **Sincronización de audio.** Ver sección 4.4: si un juego real sigue
-  degradando el sonido a velocidad completa, hace falta diseñarla —no
+- **Medición hecha en un único dispositivo gama alta**, más lo reportado
+  ahora en un segundo dispositivo (Samsung Galaxy S22 Ultra) sin cifras
+  todavía. Sin datos de un gama media, que es donde el margen de
+  rendimiento importa de verdad.
+- **Sincronización de audio.** La sección 5 corrobora la hipótesis de la
+  4.4 con lo que reportó el usuario (la música mejoró notablemente al
+  optimizar el core), pero sigue sin una traza de AAudio que la confirme
+  del todo. Si algún juego real sigue degradando el sonido con el core ya
+  optimizado, hace falta diseñar sincronización de verdad —no
   implementarla directamente— como su propio entregable.
