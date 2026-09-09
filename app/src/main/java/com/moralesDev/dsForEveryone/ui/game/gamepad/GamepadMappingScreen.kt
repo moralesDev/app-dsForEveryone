@@ -103,7 +103,7 @@ fun GamepadMappingScreen(onBack: () -> Unit) {
         }
 
         if (capturingTarget != null) {
-            CaptureOverlay(onCancel = viewModel::cancelCapture)
+            CaptureOverlay(onCancel = viewModel::cancelCapture, onLeaveBlank = viewModel::leaveCapturingTargetBlank)
         }
     }
 }
@@ -146,7 +146,7 @@ private fun GamepadTargetRow(
 }
 
 @Composable
-private fun CaptureOverlay(onCancel: () -> Unit) {
+private fun CaptureOverlay(onCancel: () -> Unit, onLeaveBlank: () -> Unit) {
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -163,10 +163,27 @@ private fun CaptureOverlay(onCancel: () -> Unit) {
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.onBackground,
             )
+            // Si el botón que se pulse ya está asignado a otro objetivo, los
+            // dos se intercambian (GamepadMapping.with) — esta pista evita
+            // que parezca que el otro se quedó sin botón por accidente.
+            Text(
+                text = stringResource(R.string.gp_swap_hint),
+                style = MaterialTheme.typography.bodySmall,
+                color = textAlpha(0.6f),
+            )
+            Text(
+                text = stringResource(R.string.gp_leave_blank),
+                style = MaterialTheme.typography.labelLarge,
+                color = Accent,
+                modifier = Modifier
+                    .clip(RoundedCornerShape(8.dp))
+                    .clickable(onClick = onLeaveBlank)
+                    .padding(horizontal = 12.dp, vertical = 8.dp),
+            )
             Text(
                 text = stringResource(R.string.gp_cancel),
                 style = MaterialTheme.typography.labelLarge,
-                color = Accent,
+                color = textAlpha(0.6f),
             )
         }
     }

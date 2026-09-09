@@ -6,8 +6,8 @@ import com.moralesDev.dsForEveryone.emulator.DsButton
 /**
  * Qué tecla física de un mando concreto representa cada [GamepadTarget]. Vive
  * uno por mando —identificado por `InputDevice.descriptor` en
- * [GamepadMappings]—, nunca uno global: dos mandos distintos no tienen por
- * qué compartir la misma disposición de botones.
+ * `EmulatorSettings.gamepadMappings`—, nunca uno global: dos mandos distintos
+ * no tienen por qué compartir la misma disposición de botones.
  */
 data class GamepadMapping(private val keyCodeByTarget: Map<GamepadTarget, Int>) {
 
@@ -18,11 +18,28 @@ data class GamepadMapping(private val keyCodeByTarget: Map<GamepadTarget, Int>) 
     /** La tecla física asignada hoy a [target], para mostrarla en la pantalla de mapeo. */
     fun keyCodeFor(target: GamepadTarget): Int? = keyCodeByTarget[target]
 
-    /** Nueva asignación con [target] reasignado a [keyCode]; libera cualquier otro objetivo que usara esa misma tecla. */
+    /**
+     * Nueva asignación con [target] reasignado a [keyCode]. Si esa tecla ya
+     * representaba a otro objetivo, **se intercambian**: el otro objetivo se
+     * queda con la tecla que tenía [target] antes (o queda en blanco, si
+     * [target] no tenía ninguna) — nunca se pierde una asignación en
+     * silencio. Es lo que espera cualquiera que ya haya remapeado un mando
+     * antes: reasignar A a lo que hoy es B intercambia A y B, no deja a B sin
+     * botón.
+     */
     fun with(target: GamepadTarget, keyCode: Int): GamepadMapping {
-        val withoutCollision = keyCodeByTarget.filterValues { it != keyCode }
-        return GamepadMapping(withoutCollision + (target to keyCode))
+        val displaced = targetFor(keyCode)
+        val updated = keyCodeByTarget.toMutableMap()
+        if (displaced != null && displaced != target) {
+            val previousKeyCode = keyCodeByTarget[target]
+            if (previousKeyCode != null) updated[displaced] = previousKeyCode else updated.remove(displaced)
+        }
+        updated[target] = keyCode
+        return GamepadMapping(updated)
     }
+
+    /** Dejar [target] sin ninguna tecla asignada — vía de escape para quien prefiera vaciar y reasignar a mano en vez de fiarse del intercambio automático de [with]. */
+    fun withoutTarget(target: GamepadTarget): GamepadMapping = GamepadMapping(keyCodeByTarget - target)
 
     fun encode(): String =
         keyCodeByTarget.entries.joinToString(separator = ";") { (target, keyCode) ->
@@ -57,10 +74,12 @@ data class GamepadMapping(private val keyCodeByTarget: Map<GamepadTarget, Int>) 
         )
 
         /**
-         * Inversa de [encode]. Cualquier fallo de formato, un objetivo
-         * repetido o desconocido, o que falte alguno de los trece hacen que
-         * devuelva `null`: mejor caer a [DEFAULT] que arrastrar un mapeo a
-         * medio leer. Mismo criterio que `ControlLayout.decode`.
+         * Inversa de [encode]. Cualquier fallo de formato, o un objetivo
+         * repetido o desconocido, hacen que devuelva `null`: mejor caer a
+         * [DEFAULT] que arrastrar un mapeo a medio leer. Mismo criterio que
+         * `ControlLayout.decode` — salvo que aquí **no** hace falta que
+         * estén los trece: un objetivo ausente es uno dejado en blanco a
+         * propósito (ver [withoutTarget]), no un mapeo corrupto.
          */
         fun decode(text: String): GamepadMapping? {
             if (text.isBlank()) return null
@@ -73,7 +92,7 @@ data class GamepadMapping(private val keyCodeByTarget: Map<GamepadTarget, Int>) 
                 val keyCode = parts[1].toIntOrNull() ?: return null
                 result[target] = keyCode
             }
-            return if (result.keys == GamepadTarget.ALL.toSet()) GamepadMapping(result) else null
+            return GamepadMapping(result)
         }
 
         /**

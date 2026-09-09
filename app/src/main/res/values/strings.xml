@@ -215,6 +215,8 @@
     <string name="gp_device_name">Mando conectado: %1$s</string>
     <string name="gp_reassign">Reasignar</string>
     <string name="gp_listening">Pulsa un botón en el mando…</string>
+    <string name="gp_swap_hint">Si ese botón ya está asignado a otro, se intercambian entre sí.</string>
+    <string name="gp_leave_blank">Dejar sin asignar</string>
     <string name="gp_cancel">Cancelar</string>
     <string name="gp_reset">Restablecer al mapeo por defecto</string>
     <string name="gp_target_up">Arriba</string>

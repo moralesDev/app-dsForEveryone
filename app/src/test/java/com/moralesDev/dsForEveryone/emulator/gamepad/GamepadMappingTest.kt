@@ -8,6 +8,9 @@ import org.junit.Test
 
 class GamepadMappingTest {
 
+    private val a = GamepadTarget.Button(DsButton.A)
+    private val b = GamepadTarget.Button(DsButton.B)
+
     @Test
     fun `el mapeo por defecto cubre los doce botones mas el soplido`() {
         assertEquals(13, GamepadTarget.ALL.size)
@@ -24,10 +27,11 @@ class GamepadMappingTest {
     }
 
     @Test
-    fun `decode se rinde con null si falta alguno de los trece objetivos`() {
-        val incomplete = GamepadTarget.ALL.drop(1).joinToString(";") { "${it.encode()}:1" }
+    fun `decode admite un mapeo parcial, un objetivo ausente queda en blanco`() {
+        val partial = GamepadMapping.decode("${a.encode()}:96")
 
-        assertNull(GamepadMapping.decode(incomplete))
+        assertEquals(96, partial?.keyCodeFor(a))
+        assertNull(partial?.keyCodeFor(b))
     }
 
     @Test
@@ -38,37 +42,61 @@ class GamepadMappingTest {
     }
 
     @Test
-    fun `reasignar un objetivo libera cualquier otro que usara la misma tecla`() {
-        val collided = GamepadMapping.DEFAULT.with(GamepadTarget.Button(DsButton.B), keyCode = 999)
-        val reassigned = collided.with(GamepadTarget.Button(DsButton.A), keyCode = 999)
+    fun `reasignar a una tecla ya usada intercambia los dos objetivos`() {
+        // A tiene su tecla por defecto, B tiene la suya. Reasignar A a la
+        // tecla de B no debe dejar a B sin botón: B se queda con la que
+        // tenía A.
+        val aKeyCode = GamepadMapping.DEFAULT.keyCodeFor(a)!!
+        val bKeyCode = GamepadMapping.DEFAULT.keyCodeFor(b)!!
 
-        assertEquals(999, reassigned.keyCodeFor(GamepadTarget.Button(DsButton.A)))
-        assertNull(reassigned.keyCodeFor(GamepadTarget.Button(DsButton.B)))
+        val swapped = GamepadMapping.DEFAULT.with(a, bKeyCode)
+
+        assertEquals(bKeyCode, swapped.keyCodeFor(a))
+        assertEquals(aKeyCode, swapped.keyCodeFor(b))
+    }
+
+    @Test
+    fun `intercambiar con un objetivo que estaba en blanco deja al desplazado tambien en blanco`() {
+        val bKeyCode = GamepadMapping.DEFAULT.keyCodeFor(b)!!
+        val aBlank = GamepadMapping.DEFAULT.withoutTarget(a)
+
+        val reassigned = aBlank.with(a, bKeyCode)
+
+        assertEquals(bKeyCode, reassigned.keyCodeFor(a))
+        assertNull(reassigned.keyCodeFor(b))
+    }
+
+    @Test
+    fun `withoutTarget deja un objetivo sin tecla sin tocar los demas`() {
+        val blanked = GamepadMapping.DEFAULT.withoutTarget(a)
+
+        assertNull(blanked.keyCodeFor(a))
+        assertEquals(GamepadMapping.DEFAULT.keyCodeFor(b), blanked.keyCodeFor(b))
     }
 
     @Test
     fun `targetFor encuentra el objetivo asignado a una tecla concreta`() {
-        val target = GamepadMapping.DEFAULT.targetFor(GamepadMapping.DEFAULT.keyCodeFor(GamepadTarget.Button(DsButton.A))!!)
+        val target = GamepadMapping.DEFAULT.targetFor(GamepadMapping.DEFAULT.keyCodeFor(a)!!)
 
-        assertEquals(GamepadTarget.Button(DsButton.A), target)
+        assertEquals(a, target)
     }
 
     @Test
     fun `dos mandos distintos no comparten mapeo`() {
-        val mandoUno = GamepadMapping.DEFAULT.with(GamepadTarget.Button(DsButton.A), keyCode = 111)
-        val mandoDos = GamepadMapping.DEFAULT.with(GamepadTarget.Button(DsButton.A), keyCode = 222)
+        val mandoUno = GamepadMapping.DEFAULT.with(a, keyCode = 111)
+        val mandoDos = GamepadMapping.DEFAULT.with(a, keyCode = 222)
         val byDescriptor = mapOf("mando-1" to mandoUno, "mando-2" to mandoDos)
 
         val decoded = GamepadMapping.decodeAll(GamepadMapping.encodeAll(byDescriptor))
 
-        assertEquals(111, decoded.getValue("mando-1").keyCodeFor(GamepadTarget.Button(DsButton.A)))
-        assertEquals(222, decoded.getValue("mando-2").keyCodeFor(GamepadTarget.Button(DsButton.A)))
+        assertEquals(111, decoded.getValue("mando-1").keyCodeFor(a))
+        assertEquals(222, decoded.getValue("mando-2").keyCodeFor(a))
     }
 
     @Test
     fun `decodeAll descarta solo la linea rota, no el resto de mandos`() {
         val valid = "mando-1|${GamepadMapping.DEFAULT.encode()}"
-        val encoded = "$valid\nlinea-sin-formato\nmando-2|BTN_A:1"
+        val encoded = "$valid\nlinea-sin-formato\nmando-2|ESTO_NO_EXISTE:1"
 
         val decoded = GamepadMapping.decodeAll(encoded)
 

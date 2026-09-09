@@ -209,6 +209,8 @@
     <string name="gp_device_name">Connected gamepad: %1$s</string>
     <string name="gp_reassign">Reassign</string>
     <string name="gp_listening">Press a button on the gamepad…</string>
+    <string name="gp_swap_hint">If that button is already assigned to another one, they swap.</string>
+    <string name="gp_leave_blank">Leave unassigned</string>
     <string name="gp_cancel">Cancel</string>
     <string name="gp_reset">Reset to default mapping</string>
     <string name="gp_target_up">Up</string>

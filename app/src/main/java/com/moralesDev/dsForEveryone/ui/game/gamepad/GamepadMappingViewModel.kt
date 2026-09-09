@@ -72,6 +72,22 @@ class GamepadMappingViewModel @Inject constructor(
         gamepadInputRouter.cancelCapture()
     }
 
+    /**
+     * Vía de escape para quien esté capturando un botón y prefiera vaciar la
+     * asignación en vez de fiarse del intercambio automático de
+     * `GamepadMapping.with` — por ejemplo, para dejar A y B en blanco y
+     * reasignarlos a mano en el orden que quiera.
+     */
+    fun leaveCapturingTargetBlank() {
+        val target = _capturingTarget.value ?: return
+        val device = connectedDevice.value ?: return
+        _capturingTarget.value = null
+        gamepadInputRouter.cancelCapture()
+        viewModelScope.launch {
+            settingsRepository.setGamepadMapping(device.descriptor, mapping.value.withoutTarget(target))
+        }
+    }
+
     fun resetToDefault() {
         val device = connectedDevice.value ?: return
         viewModelScope.launch { settingsRepository.resetGamepadMapping(device.descriptor) }
