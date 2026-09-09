@@ -1,6 +1,8 @@
 package com.moralesDev.dsForEveryone.emulator
 
 import android.view.Surface
+import com.moralesDev.dsForEveryone.emulator.core.CheatEntry
+import com.moralesDev.dsForEveryone.emulator.core.CheatRejection
 import com.moralesDev.dsForEveryone.emulator.core.CoreLoadResult
 import com.moralesDev.dsForEveryone.emulator.core.EmulatorCore
 import java.util.concurrent.atomic.AtomicBoolean
@@ -118,6 +120,14 @@ class FakeEmulatorCore(
     override fun consumeBatteryDirty(): Boolean = dirty.getAndSet(false)
 
     override fun captureFrame(): IntArray? = IntArray(4) { counter }
+
+    /** Un elemento por llamada a [applyCheats], en orden: lo que comprueban las pruebas de trucos. */
+    val appliedCheats = mutableListOf<List<CheatEntry>>()
+
+    override fun applyCheats(entries: List<CheatEntry>): List<CheatRejection?> {
+        synchronized(appliedCheats) { appliedCheats += entries }
+        return entries.map { null }
+    }
 
     /** Posición del lápiz, para el registro de [touchSamples]. */
     data class TouchSample(val x: Int, val y: Int, val down: Boolean)

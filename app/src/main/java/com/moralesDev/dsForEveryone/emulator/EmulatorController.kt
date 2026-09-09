@@ -4,6 +4,8 @@ import android.os.ParcelFileDescriptor
 import android.os.Process
 import android.util.Log
 import android.view.Surface
+import com.moralesDev.dsForEveryone.emulator.core.CheatEntry
+import com.moralesDev.dsForEveryone.emulator.core.CheatRejection
 import com.moralesDev.dsForEveryone.emulator.core.CoreLoadResult
 import com.moralesDev.dsForEveryone.emulator.core.EmulatorCore
 import kotlinx.coroutines.CompletableDeferred
@@ -196,6 +198,15 @@ class EmulatorController(private val core: EmulatorCore) {
     }
 
     suspend fun captureFrame(): IntArray? = onEmulationThread { core.captureFrame() }
+
+    /**
+     * Sustituye el conjunto de claves activo por [entries] entero. Se
+     * encola como cualquier otro comando: nunca toca el core desde fuera del
+     * hilo de emulación, ni siquiera para algo tan aparentemente inocuo como
+     * activar o desactivar una clave.
+     */
+    suspend fun applyCheats(entries: List<CheatEntry>): List<CheatRejection?> =
+        onEmulationThread { core.applyCheats(entries) }
 
     /** Fuerza la escritura de la savedata, aunque no esté marcada. */
     suspend fun flushBattery(): ByteArray? = onEmulationThread {

@@ -24,6 +24,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Logout
+import androidx.compose.material.icons.filled.FlashOn
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.SettingsBackupRestore
@@ -60,10 +61,10 @@ import com.moralesDev.dsForEveryone.ui.theme.textAlpha
  * Mientras está abierto la emulación está detenida de verdad —quien lo
  * muestra pausa antes el controlador—, no simplemente tapada.
  *
- * Respecto a `app-emulador`: sin ranuras ni claves todavía (llegan con el
- * sistema de partidas de la fase 3), y con dos filas nuevas que sí puede dar
- * ya esta fase —disposición de pantallas y modo de toque—, cambiables aquí
- * mismo sin salir del juego.
+ * Respecto a `app-emulador`: con dos filas propias de esta fase —disposición
+ * de pantallas y modo de toque—, cambiables aquí mismo sin salir del juego.
+ * `onCheats` abre [CheatsSheet], que sustituye a este menú (no se apilan
+ * encima) mientras dure.
  */
 @Composable
 fun PauseMenu(
@@ -74,6 +75,9 @@ fun PauseMenu(
     imageFilter: ImageFilter,
     onImageFilterChange: (ImageFilter) -> Unit,
     onChooseSlot: (SlotAction) -> Unit,
+    cheatsActive: Int,
+    cheatsTotal: Int,
+    onCheats: () -> Unit,
     onResume: () -> Unit,
     onExit: () -> Unit,
     modifier: Modifier = Modifier,
@@ -186,6 +190,12 @@ fun PauseMenu(
                 icon = Icons.Filled.SettingsBackupRestore,
                 onClick = { onChooseSlot(SlotAction.LOAD) },
             )
+            MenuRow(
+                label = stringResource(R.string.pa_cheats),
+                icon = Icons.Filled.FlashOn,
+                trailing = stringResource(R.string.pa_cheats_count, cheatsActive, cheatsTotal),
+                onClick = onCheats,
+            )
 
             Box(
                 Modifier
@@ -240,6 +250,7 @@ private fun MenuRow(
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     onClick: () -> Unit,
     contentColor: androidx.compose.ui.graphics.Color = MaterialTheme.colorScheme.onSurface,
+    trailing: String? = null,
 ) {
     Row(
         modifier = Modifier
@@ -257,7 +268,19 @@ private fun MenuRow(
             tint = if (contentColor == Danger) Danger else textAlpha(0.55f),
             modifier = Modifier.size(16.dp),
         )
-        Text(text = label, style = MaterialTheme.typography.bodyMedium, color = contentColor)
+        Text(
+            text = label,
+            style = MaterialTheme.typography.bodyMedium,
+            color = contentColor,
+            modifier = Modifier.weight(1f),
+        )
+        if (trailing != null) {
+            Text(
+                text = trailing,
+                style = MaterialTheme.typography.labelMedium,
+                color = textAlpha(0.42f),
+            )
+        }
     }
 }
 

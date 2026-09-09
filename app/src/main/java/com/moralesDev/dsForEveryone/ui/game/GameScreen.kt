@@ -47,6 +47,7 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.moralesDev.dsForEveryone.R
+import com.moralesDev.dsForEveryone.data.cheats.CheatsManager
 import com.moralesDev.dsForEveryone.data.settings.TouchMode
 import com.moralesDev.dsForEveryone.emulator.DsButton
 import com.moralesDev.dsForEveryone.emulator.layout.ControlGroup
@@ -106,17 +107,29 @@ fun GameScreen(onExit: () -> Unit) {
     val pendingConfirmation by viewModel.pendingConfirmation.collectAsStateWithLifecycle()
     val message by viewModel.message.collectAsStateWithLifecycle()
     val isGamepadConnected by viewModel.isGamepadConnected.collectAsStateWithLifecycle()
+    val isCheatsOpen by viewModel.isCheatsOpen.collectAsStateWithLifecycle()
+    val cheats by viewModel.cheats.collectAsStateWithLifecycle()
+    val hasAnySaveState by viewModel.hasAnySaveState.collectAsStateWithLifecycle()
     var isMenuOpen by remember { mutableStateOf(false) }
 
     FreeOrientationWhileGamepadConnected(isGamepadConnected)
 
     BackHandler {
-        if (isMenuOpen) {
-            isMenuOpen = false
-            viewModel.resume()
-        } else {
-            isMenuOpen = true
-            viewModel.pause()
+        when {
+            // La hoja de trucos vive dentro del menú de pausa: cerrarla
+            // vuelve al menú, no reanuda la partida.
+            isCheatsOpen -> {
+                viewModel.closeCheats()
+                isMenuOpen = true
+            }
+            isMenuOpen -> {
+                isMenuOpen = false
+                viewModel.resume()
+            }
+            else -> {
+                isMenuOpen = true
+                viewModel.pause()
+            }
         }
     }
 
@@ -252,6 +265,12 @@ fun GameScreen(onExit: () -> Unit) {
                 imageFilter = settings.imageFilter,
                 onImageFilterChange = viewModel::setImageFilter,
                 onChooseSlot = viewModel::chooseSlot,
+                cheatsActive = cheats.count { it.enabled },
+                cheatsTotal = cheats.size,
+                onCheats = {
+                    isMenuOpen = false
+                    viewModel.openCheats()
+                },
                 onResume = {
                     isMenuOpen = false
                     viewModel.resume()
@@ -259,6 +278,23 @@ fun GameScreen(onExit: () -> Unit) {
                 onExit = {
                     viewModel.pause()
                     onExit()
+                },
+            )
+        }
+
+        if (isCheatsOpen) {
+            CheatsSheet(
+                gameTitle = rom?.displayName ?: stringResource(R.string.app_name),
+                cheats = cheats,
+                maxEntries = CheatsManager.MAX_ENTRIES,
+                hasAnySaveState = hasAnySaveState,
+                onAdd = viewModel::addCheat,
+                onToggle = viewModel::toggleCheat,
+                onDelete = viewModel::deleteCheat,
+                onBackupNow = viewModel::openSaveFromCheats,
+                onDismiss = {
+                    viewModel.closeCheats()
+                    isMenuOpen = true
                 },
             )
         }

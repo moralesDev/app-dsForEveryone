@@ -63,6 +63,8 @@
     <string name="pa_touch_mode">Modo de toque</string>
     <string name="pa_save">Guardar partida</string>
     <string name="pa_load">Cargar partida</string>
+    <string name="pa_cheats">Trucos</string>
+    <string name="pa_cheats_count">%1$d/%2$d</string>
 
     <!-- Modos de disposición de pantallas -->
     <string name="layout_stacked">Apiladas</string>
@@ -198,6 +200,22 @@
     <string name="cd_delete_auto">Borrar el respaldo automático</string>
     <string name="cd_delete_state">Borrar la ranura %1$d</string>
 
+    <!-- Hoja de trucos -->
+    <string name="ch_title">Trucos</string>
+    <string name="ch_empty">Todavía no agregaste ningún truco.</string>
+    <string name="ch_add">Agregar truco</string>
+    <string name="ch_code_placeholder">Pega el código Action Replay aquí. Admite varias líneas.</string>
+    <string name="ch_name_placeholder">Nombre (opcional)</string>
+    <string name="ch_name_fallback">Truco %1$d</string>
+    <string name="ch_cancel">Cancelar</string>
+    <string name="ch_submit">Agregar</string>
+    <string name="ch_limit_reached">Ya hay %1$d trucos; ese es el máximo por juego.</string>
+    <string name="ch_notice_full_title">Antes de probar, conviene tener un respaldo</string>
+    <string name="ch_notice_full_body">Un truco puede dejar la partida en un estado raro. Guarda un estado ahora para poder volver atrás si hace falta.</string>
+    <string name="ch_notice_compact">¿Por si acaso? Ya tienes un respaldo, pero puedes actualizarlo.</string>
+    <string name="ch_notice_backup_cta">Guardar estado</string>
+    <string name="cd_delete_cheat">Eliminar el truco «%1$s»</string>
+
     <!-- Por qué una ranura no se puede restaurar -->
     <string name="st_problem_other_game">Otro juego</string>
     <string name="st_problem_other_core">Otra versión</string>
@@ -246,4 +264,14 @@
     <string name="gp_target_start">Start</string>
     <string name="gp_target_select">Select</string>
     <string name="gp_target_blow">Soplar</string>
+
+    <!-- Trucos: mensajes -->
+    <string name="msg_cheat_added">Truco activado</string>
+    <string name="msg_cheat_too_large">Ese código es demasiado largo</string>
+    <string name="msg_cheat_rejected_line">La línea %1$d no tiene forma de código Action Replay válido</string>
+    <string name="msg_cheat_enabled">Truco activado</string>
+    <string name="msg_cheat_disabled">Truco desactivado</string>
+    <string name="msg_cheat_deleted">Truco eliminado</string>
+    <string name="msg_cheat_save_failed">No se pudo guardar el truco</string>
+    <string name="msg_cheats_corrupt">No se pudieron leer tus trucos guardados; se reinició la lista</string>
 </resources>

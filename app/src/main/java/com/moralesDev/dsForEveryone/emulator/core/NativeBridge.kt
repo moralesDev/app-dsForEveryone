@@ -75,5 +75,16 @@ internal object NativeBridge {
 
     external fun nativeConsumeBatteryDirty(handle: Long): Boolean
 
+    /**
+     * Sustituye el conjunto de claves Action Replay activo por [lines]/[enabled]
+     * enteros —índices paralelos, un elemento de cada por entrada—; cada
+     * elemento de [lines] son las líneas de esa clave unidas por `'\n'`.
+     *
+     * @return por cada entrada, en el mismo orden: `""` si se aceptó, o
+     *   `"L<n>"` si la línea `n` (0-based) no tiene forma de código Action
+     *   Replay válido. `null` si no hay ninguna ROM cargada.
+     */
+    external fun nativeApplyCheats(handle: Long, lines: Array<String>, enabled: BooleanArray): Array<String>?
+
     external fun nativeCoreVersion(): String
 }

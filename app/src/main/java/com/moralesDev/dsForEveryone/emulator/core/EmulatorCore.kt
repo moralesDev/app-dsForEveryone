@@ -105,6 +105,18 @@ interface EmulatorCore {
     fun setMicNoise(active: Boolean)
 
     /**
+     * Sustituye el conjunto de claves activo por [entries] entero — no hay
+     * actualización incremental, se manda la lista completa cada vez que
+     * cambia algo (añadir, activar/desactivar, borrar). Devuelve, para cada
+     * entrada de [entries] en el mismo orden, por qué se rechazó, o `null` si
+     * se aceptó.
+     *
+     * Implementación por defecto: acepta todas sin más. Es lo que basta a
+     * [StubEmulatorCore], donde no hay ningún motor de claves que emular.
+     */
+    fun applyCheats(entries: List<CheatEntry>): List<CheatRejection?> = entries.map { null }
+
+    /**
      * Ver el contrato de hilos en la documentación de la interfaz.
      *
      * En la DS la presentación normal no pasa por aquí: el framebuffer se lee
