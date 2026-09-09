@@ -51,11 +51,22 @@ android {
                 // arriesgar el ensamblador ARM64 del recompilador. GDB stub
                 // abre un socket, y aquí no hay ni un permiso de red que
                 // declarar.
+                //
+                // CMAKE_BUILD_TYPE explícito y a propósito: AGP, si no se le
+                // dice nada, compila el core en `Debug` (sin optimizar, `-O0`)
+                // para la variante `debug` de Gradle y en `RelWithDebInfo`
+                // (`-O2`) sólo para `release`. Para un core de CPU/JIT como
+                // este la diferencia es real —varias veces la velocidad—, y
+                // «cómo se siente de fluido un juego pesado» es algo que hay
+                // que poder probar sin pasar por la firma y el minify de
+                // release. `RelWithDebInfo` en las dos variantes: optimizado,
+                // con símbolos de depuración conservados.
                 arguments(
                     "-DBUILD_QT_SDL=OFF",
                     "-DENABLE_OGLRENDERER=OFF",
                     "-DENABLE_JIT=ON",
                     "-DENABLE_GDBSTUB=OFF",
+                    "-DCMAKE_BUILD_TYPE=RelWithDebInfo",
                 )
                 // Desde la 4.2 el puente (`dsemu`) enlaza `core` en su propio
                 // .so, así que AGP vuelve a encontrar sola qué construir: ya
