@@ -108,6 +108,13 @@
     <string name="lib_remove_body">Esto quita el juego de la biblioteca. Puedes conservar su partida por si vuelves a añadirlo.</string>
     <string name="lib_remove_keep">Quitar, conservar la partida</string>
     <string name="lib_remove_delete">Quitar y borrar la partida</string>
+    <string name="lib_sav_extract">Extraer .sav</string>
+    <string name="lib_sav_import">Importar .sav</string>
+    <string name="lib_sav_replace_title">¿Reemplazar la partida de «%1$s»?</string>
+    <string name="lib_sav_replace_body">Esto sustituye la partida guardada actual de este juego. No se puede deshacer, y la aplicación no puede comprobar que el archivo pertenezca a este juego. No afecta a los save states guardados aparte.</string>
+    <string name="lib_sav_delete">Eliminar .sav</string>
+    <string name="lib_sav_delete_title">¿Borrar la partida de «%1$s»?</string>
+    <string name="lib_sav_delete_body">El juego empezará desde cero la próxima vez que lo abras. No se puede deshacer, y no afecta a los save states guardados aparte.</string>
     <string name="lib_page_indicator">%1$d de %2$d</string>
     <string name="cd_settings">Ajustes</string>
     <string name="cd_page_previous">Página anterior</string>
@@ -128,6 +135,13 @@
     <string name="msg_rom_too_large">La ROM descomprimida es demasiado grande</string>
     <string name="msg_removed_all">Juego y partida borrados</string>
     <string name="msg_removed_keep">Juego quitado; la partida se conserva</string>
+    <string name="msg_sav_exported">Partida extraída</string>
+    <string name="msg_sav_export_failed">No se pudo extraer la partida</string>
+    <string name="msg_sav_imported">Partida importada</string>
+    <string name="msg_sav_import_failed">No se pudo importar el archivo</string>
+    <string name="msg_sav_too_large">Ese archivo es demasiado grande para ser una partida de Nintendo DS</string>
+    <string name="msg_sav_deleted">Partida eliminada</string>
+    <string name="msg_sav_delete_failed">No se pudo eliminar la partida</string>
 
     <!-- Biblioteca vacía -->
     <string name="em_title">Añade tu primer juego</string>
