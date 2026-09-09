@@ -4,6 +4,7 @@ import app.cash.turbine.test
 import com.moralesDev.dsForEveryone.data.db.FakeRomDao
 import com.moralesDev.dsForEveryone.data.storage.StorageManager
 import java.io.ByteArrayOutputStream
+import java.io.File
 import java.util.zip.ZipEntry
 import java.util.zip.ZipOutputStream
 import kotlinx.coroutines.Dispatchers
@@ -132,6 +133,30 @@ class RomRepositoryTest {
         }
         // La fila sigue en la biblioteca: no se borró nada al perder el acceso.
         assertNotNull(repository.findById(imported.id))
+    }
+
+    @Test
+    fun `openRomForCore no cae a leer la rom entera en memoria cuando no hay descriptor disponible`() = runTest {
+        // FakeDocumentAccess nunca puede construir un ParcelFileDescriptor
+        // real (ni el directo ni el de la copia de emergencia): es la misma
+        // situación que tuvo Pokémon Platino en el dispositivo, donde el
+        // proveedor SAF no daba descriptor directo. Antes del arreglo esto
+        // caía a `readRomBytes` y devolvía `RomSource.Bytes` con la ROM
+        // entera —el mismo camino que reventó el heap con una ROM de 128 MB—;
+        // ahora tiene que rendirse con null en vez de materializar esos bytes.
+        documentAccess.put(URI, DsRomFixtures.validRomBytes(), "juego.nds")
+        val imported = (repository.import(URI) as RomImportResult.Imported).rom
+
+        val source = repository.openRomForCore(imported)
+
+        assertNull(source)
+        // Prueba que sí se intentó la copia de emergencia (y no que el
+        // método simplemente se rindió antes de llegar ahí).
+        assertEquals(1, documentAccess.openLocalFileDescriptorCalls)
+        // El archivo temporal de la copia no sobrevive al intento fallido:
+        // no debe quedar ninguna copia duradera de la ROM en el disco de la app.
+        val scratchDir = File(folder.root, "scratch")
+        assertTrue(scratchDir.listFiles()?.isEmpty() != false)
     }
 
     @Test

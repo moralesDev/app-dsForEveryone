@@ -2,6 +2,7 @@ package com.moralesDev.dsForEveryone.data.rom
 
 import android.os.ParcelFileDescriptor
 import java.io.ByteArrayInputStream
+import java.io.File
 import java.io.InputStream
 
 /**
@@ -38,10 +39,25 @@ class FakeDocumentAccess : DocumentAccess {
      * prueba de JVM sin Robolectric, que este proyecto no usa. La vía de
      * descriptor de `RomRepository.openRomForCore` queda sin poder probarse
      * de extremo a extremo aquí a propósito; lo que sí prueba
-     * `RomRepositoryTest` es que, cuando esto devuelve `null`, el método no
-     * revienta y se limita a no ofrecer esa vía.
+     * `RomRepositoryTest` es que, cuando esto devuelve `null`, el método cae
+     * a [openLocalFileDescriptor] en vez de reventar.
      */
     override fun openFileDescriptor(uri: String): ParcelFileDescriptor? = null
+
+    /** Cuántas veces se llamó a [openLocalFileDescriptor], para comprobar que se intentó la copia de emergencia. */
+    var openLocalFileDescriptorCalls = 0
+        private set
+
+    /**
+     * También siempre `null`, por la misma razón que [openFileDescriptor].
+     * Lo que sí puede comprobar una prueba es que se llamó — es decir, que
+     * `RomRepository` intentó la copia a archivo temporal en vez de caer de
+     * vuelta a leer la ROM entera en un `ByteArray`.
+     */
+    override fun openLocalFileDescriptor(file: File): ParcelFileDescriptor? {
+        openLocalFileDescriptorCalls++
+        return null
+    }
 
     override fun displayNameOf(uri: String): String? = displayNames[uri]
 

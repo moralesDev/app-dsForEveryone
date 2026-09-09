@@ -11,6 +11,8 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
 import java.io.FileNotFoundException
+import java.io.FileOutputStream
+import java.io.IOException
 import java.io.InputStream
 import java.io.PushbackInputStream
 
@@ -22,7 +24,8 @@ import java.io.PushbackInputStream
  * permiso persistente sobre él, que sobrevive a reinicios del dispositivo. Así
  * la biblioteca recuerda los juegos sin duplicar cientos de megas por título
  * ni pedir permisos de almacenamiento global, que en Android moderno además ya
- * no se conceden para esto.
+ * no se conceden para esto. La única excepción es transitoria, no una copia
+ * duradera: ver [copyToScratchDescriptor].
  *
  * El precio es que el usuario puede mover o borrar el archivo por debajo. Ese
  * caso se detecta ([isAvailable]) y se marca en la biblioteca en lugar de
@@ -139,6 +142,12 @@ class RomRepository(
      * la ROM está suelta (no dentro de un `.zip`), y sólo cae a bytes en
      * memoria cuando hace falta descomprimir. Ver
      * [com.moralesDev.dsForEveryone.emulator.core.EmulatorCore.loadFromDescriptor].
+     *
+     * Cuando el proveedor SAF no da descriptor directo, la vía de emergencia
+     * es [copyToScratchDescriptor] — copia en flujo a un archivo temporal, no
+     * [readRomBytes]: caer ahí revive el `OutOfMemoryError` que este método
+     * existe para evitar (pasó con Pokémon Platino, 128 MB, en un proveedor
+     * que no entregaba descriptor; ver `docs/estabilizacion-core.md`).
      */
     suspend fun openRomForCore(rom: RomInfo): RomSource? = withContext(ioDispatcher) {
         try {
@@ -151,13 +160,39 @@ class RomRepository(
                 RomZipReader.extractRom { openOrThrow(rom.documentUri) }?.let(RomSource::Bytes)
             } else {
                 val fd = documentAccess.openFileDescriptor(rom.documentUri)
-                    ?: return@withContext readRomBytes(rom)?.let(RomSource::Bytes)
-                RomSource.Descriptor(fd, fd.statSize)
+                if (fd != null) RomSource.Descriptor(fd, fd.statSize) else copyToScratchDescriptor(rom)
             }
         } catch (error: SecurityException) {
             null
         } catch (error: FileNotFoundException) {
             null
+        }
+    }
+
+    /**
+     * Copia [rom] en flujo (buffer fijo, nunca un `ByteArray` con la ROM
+     * entera) a un archivo temporal de [StorageManager.newRomScratchFile] y
+     * abre un descriptor real sobre ese archivo para el core.
+     *
+     * El archivo se borra apenas se abre el descriptor, tenga éxito o no: en
+     * Linux el inodo sigue vivo mientras el descriptor esté abierto, así que
+     * el core lo sigue leyendo con normalidad y nunca queda una copia
+     * duradera de la ROM en el almacenamiento de la app — la promesa de la
+     * clase ("las ROMs no se copian") sigue valiendo, esto es sólo un puente.
+     */
+    private fun copyToScratchDescriptor(rom: RomInfo): RomSource.Descriptor? {
+        val scratch = storageManager.newRomScratchFile()
+        return try {
+            val input = documentAccess.openInputStream(rom.documentUri) ?: return null
+            input.use { source -> FileOutputStream(scratch).use { sink -> source.copyTo(sink) } }
+            val length = scratch.length()
+            documentAccess.openLocalFileDescriptor(scratch)?.let { fd -> RomSource.Descriptor(fd, length) }
+        } catch (error: IOException) {
+            null
+        } catch (error: SecurityException) {
+            null
+        } finally {
+            scratch.delete()
         }
     }
 

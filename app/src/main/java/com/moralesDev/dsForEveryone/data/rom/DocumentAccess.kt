@@ -5,6 +5,7 @@ import android.content.Intent
 import android.os.ParcelFileDescriptor
 import android.provider.OpenableColumns
 import androidx.core.net.toUri
+import java.io.File
 import java.io.InputStream
 
 /**
@@ -28,6 +29,16 @@ interface DocumentAccess {
      */
     fun openFileDescriptor(uri: String): ParcelFileDescriptor?
 
+    /**
+     * Descriptor sobre un archivo ya en disco, no un documento SAF: la vía de
+     * emergencia de `RomRepository.openRomForCore` cuando [openFileDescriptor]
+     * da `null` — copia el documento a un archivo temporal propio y necesita
+     * un descriptor real sobre *ese* archivo para entregárselo al core.
+     * `null` si tampoco eso se puede abrir, caso en el que la ROM no llega a
+     * cargar en vez de copiarse entera a un `ByteArray`.
+     */
+    fun openLocalFileDescriptor(file: File): ParcelFileDescriptor?
+
     fun displayNameOf(uri: String): String?
 
     /** `false` si el proveedor no concede permiso persistente; la ROM sigue jugable en esta sesión. */
@@ -47,6 +58,9 @@ class ContentResolverDocumentAccess(
 
     override fun openFileDescriptor(uri: String): ParcelFileDescriptor? =
         contentResolver.openFileDescriptor(uri.toUri(), "r")
+
+    override fun openLocalFileDescriptor(file: File): ParcelFileDescriptor? =
+        ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY)
 
     override fun displayNameOf(uri: String): String? =
         contentResolver.query(uri.toUri(), arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)
