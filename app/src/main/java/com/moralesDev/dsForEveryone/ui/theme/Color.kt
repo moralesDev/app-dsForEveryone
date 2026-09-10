@@ -47,6 +47,23 @@ internal val GlassStrong = Color(0x1FE9E9ED)
 internal val GlassBorder = Color(0x21E9E9ED)
 
 /**
+ * Vidrio sobre el vídeo del juego: el mismo material, invertido.
+ *
+ * El vidrio de arriba es blanco traslúcido, y funciona porque debajo siempre
+ * hay fondo oscuro de la aplicación. Los dos botones que flotan sobre la
+ * imagen del juego —menú y avance rápido— no tienen esa garantía: la imagen
+ * la pone el juego, y con un fondo claro —un menú de Pokémon, una pantalla de
+ * carga en blanco— un botón claro sobre fondo claro desaparece.
+ *
+ * Por eso aquí el relleno es el fondo de la aplicación casi opaco y el borde
+ * es blanco al 35 %: se lee sobre negro y sobre blanco, que es lo único que
+ * hay que garantizar cuando lo que hay debajo no lo decide la aplicación.
+ */
+internal val GlassOverVideo = Color(0xD9161826)
+internal val GlassOverVideoStrong = Color(0xF2232532)
+internal val GlassOverVideoBorder = Color(0x59F5F4FF)
+
+/**
  * Caucho oscuro con relieve: la superficie de los siete grupos de mandos
  * (fase 2.8). Bisel superior claro, caída a un centro y un borde oscuros, y
  * un «zócalo» sólido debajo que se hunde al pulsar —ver

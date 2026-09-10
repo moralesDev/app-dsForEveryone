@@ -81,12 +81,14 @@ import com.moralesDev.dsForEveryone.ui.game.controls.DirectionalPad
 import com.moralesDev.dsForEveryone.ui.game.controls.ShoulderButton
 import com.moralesDev.dsForEveryone.ui.game.controls.SystemButton
 import com.moralesDev.dsForEveryone.ui.resolve
-import com.moralesDev.dsForEveryone.ui.theme.Accent
-import com.moralesDev.dsForEveryone.ui.theme.Accent200
+import com.moralesDev.dsForEveryone.ui.theme.Accent100
+import com.moralesDev.dsForEveryone.ui.theme.Accent300
+import com.moralesDev.dsForEveryone.ui.theme.Accent700
 import com.moralesDev.dsForEveryone.ui.theme.Background
-import com.moralesDev.dsForEveryone.ui.theme.Glass
 import com.moralesDev.dsForEveryone.ui.theme.GlassBorder
-import com.moralesDev.dsForEveryone.ui.theme.GlassStrong
+import com.moralesDev.dsForEveryone.ui.theme.GlassOverVideo
+import com.moralesDev.dsForEveryone.ui.theme.GlassOverVideoBorder
+import com.moralesDev.dsForEveryone.ui.theme.GlassOverVideoStrong
 import com.moralesDev.dsForEveryone.ui.theme.Surface
 import com.moralesDev.dsForEveryone.ui.theme.textAlpha
 
@@ -283,6 +285,10 @@ fun GameScreen(onExit: () -> Unit) {
                     isMenuOpen = true
                     viewModel.pause()
                 },
+                // Debajo está el juego, no el fondo de la aplicación: con el
+                // vidrio claro de siempre, un juego de fondo blanco borra el
+                // botón. Ver GlassOverVideo.
+                overVideo = true,
             )
         }
 
@@ -393,10 +399,14 @@ private fun SpeedButton(speed: EmulationSpeed, onClick: () -> Unit) {
     val interaction = remember { MutableInteractionSource() }
     val pressed by interaction.collectIsPressedAsState()
     val shape = RoundedCornerShape(11.dp)
+    // Mismo vidrio invertido que el botón de menú —debajo está el juego, que
+    // puede ser blanco—, y en avance rápido el acento sobre ese mismo fondo
+    // oscuro en vez de traslúcido: si el acento fuera semitransparente, sobre
+    // una pantalla clara se lavaría hasta desaparecer.
     val background = when {
-        speed.isFast -> Accent.copy(alpha = if (pressed) 0.42f else 0.30f)
-        pressed -> GlassStrong
-        else -> Glass
+        speed.isFast -> Accent700.copy(alpha = if (pressed) 1f else 0.92f)
+        pressed -> GlassOverVideoStrong
+        else -> GlassOverVideo
     }
 
     Row(
@@ -404,7 +414,7 @@ private fun SpeedButton(speed: EmulationSpeed, onClick: () -> Unit) {
             .height(38.dp)
             .clip(shape)
             .background(background)
-            .border(1.dp, GlassBorder, shape)
+            .border(1.dp, if (speed.isFast) Accent300 else GlassOverVideoBorder, shape)
             .clickable(interactionSource = interaction, indication = null, onClick = onClick)
             .padding(horizontal = 10.dp),
         horizontalArrangement = Arrangement.spacedBy(5.dp),
@@ -413,13 +423,13 @@ private fun SpeedButton(speed: EmulationSpeed, onClick: () -> Unit) {
         Icon(
             imageVector = Icons.Filled.FastForward,
             contentDescription = stringResource(R.string.cd_speed),
-            tint = if (speed.isFast) Accent200 else textAlpha(0.75f),
+            tint = if (speed.isFast) Accent100 else textAlpha(0.92f),
             modifier = Modifier.size(18.dp),
         )
         Text(
             text = stringResource(speed.labelRes()),
             style = MaterialTheme.typography.labelSmall,
-            color = if (speed.isFast) Accent200 else textAlpha(0.6f),
+            color = if (speed.isFast) Accent100 else textAlpha(0.92f),
         )
     }
 }
