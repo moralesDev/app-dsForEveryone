@@ -463,6 +463,44 @@ con sonido real de un juego (la ROM sintética de prueba no lleva código que
 produzca audio); es la misma limitación que con el vídeo, y se resuelve
 igual: con una ROM homebrew legítima cuando haya una a mano.
 
+### Avance rápido: se acorta el período, no se acelera el core
+
+A la DS no se le puede pedir que corra rápido: el core emula un fotograma
+por vuelta y siempre cuesta lo que cuesta. Lo único que cambia el avance
+rápido es **cuánto se espera entre vueltas** —`DsVideo.frameDurationNanosAt`,
+el período de 16 715 113 ns dividido por 1, 1,5 o 2—, y por eso vive entero
+en `EmulatorController`, no en el puente ni en el core.
+
+La velocidad es estado compartido (`@Volatile`), como la máscara de botones,
+no un comando encolado: se cambia con un botón durante la partida y encolar
+un comando sólo añadiría latencia. Lo que sí hace el propio hilo de
+emulación es aplicar el silenciado cuando nota que el valor cambió, para no
+tocar el core desde fuera ni siquiera para esto.
+
+**El audio se silencia mientras corre rápido**, y no es una decisión de
+gusto: a 2x el SPU produce el doble de muestras de las que AAudio consume en
+el mismo tiempo, así que el anillo se satura y `RingPush` empieza a
+descartar. Eso no suena a juego acelerado, suena a audio picado con retraso
+creciente. `nativeRunFrame` sigue vaciando el SPU igual —su búfer de salida
+hay que consumirlo— pero no entrega nada al anillo: silencio limpio, y el
+sonido vuelve en el fotograma siguiente al de volver a 1x.
+
+**Medido en el Motorola Edge 30** (Cave Story DS en la pantalla de título,
+CPU del hilo `ds-emulation` en ventanas de 6 s de reloj):
+
+| Velocidad | CPU del hilo | Frente a 1x |
+|---|---|---|
+| 1x | 66 % de un núcleo | — |
+| 1,5x | 87 % | ×1,33 |
+| 2x | 102 % | ×1,56 |
+
+Es decir: **2x pide más de lo que da un núcleo** y el bucle acaba en su rama
+de «vamos tarde», entregando en la práctica algo alrededor de 1,5x. No es un
+fallo que arreglar —el emulador va tan rápido como el teléfono deja, que es
+justo lo que se le pide— pero sí es la razón de ofrecer 1,5x como valor
+intermedio real y no como decoración. En juegos 3D pesados, que a 1x ya
+consumen mucho más núcleo, la ganancia será menor todavía.
+
 ### Partida de batería: se lee siempre en vivo, nunca se copia
 
 `NDSCart::ParseROM` recibe `emu` como `userdata`, y ese mismo puntero es el

@@ -304,6 +304,73 @@ class EmulatorControllerTest {
         assertFalse(controller.status.value == EmulatorStatus.RUNNING)
     }
 
+    // ---------------------------------------------------------- avance rápido
+
+    @Test
+    fun `el avance rapido emula mas fotogramas en la misma ventana de reloj`() = runTest {
+        controller.open(ROM, batterySave = null)
+        controller.resume()
+        waitUntil { core.frames.get() > 2 }
+
+        val normalStart = core.frames.get()
+        Thread.sleep(WINDOW_MS)
+        val atNormalSpeed = core.frames.get() - normalStart
+
+        controller.setSpeed(2f)
+        Thread.sleep(30)
+        val fastStart = core.frames.get()
+        Thread.sleep(WINDOW_MS)
+        val atDoubleSpeed = core.frames.get() - fastStart
+
+        // El margen es generoso a propósito: lo que se comprueba es que el
+        // período se acorta de verdad, no que el reloj de una máquina de
+        // pruebas cargada acierte los 2x clavados.
+        assertTrue(
+            "A 2x deberían salir bastantes más fotogramas: $atNormalSpeed frente a $atDoubleSpeed",
+            atDoubleSpeed > atNormalSpeed * 1.4,
+        )
+    }
+
+    @Test
+    fun `el avance rapido silencia el audio y volver a 1x lo devuelve`() = runTest {
+        controller.open(ROM, batterySave = null)
+        controller.resume()
+        waitUntil { core.frames.get() > 2 }
+        assertFalse("A 1x no se silencia nada", core.audioMuted.get())
+
+        controller.setSpeed(1.5f)
+        waitUntil { core.audioMuted.get() }
+
+        controller.setSpeed(1f)
+        waitUntil { !core.audioMuted.get() }
+    }
+
+    @Test
+    fun `el silenciado solo se toca cuando la velocidad cambia`() = runTest {
+        controller.open(ROM, batterySave = null)
+        controller.setSpeed(2f)
+        controller.resume()
+        waitUntil { core.audioMuted.get() }
+
+        // Muchos fotogramas después, sigue habiendo una sola llamada: el
+        // core no se toca una vez por vuelta para repetirle lo mismo.
+        val changes = core.audioMuteChanges.get()
+        Thread.sleep(WINDOW_MS)
+
+        assertTrue(core.frames.get() > 5)
+        assertEquals(changes, core.audioMuteChanges.get())
+    }
+
+    @Test
+    fun `la velocidad se recorta a lo que la UI puede pedir`() {
+        controller.setSpeed(5f)
+        assertEquals(2f, controller.speedMultiplier, 0.001f)
+
+        // Cámara lenta no es una función de este emulador.
+        controller.setSpeed(0.25f)
+        assertEquals(1f, controller.speedMultiplier, 0.001f)
+    }
+
     private fun waitUntil(timeoutMs: Long = 2_000, condition: () -> Boolean) {
         val deadline = System.currentTimeMillis() + timeoutMs
         while (System.currentTimeMillis() < deadline) {
@@ -315,5 +382,8 @@ class EmulatorControllerTest {
 
     private companion object {
         val ROM = ByteArray(256) { it.toByte() }
+
+        /** Ventana de medida del avance rápido: ~18 fotogramas a 1x, ~36 a 2x. */
+        const val WINDOW_MS = 300L
     }
 }

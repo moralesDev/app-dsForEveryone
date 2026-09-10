@@ -48,6 +48,7 @@
     <string name="cd_menu">Open menu</string>
     <string name="cd_dpad">D-pad</string>
     <string name="cd_blow">Blow</string>
+    <string name="cd_speed">Emulation speed</string>
 
     <!-- Pause menu -->
     <string name="pa_title">Game paused</string>
@@ -55,6 +56,7 @@
     <string name="pa_exit">Exit</string>
     <string name="pa_layout">Screen layout</string>
     <string name="pa_touch_mode">Touch mode</string>
+    <string name="pa_speed">Speed</string>
     <string name="pa_save">Save game</string>
     <string name="pa_load">Load game</string>
     <string name="pa_cheats">Cheats</string>
@@ -66,6 +68,12 @@
     <string name="layout_top_only">Top only</string>
     <string name="layout_bottom_only">Bottom only</string>
     <string name="layout_main_secondary">Main + secondary</string>
+
+    <!-- Emulation speed -->
+    <string name="speed_normal">1x</string>
+    <string name="speed_1_5x">1.5x</string>
+    <string name="speed_2x">2x</string>
+    <string name="speed_muted_hint">Sound is muted while running fast.</string>
 
     <!-- Touch modes -->
     <string name="touch_direct">Direct</string>

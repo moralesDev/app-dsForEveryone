@@ -93,6 +93,11 @@ struct Emulator {
     std::atomic<bool> micNoiseActive{false};
     std::atomic<bool> batteryDirty{false};
 
+    // Avance rápido: a 1,5x o 2x el SPU produce muestras más deprisa de lo
+    // que AAudio las consume, así que se siguen vaciando del SPU pero no se
+    // empujan al anillo. Ver nativeRunFrame y EmulatorCore.setAudioMuted.
+    std::atomic<bool> audioMuted{false};
+
     std::unique_ptr<int16_t[]> ring{new int16_t[kAudioRingFrames * 2]};
     std::atomic<unsigned> ringRead{0};
     std::atomic<unsigned> ringWrite{0};
@@ -769,7 +774,13 @@ Java_com_moralesDev_dsForEveryone_emulator_core_NativeBridge_nativeRunFrame(
         if (available > kAudioDrainMax) available = kAudioDrainMax;
         int16_t buffer[kAudioDrainMax * 2];
         int got = spu.ReadOutput(buffer, available);
-        if (got > 0) RingPush(emu, buffer, static_cast<unsigned>(got));
+        // Silenciado (avance rápido): se vacía el SPU igual —su búfer de
+        // salida hay que consumirlo, o se llena y descarta él por su cuenta—
+        // pero no se entrega nada al anillo. El resultado es silencio limpio,
+        // no audio picado.
+        if (got > 0 && !emu->audioMuted.load(std::memory_order_relaxed)) {
+            RingPush(emu, buffer, static_cast<unsigned>(got));
+        }
     }
 }
 
@@ -862,6 +873,13 @@ Java_com_moralesDev_dsForEveryone_emulator_core_NativeBridge_nativeSetMicNoise(
     JNIEnv*, jobject, jlong handle, jboolean active) {
     Emulator* emu = FromHandle(handle);
     if (emu) emu->micNoiseActive.store(active == JNI_TRUE, std::memory_order_relaxed);
+}
+
+JNIEXPORT void JNICALL
+Java_com_moralesDev_dsForEveryone_emulator_core_NativeBridge_nativeSetAudioMuted(
+    JNIEnv*, jobject, jlong handle, jboolean muted) {
+    Emulator* emu = FromHandle(handle);
+    if (emu) emu->audioMuted.store(muted == JNI_TRUE, std::memory_order_relaxed);
 }
 
 JNIEXPORT jint JNICALL

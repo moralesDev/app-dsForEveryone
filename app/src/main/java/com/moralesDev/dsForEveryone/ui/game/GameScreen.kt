@@ -9,11 +9,17 @@ import android.opengl.GLSurfaceView
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -21,7 +27,9 @@ import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.FastForward
 import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -49,6 +57,7 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.moralesDev.dsForEveryone.R
 import com.moralesDev.dsForEveryone.data.cheats.CheatsManager
+import com.moralesDev.dsForEveryone.data.settings.EmulationSpeed
 import com.moralesDev.dsForEveryone.data.settings.TouchMode
 import com.moralesDev.dsForEveryone.emulator.DsButton
 import com.moralesDev.dsForEveryone.emulator.layout.ControlGroup
@@ -69,9 +78,14 @@ import com.moralesDev.dsForEveryone.ui.game.controls.DirectionalPad
 import com.moralesDev.dsForEveryone.ui.game.controls.ShoulderButton
 import com.moralesDev.dsForEveryone.ui.game.controls.SystemButton
 import com.moralesDev.dsForEveryone.ui.resolve
+import com.moralesDev.dsForEveryone.ui.theme.Accent
+import com.moralesDev.dsForEveryone.ui.theme.Accent200
 import com.moralesDev.dsForEveryone.ui.theme.Background
+import com.moralesDev.dsForEveryone.ui.theme.Glass
 import com.moralesDev.dsForEveryone.ui.theme.GlassBorder
+import com.moralesDev.dsForEveryone.ui.theme.GlassStrong
 import com.moralesDev.dsForEveryone.ui.theme.Surface
+import com.moralesDev.dsForEveryone.ui.theme.textAlpha
 
 /**
  * Pantalla de juego (entregable 2.6): las dos pantallas con [DsGLRenderer],
@@ -245,23 +259,35 @@ fun GameScreen(onExit: () -> Unit) {
             )
         }
 
-        GlassIconButton(
-            icon = Icons.Filled.Menu,
-            contentDescription = stringResource(R.string.cd_menu),
-            onClick = {
-                isMenuOpen = true
-                viewModel.pause()
-            },
+        Row(
             modifier = Modifier
                 .align(Alignment.TopEnd)
                 .windowInsetsPadding(WindowInsets.systemBars)
                 .padding(12.dp),
-        )
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            // El avance rápido se cambia sin pausar: pausar para acelerar una
+            // conversación larga es exactamente lo que hace que nadie lo use.
+            // El mismo ajuste está en el menú de pausa, y es el mismo valor.
+            SpeedButton(speed = settings.speed, onClick = viewModel::cycleSpeed)
+
+            GlassIconButton(
+                icon = Icons.Filled.Menu,
+                contentDescription = stringResource(R.string.cd_menu),
+                onClick = {
+                    isMenuOpen = true
+                    viewModel.pause()
+                },
+            )
+        }
 
         if (isMenuOpen) {
             PauseMenu(
                 activeLayoutMode = activeMode,
                 onLayoutModeChange = { mode -> viewModel.setLayoutMode(mode, isPortrait) },
+                speed = settings.speed,
+                onSpeedChange = viewModel::setSpeed,
                 touchMode = settings.touchMode,
                 onTouchModeChange = viewModel::setTouchMode,
                 imageFilter = settings.imageFilter,
@@ -345,6 +371,51 @@ private fun GameToast(text: String, onDismiss: () -> Unit) {
                 .background(Surface)
                 .border(1.dp, GlassBorder, RoundedCornerShape(12.dp))
                 .padding(horizontal = 16.dp, vertical = 12.dp),
+        )
+    }
+}
+
+/**
+ * El botón de avance rápido, al lado del de menú.
+ *
+ * No es un mando: no entra en [ControlLayout] ni en el editor de disposición
+ * —son siete grupos y siguen siendo siete—, porque no se pulsa mientras se
+ * juega sino que se deja puesto. Cada toque avanza el ciclo 1x → 1,5x → 2x →
+ * 1x, y la velocidad actual se lee en el propio botón: con tres estados, un
+ * icono encendido o apagado no distinguiría 1,5x de 2x.
+ */
+@Composable
+private fun SpeedButton(speed: EmulationSpeed, onClick: () -> Unit) {
+    val interaction = remember { MutableInteractionSource() }
+    val pressed by interaction.collectIsPressedAsState()
+    val shape = RoundedCornerShape(11.dp)
+    val background = when {
+        speed.isFast -> Accent.copy(alpha = if (pressed) 0.42f else 0.30f)
+        pressed -> GlassStrong
+        else -> Glass
+    }
+
+    Row(
+        modifier = Modifier
+            .height(38.dp)
+            .clip(shape)
+            .background(background)
+            .border(1.dp, GlassBorder, shape)
+            .clickable(interactionSource = interaction, indication = null, onClick = onClick)
+            .padding(horizontal = 10.dp),
+        horizontalArrangement = Arrangement.spacedBy(5.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(
+            imageVector = Icons.Filled.FastForward,
+            contentDescription = stringResource(R.string.cd_speed),
+            tint = if (speed.isFast) Accent200 else textAlpha(0.75f),
+            modifier = Modifier.size(18.dp),
+        )
+        Text(
+            text = stringResource(speed.labelRes()),
+            style = MaterialTheme.typography.labelSmall,
+            color = if (speed.isFast) Accent200 else textAlpha(0.6f),
         )
     }
 }

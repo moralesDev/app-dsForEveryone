@@ -54,6 +54,7 @@
     <string name="cd_menu">Abrir menú</string>
     <string name="cd_dpad">Cruceta</string>
     <string name="cd_blow">Soplar</string>
+    <string name="cd_speed">Velocidad de emulación</string>
 
     <!-- Menú de pausa -->
     <string name="pa_title">Juego en pausa</string>
@@ -61,6 +62,7 @@
     <string name="pa_exit">Salir</string>
     <string name="pa_layout">Disposición de pantallas</string>
     <string name="pa_touch_mode">Modo de toque</string>
+    <string name="pa_speed">Velocidad</string>
     <string name="pa_save">Guardar partida</string>
     <string name="pa_load">Cargar partida</string>
     <string name="pa_cheats">Trucos</string>
@@ -72,6 +74,12 @@
     <string name="layout_top_only">Solo superior</string>
     <string name="layout_bottom_only">Solo inferior</string>
     <string name="layout_main_secondary">Principal + secundaria</string>
+
+    <!-- Velocidad de emulación -->
+    <string name="speed_normal">1x</string>
+    <string name="speed_1_5x">1,5x</string>
+    <string name="speed_2x">2x</string>
+    <string name="speed_muted_hint">El sonido se silencia mientras corre rápido.</string>
 
     <!-- Modos de toque -->
     <string name="touch_direct">Directo</string>

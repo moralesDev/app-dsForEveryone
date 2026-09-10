@@ -15,6 +15,7 @@ import com.moralesDev.dsForEveryone.data.save.SaveStateManager
 import com.moralesDev.dsForEveryone.data.save.SaveStateSlot
 import com.moralesDev.dsForEveryone.data.save.StateIdentity
 import com.moralesDev.dsForEveryone.data.save.StateReadResult
+import com.moralesDev.dsForEveryone.data.settings.EmulationSpeed
 import com.moralesDev.dsForEveryone.data.settings.EmulatorSettings
 import com.moralesDev.dsForEveryone.data.settings.ImageFilter
 import com.moralesDev.dsForEveryone.data.settings.SettingsRepository
@@ -174,6 +175,13 @@ class GameViewModel @Inject constructor(
             }
         }
 
+        // La velocidad guardada se aplica al hilo de emulación en cuanto
+        // cambia, sin esperar a que se reanude nada: el botón de avance
+        // rápido escribe el ajuste y el efecto llega por aquí.
+        viewModelScope.launch {
+            settings.collect { controller.setSpeed(it.speed.multiplier) }
+        }
+
         viewModelScope.launch {
             val rom = romId?.let { romRepository.findById(it) }
             _rom.value = rom
@@ -248,6 +256,13 @@ class GameViewModel @Inject constructor(
     fun setTouchMode(mode: TouchMode) {
         viewModelScope.launch { settingsRepository.setTouchMode(mode) }
     }
+
+    fun setSpeed(speed: EmulationSpeed) {
+        viewModelScope.launch { settingsRepository.setSpeed(speed) }
+    }
+
+    /** El ciclo del botón ⏩ de la pantalla de juego: 1x → 1,5x → 2x → 1x. */
+    fun cycleSpeed() = setSpeed(settings.value.speed.next())
 
     fun setImageFilter(filter: ImageFilter) {
         viewModelScope.launch { settingsRepository.setImageFilter(filter) }

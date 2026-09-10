@@ -37,6 +37,35 @@ enum class ImageFilter {
 }
 
 /**
+ * A qué velocidad corre la emulación. El multiplicador acorta el período de
+ * fotograma en el hilo de emulación (ver
+ * [com.moralesDev.dsForEveryone.emulator.DsVideo.frameDurationNanosAt]); nada
+ * más cambia, y menos que nada el core, que sigue emulando un fotograma por
+ * vuelta como siempre.
+ *
+ * Tres valores y no una escala continua: 1,5x es lo más rápido que deja seguir
+ * un combate, y 2x lo más rápido que sostiene un gama alta con este core.
+ * Por encima de eso el teléfono ya no llega y el resultado no es «más rápido»,
+ * es irregular.
+ */
+enum class EmulationSpeed(val multiplier: Float) {
+    NORMAL(1f),
+    FAST_1_5X(1.5f),
+    FAST_2X(2f),
+    ;
+
+    /** Si esta velocidad es avance rápido; a 1x el botón ⏩ se pinta apagado. */
+    val isFast: Boolean get() = this != NORMAL
+
+    /** La siguiente del ciclo del botón ⏩: 1x → 1,5x → 2x → 1x. */
+    fun next(): EmulationSpeed = entries[(ordinal + 1) % entries.size]
+
+    companion object {
+        fun fromName(name: String?): EmulationSpeed? = entries.firstOrNull { it.name == name }
+    }
+}
+
+/**
  * Cómo se traduce un dedo en la pantalla táctil a una posición del lápiz. Ver
  * docs/entrada.md, sección «El problema real: un dedo no es un lápiz».
  */
@@ -83,6 +112,14 @@ data class EmulatorSettings(
      */
     val screensSwapped: Boolean = false,
     val imageFilter: ImageFilter = ImageFilter.SHARP,
+
+    /**
+     * Velocidad de la emulación. Se guarda como cualquier otro ajuste, así
+     * que sobrevive a cerrar el juego: el botón ⏩ de la pantalla de juego se
+     * pinta encendido cuando no es 1x, para que nadie se encuentre el juego
+     * corriendo rápido sin saber por qué.
+     */
+    val speed: EmulationSpeed = EmulationSpeed.NORMAL,
 
     val touchMode: TouchMode = TouchMode.DIRECT,
     /** Desplazamiento en dp del punto de contacto sobre el dedo, en [TouchMode.OFFSET]. */

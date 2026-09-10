@@ -18,6 +18,7 @@ import java.nio.ByteBuffer
  * ## Contrato de hilos
  *
  * - [load], [unload], [runFrame], [setKeys], [setTouch], [setMicNoise],
+ *   [setAudioMuted],
  *   [stateSize], [serializeState], [deserializeState], [readBattery],
  *   [consumeBatteryDirty], [captureFrame] y [captureFrameInto] se llaman
  *   **siempre** desde el hilo de emulación, nunca desde el hilo principal.
@@ -103,6 +104,20 @@ interface EmulatorCore {
      * soplar esté pulsado. Sin `RECORD_AUDIO`: ver docs/entrada.md.
      */
     fun setMicNoise(active: Boolean)
+
+    /**
+     * Silencia la salida de audio sin detenerla. Existe por el avance rápido:
+     * a 2x el core produce el doble de muestras de las que el dispositivo
+     * reproduce en el mismo tiempo, así que la única salida honesta es no
+     * entregarlas —lo contrario suena a audio picado y con retraso creciente,
+     * no a un juego acelerado—.
+     *
+     * Silenciar no es dejar de emular sonido: el core sigue generando sus
+     * muestras y su estado interno sigue siendo el correcto, sólo que no
+     * llegan al altavoz. Implementación por defecto: no hacer nada, que es lo
+     * que basta a un core sin audio como [StubEmulatorCore].
+     */
+    fun setAudioMuted(muted: Boolean) {}
 
     /**
      * Sustituye el conjunto de claves activo por [entries] entero — no hay

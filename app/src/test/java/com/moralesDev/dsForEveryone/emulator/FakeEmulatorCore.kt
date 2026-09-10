@@ -81,6 +81,15 @@ class FakeEmulatorCore(
         micNoiseActive.set(active)
     }
 
+    /** Silenciado por avance rápido, y cuántas veces se ha cambiado: ver [setAudioMuted]. */
+    val audioMuted = AtomicBoolean(false)
+    val audioMuteChanges = AtomicInteger(0)
+
+    override fun setAudioMuted(muted: Boolean) {
+        audioMuted.set(muted)
+        audioMuteChanges.incrementAndGet()
+    }
+
     override fun attachSurface(surface: Surface?) {
         surfaceAttached.set(surface != null)
     }

@@ -40,6 +40,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.moralesDev.dsForEveryone.R
+import com.moralesDev.dsForEveryone.data.settings.EmulationSpeed
 import com.moralesDev.dsForEveryone.data.settings.ImageFilter
 import com.moralesDev.dsForEveryone.data.settings.TouchMode
 import com.moralesDev.dsForEveryone.emulator.layout.LayoutMode
@@ -72,6 +73,8 @@ import com.moralesDev.dsForEveryone.ui.theme.textAlpha
 fun PauseMenu(
     activeLayoutMode: LayoutMode,
     onLayoutModeChange: (LayoutMode) -> Unit,
+    speed: EmulationSpeed,
+    onSpeedChange: (EmulationSpeed) -> Unit,
     touchMode: TouchMode,
     onTouchModeChange: (TouchMode) -> Unit,
     imageFilter: ImageFilter,
@@ -134,6 +137,27 @@ fun PauseMenu(
                     overflow = TextOverflow.Ellipsis,
                 )
                 LayoutModeChips(selected = activeLayoutMode, onSelect = onLayoutModeChange)
+            }
+
+            Column(
+                modifier = Modifier.padding(top = 14.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Text(
+                    text = stringResource(R.string.pa_speed),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = textAlpha(0.55f),
+                )
+                SpeedChips(selected = speed, onSelect = onSpeedChange)
+                // Aquí, no en un aviso al pulsar: el sonido se va en cuanto
+                // se acelera y conviene saberlo antes, no cuando ya pasó.
+                if (speed.isFast) {
+                    Text(
+                        text = stringResource(R.string.speed_muted_hint),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = textAlpha(0.45f),
+                    )
+                }
             }
 
             Column(
@@ -310,6 +334,35 @@ internal fun LayoutModeChips(selected: LayoutMode, onSelect: (LayoutMode) -> Uni
             }
         }
     }
+}
+
+/** Las tres velocidades, con la misma forma de chip que [LayoutModeChips]. */
+@Composable
+internal fun SpeedChips(selected: EmulationSpeed, onSelect: (EmulationSpeed) -> Unit) {
+    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        EmulationSpeed.entries.forEach { speed ->
+            val isSelected = speed == selected
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(if (isSelected) Accent.copy(alpha = 0.30f) else Glass)
+                    .clickable { onSelect(speed) }
+                    .padding(horizontal = 12.dp, vertical = 7.dp),
+            ) {
+                Text(
+                    text = stringResource(speed.labelRes()),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = if (isSelected) Accent200 else textAlpha(0.6f),
+                )
+            }
+        }
+    }
+}
+
+internal fun EmulationSpeed.labelRes(): Int = when (this) {
+    EmulationSpeed.NORMAL -> R.string.speed_normal
+    EmulationSpeed.FAST_1_5X -> R.string.speed_1_5x
+    EmulationSpeed.FAST_2X -> R.string.speed_2x
 }
 
 internal fun LayoutMode.labelRes(): Int = when (this) {
