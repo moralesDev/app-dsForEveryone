@@ -54,11 +54,8 @@ enum class EmulationSpeed(val multiplier: Float) {
     FAST_2X(2f),
     ;
 
-    /** Si esta velocidad es avance rápido; a 1x el botón ⏩ se pinta apagado. */
+    /** Si esta velocidad es avance rápido; es lo que decide si se silencia el sonido. */
     val isFast: Boolean get() = this != NORMAL
-
-    /** La siguiente del ciclo del botón ⏩: 1x → 1,5x → 2x → 1x. */
-    fun next(): EmulationSpeed = entries[(ordinal + 1) % entries.size]
 
     companion object {
         fun fromName(name: String?): EmulationSpeed? = entries.firstOrNull { it.name == name }
@@ -115,9 +112,8 @@ data class EmulatorSettings(
 
     /**
      * Velocidad de la emulación. Se guarda como cualquier otro ajuste, así
-     * que sobrevive a cerrar el juego: el botón ⏩ de la pantalla de juego se
-     * pinta encendido cuando no es 1x, para que nadie se encuentre el juego
-     * corriendo rápido sin saber por qué.
+     * que sobrevive a cerrar el juego; se ve y se cambia en el menú de pausa,
+     * que es el único sitio desde el que se toca.
      */
     val speed: EmulationSpeed = EmulationSpeed.NORMAL,
 

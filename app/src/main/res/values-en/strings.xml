@@ -48,7 +48,6 @@
     <string name="cd_menu">Open menu</string>
     <string name="cd_dpad">D-pad</string>
     <string name="cd_blow">Blow</string>
-    <string name="cd_speed">Emulation speed</string>
 
     <!-- Pause menu -->
     <string name="pa_title">Game paused</string>

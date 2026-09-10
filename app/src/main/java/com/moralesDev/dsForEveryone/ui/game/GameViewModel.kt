@@ -297,9 +297,6 @@ class GameViewModel @Inject constructor(
         viewModelScope.launch { settingsRepository.setSpeed(speed) }
     }
 
-    /** El ciclo del botón ⏩ de la pantalla de juego: 1x → 1,5x → 2x → 1x. */
-    fun cycleSpeed() = setSpeed(settings.value.speed.next())
-
     fun setImageFilter(filter: ImageFilter) {
         viewModelScope.launch { settingsRepository.setImageFilter(filter) }
     }

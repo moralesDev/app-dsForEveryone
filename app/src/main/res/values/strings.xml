@@ -54,7 +54,6 @@
     <string name="cd_menu">Abrir menú</string>
     <string name="cd_dpad">Cruceta</string>
     <string name="cd_blow">Soplar</string>
-    <string name="cd_speed">Velocidad de emulación</string>
 
     <!-- Menú de pausa -->
     <string name="pa_title">Juego en pausa</string>

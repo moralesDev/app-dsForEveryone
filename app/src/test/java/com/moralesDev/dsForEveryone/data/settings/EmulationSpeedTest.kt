@@ -23,19 +23,6 @@ class EmulationSpeedTest {
         assertTrue(EmulationSpeed.FAST_2X.isFast)
     }
 
-    @Test
-    fun `el ciclo del boton vuelve siempre a 1x`() {
-        assertEquals(EmulationSpeed.FAST_1_5X, EmulationSpeed.NORMAL.next())
-        assertEquals(EmulationSpeed.FAST_2X, EmulationSpeed.FAST_1_5X.next())
-        assertEquals(EmulationSpeed.NORMAL, EmulationSpeed.FAST_2X.next())
-
-        // Da igual dónde se empiece: tres toques devuelven al punto de
-        // partida, así que el botón nunca deja el juego en un estado del que
-        // no se pueda salir pulsándolo.
-        EmulationSpeed.entries.forEach { speed ->
-            assertEquals(speed, speed.next().next().next())
-        }
-    }
 
     @Test
     fun `un ajuste guardado que ya no existe no se inventa una velocidad`() {
