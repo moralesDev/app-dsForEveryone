@@ -897,6 +897,18 @@ Java_com_moralesDev_dsForEveryone_emulator_core_NativeBridge_nativeSetMicNoise(
 }
 
 JNIEXPORT void JNICALL
+Java_com_moralesDev_dsForEveryone_emulator_core_NativeBridge_nativeSetLidClosed(
+    JNIEnv*, jobject, jlong handle, jboolean closed) {
+    Emulator* emu = FromHandle(handle);
+    if (!emu || !emu->loaded) return;
+
+    // Ojo con llamar a esto de más: SetLidClosed(false) no sólo baja el bit,
+    // dispara IRQ_LidOpen cada vez (NDS.cpp). Quien llama —el hilo de
+    // emulación— sólo lo hace cuando el estado cambia de verdad.
+    emu->nds->SetLidClosed(closed == JNI_TRUE);
+}
+
+JNIEXPORT void JNICALL
 Java_com_moralesDev_dsForEveryone_emulator_core_NativeBridge_nativeSetAudioMuted(
     JNIEnv*, jobject, jlong handle, jboolean muted) {
     Emulator* emu = FromHandle(handle);

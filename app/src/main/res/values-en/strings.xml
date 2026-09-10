@@ -59,6 +59,7 @@
     <string name="pa_save">Save game</string>
     <string name="pa_load">Load game</string>
     <string name="pa_cheats">Cheats</string>
+    <string name="pa_lid">Close the lid</string>
     <string name="pa_cheats_count">%1$d/%2$d</string>
 
     <!-- Screen layout modes -->
@@ -67,6 +68,10 @@
     <string name="layout_top_only">Top only</string>
     <string name="layout_bottom_only">Bottom only</string>
     <string name="layout_main_secondary">Main + secondary</string>
+
+    <!-- The console lid -->
+    <string name="lid_closed">Lid closed</string>
+    <string name="lid_open_hint">Tap to open it</string>
 
     <!-- Emulation speed -->
     <string name="speed_normal">1x</string>

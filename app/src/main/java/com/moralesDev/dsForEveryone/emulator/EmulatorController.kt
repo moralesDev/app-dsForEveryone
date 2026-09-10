@@ -270,6 +270,7 @@ class EmulatorController(private val core: EmulatorCore) {
             var lastBatteryCheckAt = nextFrameAt
             var appliedSpeed = 1f
             var audioMuted = false
+            var appliedLid = false
 
             try {
                 while (running) {
@@ -310,6 +311,15 @@ class EmulatorController(private val core: EmulatorCore) {
                     val touch = input.currentTouch
                     core.setTouch(touch.x, touch.y, touch.down)
                     core.setMicNoise(input.currentMicNoise)
+
+                    // La tapa no se entrega cada fotograma como los botones:
+                    // abrirla dispara una interrupción en el core, así que
+                    // sólo se toca cuando el estado cambia de verdad.
+                    val lidClosed = input.currentLidClosed
+                    if (lidClosed != appliedLid) {
+                        appliedLid = lidClosed
+                        core.setLidClosed(lidClosed)
+                    }
                     core.runFrame()
                     frameReady = core.captureFrameInto(frameBuffer)
 

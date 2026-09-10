@@ -146,5 +146,36 @@ class InputManagerTest {
         assertEquals(TouchState(50, 50, down = true), input.currentTouch)
     }
 
+    // ---------------------------------------------------------- la tapa
+
+    @Test
+    fun `la tapa se cierra y se abre, y arranca abierta`() {
+        assertFalse(input.currentLidClosed)
+
+        input.setLidClosed(true)
+        assertTrue(input.currentLidClosed)
+
+        input.setLidClosed(false)
+        assertFalse(input.currentLidClosed)
+    }
+
+    @Test
+    fun `soltarlo todo no abre la tapa`() {
+        // Una consola con la tapa bajada sigue con la tapa bajada aunque se
+        // suelten los botones: pausar, ir a otra aplicación o volver no la
+        // abren. Sólo la abre quien la cerró.
+        input.press(DsButton.A)
+        input.setTouch(10, 10, down = true)
+        input.setMicNoise(true)
+        input.setLidClosed(true)
+
+        input.releaseAll()
+
+        assertEquals(0, input.currentMask)
+        assertEquals(TouchState.UP, input.currentTouch)
+        assertFalse(input.currentMicNoise)
+        assertTrue("La tapa no es un botón que se suelte", input.currentLidClosed)
+    }
+
     private fun InputManager.isDown(button: DsButton) = currentMask and button.mask != 0
 }

@@ -239,6 +239,23 @@ class GameViewModel @Inject constructor(
 
     fun onMicNoise(active: Boolean) = controller.input.setMicNoise(active)
 
+    /** La tapa, para el velo de la pantalla de juego. */
+    val lidClosed: StateFlow<Boolean> get() = controller.input.lidClosed
+
+    /**
+     * Cierra la tapa **y reanuda**: el juego tiene que estar corriendo para
+     * enterarse. Se llama desde el menú de pausa, donde la emulación está
+     * detenida de verdad, así que cerrar la tapa sin reanudar no haría nada
+     * —el bit se quedaría puesto sin que nadie lo leyera—. Ver docs/entrada.md.
+     */
+    fun closeLid() {
+        controller.input.setLidClosed(true)
+        controller.resume()
+    }
+
+    /** Abre la tapa. El juego ya está corriendo; sólo se levanta el bit. */
+    fun openLid() = controller.input.setLidClosed(false)
+
     fun pause() = controller.pause()
 
     fun resume() = controller.resume()

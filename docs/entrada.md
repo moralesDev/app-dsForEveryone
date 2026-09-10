@@ -106,6 +106,42 @@ El micrófono real (`RECORD_AUDIO`) queda como **decisión expresa y aplazada**.
 Rompe la regla de cero permisos, obliga a un diálogo de permiso en una app que
 hoy no pide ninguno, y aporta poco por encima del ruido simulado.
 
+## 2 bis. La tapa
+
+La DS tiene una entrada más que no es un botón: **la bisagra**. Cerrar la tapa
+pone un bit (`KeyInput`, bit 23) y abrirla dispara una interrupción
+(`IRQ_LidOpen`). Unos cuantos juegos la usan como mecánica —cerrar la tapa
+para estampar un símbolo en *Phantom Hourglass*, para que un personaje
+reaccione— y **sin ella no se puede avanzar**: no es un adorno de realismo, es
+una entrada que falta.
+
+**No es un octavo grupo de mandos.** Se cierra desde el menú de pausa, y la
+razón es la misma que hizo salir de la pantalla al botón de avance rápido:
+encima del juego cabe un botón, el de menú, y cada uno de más tapa justo la
+esquina de la pantalla superior. Además, la tapa se usa una o dos veces por
+partida, no cada minuto.
+
+**Cerrar la tapa reanuda la emulación.** Es lo que hace que la opción funcione
+desde un menú de pausa: con el hilo de emulación detenido, poner el bit no lo
+lee nadie —el juego reacciona mientras corre, no mientras está parado—. Así
+que «Cerrar la tapa» cierra el menú, cierra la tapa y sigue jugando.
+
+Encima aparece **un velo** que tapa las dos pantallas, como haría la carcasa, y
+que absorbe todos los toques: con la tapa bajada no se puede pulsar nada de la
+consola. El único gesto posible es abrirla —tocar el velo, o el botón atrás—.
+Por debajo el juego **sigue corriendo**, que es exactamente el sentido de todo
+esto.
+
+Dos detalles que no son opcionales:
+
+- **La tapa sólo se toca cuando cambia.** El hilo de emulación no reenvía su
+  estado cada fotograma como hace con la máscara de botones: abrirla dispara
+  una interrupción, y repetirla sesenta veces por segundo sería un chaparrón
+  que ningún hardware real produce.
+- **`releaseAll` no la abre.** Soltar todos los botones al pausar, al irse a
+  otra aplicación o al perder el foco no levanta la tapa: una consola con la
+  tapa bajada sigue con la tapa bajada. Sólo la abre quien la cerró.
+
 ## 3. Doce botones donde había diez
 
 ### El mapa

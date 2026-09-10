@@ -90,6 +90,19 @@ class FakeEmulatorCore(
         audioMuteChanges.incrementAndGet()
     }
 
+    /**
+     * La tapa, y cuántas veces se ha tocado. La cuenta importa tanto como el
+     * valor: en el core real, abrir la tapa dispara una interrupción, así que
+     * llamarlo de más no es inofensivo.
+     */
+    val lidClosed = AtomicBoolean(false)
+    val lidChanges = AtomicInteger(0)
+
+    override fun setLidClosed(closed: Boolean) {
+        lidClosed.set(closed)
+        lidChanges.incrementAndGet()
+    }
+
     override fun attachSurface(surface: Surface?) {
         surfaceAttached.set(surface != null)
     }

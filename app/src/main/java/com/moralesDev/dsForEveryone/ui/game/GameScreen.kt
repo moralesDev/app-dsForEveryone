@@ -9,9 +9,12 @@ import android.opengl.GLSurfaceView
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.offset
@@ -21,7 +24,9 @@ import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Bedtime
 import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -74,6 +79,7 @@ import com.moralesDev.dsForEveryone.ui.game.controls.SystemButton
 import com.moralesDev.dsForEveryone.ui.resolve
 import com.moralesDev.dsForEveryone.ui.theme.Background
 import com.moralesDev.dsForEveryone.ui.theme.GlassBorder
+import com.moralesDev.dsForEveryone.ui.theme.ScreenBezel
 import com.moralesDev.dsForEveryone.ui.theme.GlassOverVideo
 import com.moralesDev.dsForEveryone.ui.theme.Surface
 import com.moralesDev.dsForEveryone.ui.theme.textAlpha
@@ -117,6 +123,7 @@ fun GameScreen(onExit: () -> Unit) {
     val isCheatsOpen by viewModel.isCheatsOpen.collectAsStateWithLifecycle()
     val cheats by viewModel.cheats.collectAsStateWithLifecycle()
     val hasAnySaveState by viewModel.hasAnySaveState.collectAsStateWithLifecycle()
+    val lidClosed by viewModel.lidClosed.collectAsStateWithLifecycle()
     var isMenuOpen by remember { mutableStateOf(false) }
 
     FreeOrientationWhileGamepadConnected(isGamepadConnected)
@@ -124,6 +131,10 @@ fun GameScreen(onExit: () -> Unit) {
 
     BackHandler {
         when {
+            // Con la tapa cerrada el juego está corriendo y el velo lo tapa
+            // todo: atrás abre la tapa, que es lo único que se puede hacer
+            // desde ahí, en vez de sacar del juego a ciegas.
+            lidClosed -> viewModel.openLid()
             // La hoja de ranuras y la de trucos viven dentro del menú de
             // pausa (isMenuOpen sigue en true por debajo, ver más abajo):
             // cerrarlas vuelve a mostrar el menú, no reanuda la partida.
@@ -292,6 +303,10 @@ fun GameScreen(onExit: () -> Unit) {
                 // porque «Guardar estado» terminó de guardar) reaparece el
                 // menú de pausa en vez de dejar la pantalla sin overlay.
                 onCheats = viewModel::openCheats,
+                onCloseLid = {
+                    isMenuOpen = false
+                    viewModel.closeLid()
+                },
                 onResume = {
                     isMenuOpen = false
                     viewModel.resume()
@@ -333,6 +348,10 @@ fun GameScreen(onExit: () -> Unit) {
             )
         }
 
+        if (lidClosed) {
+            ClosedLidVeil(onOpen = viewModel::openLid)
+        }
+
         message?.let { pending ->
             GameToast(text = pending.resolve(), onDismiss = viewModel::consumeMessage)
         }
@@ -362,6 +381,51 @@ private fun GameToast(text: String, onDismiss: () -> Unit) {
                 .border(1.dp, GlassBorder, RoundedCornerShape(12.dp))
                 .padding(horizontal = 16.dp, vertical = 12.dp),
         )
+    }
+}
+
+/**
+ * Lo que se ve con la tapa cerrada: la consola bajada, no el juego detenido.
+ *
+ * La partida **sigue corriendo por debajo** —es justo el sentido de cerrar la
+ * tapa: que el juego se entere y haga lo suyo—, así que esto no es un menú ni
+ * una pausa, sólo tapa las dos pantallas como haría la carcasa. Absorbe todos
+ * los toques: con la tapa bajada no se puede pulsar nada de la consola, y el
+ * único gesto posible es volver a abrirla.
+ */
+@Composable
+private fun ClosedLidVeil(onOpen: () -> Unit) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(ScreenBezel.copy(alpha = 0.94f))
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                onClick = onOpen,
+            ),
+        contentAlignment = Alignment.Center,
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Icon(
+                imageVector = Icons.Filled.Bedtime,
+                contentDescription = null,
+                tint = textAlpha(0.65f),
+                modifier = Modifier.size(34.dp),
+            )
+            Text(
+                text = stringResource(R.string.lid_closed),
+                style = MaterialTheme.typography.titleSmall,
+                color = textAlpha(0.85f),
+                modifier = Modifier.padding(top = 14.dp),
+            )
+            Text(
+                text = stringResource(R.string.lid_open_hint),
+                style = MaterialTheme.typography.labelMedium,
+                color = textAlpha(0.5f),
+                modifier = Modifier.padding(top = 6.dp),
+            )
+        }
     }
 }
 

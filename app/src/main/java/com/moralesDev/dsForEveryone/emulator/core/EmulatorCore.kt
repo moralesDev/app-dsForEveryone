@@ -18,7 +18,7 @@ import java.nio.ByteBuffer
  * ## Contrato de hilos
  *
  * - [load], [unload], [runFrame], [setKeys], [setTouch], [setMicNoise],
- *   [setAudioMuted],
+ *   [setAudioMuted], [setLidClosed],
  *   [stateSize], [serializeState], [deserializeState], [readBattery],
  *   [consumeBatteryDirty], [captureFrame] y [captureFrameInto] se llaman
  *   **siempre** desde el hilo de emulación, nunca desde el hilo principal.
@@ -104,6 +104,24 @@ interface EmulatorCore {
      * soplar esté pulsado. Sin `RECORD_AUDIO`: ver docs/entrada.md.
      */
     fun setMicNoise(active: Boolean)
+
+    /**
+     * Cierra o abre la tapa de la consola.
+     *
+     * No es un botón: es el estado de la bisagra, que la DS expone como un bit
+     * más de la entrada. Unos cuantos juegos lo usan como mecánica —cerrar la
+     * tapa para estampar un símbolo, para que un personaje reaccione— y sin
+     * ello no se puede avanzar.
+     *
+     * Se llama **sólo cuando el estado cambia**, nunca una vez por fotograma:
+     * abrir la tapa dispara una interrupción en el core, y repetirla cada
+     * fotograma sería un chaparrón de interrupciones que ningún hardware real
+     * produce. Ver docs/entrada.md, «La tapa».
+     *
+     * Implementación por defecto: no hacer nada, que es lo que basta a un core
+     * sin bisagra que emular como [StubEmulatorCore].
+     */
+    fun setLidClosed(closed: Boolean) {}
 
     /**
      * Silencia la salida de audio sin detenerla. Existe por el avance rápido:

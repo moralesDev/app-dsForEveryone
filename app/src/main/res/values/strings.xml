@@ -65,6 +65,7 @@
     <string name="pa_save">Guardar partida</string>
     <string name="pa_load">Cargar partida</string>
     <string name="pa_cheats">Trucos</string>
+    <string name="pa_lid">Cerrar la tapa</string>
     <string name="pa_cheats_count">%1$d/%2$d</string>
 
     <!-- Modos de disposición de pantallas -->
@@ -73,6 +74,10 @@
     <string name="layout_top_only">Solo superior</string>
     <string name="layout_bottom_only">Solo inferior</string>
     <string name="layout_main_secondary">Principal + secundaria</string>
+
+    <!-- La tapa de la consola -->
+    <string name="lid_closed">Tapa cerrada</string>
+    <string name="lid_open_hint">Toca para abrirla</string>
 
     <!-- Velocidad de emulación -->
     <string name="speed_normal">1x</string>

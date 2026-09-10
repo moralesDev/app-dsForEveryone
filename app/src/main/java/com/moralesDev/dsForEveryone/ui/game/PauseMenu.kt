@@ -24,6 +24,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Logout
+import androidx.compose.material.icons.filled.Bedtime
 import androidx.compose.material.icons.filled.FlashOn
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Save
@@ -83,6 +84,7 @@ fun PauseMenu(
     cheatsActive: Int,
     cheatsTotal: Int,
     onCheats: () -> Unit,
+    onCloseLid: () -> Unit,
     onResume: () -> Unit,
     onExit: () -> Unit,
     modifier: Modifier = Modifier,
@@ -221,6 +223,14 @@ fun PauseMenu(
                 icon = Icons.Filled.FlashOn,
                 trailing = stringResource(R.string.pa_cheats_count, cheatsActive, cheatsTotal),
                 onClick = onCheats,
+            )
+            // Cerrar la tapa reanuda la partida, no la deja en pausa: con la
+            // emulación detenida el juego no llega a leer el bit de la
+            // bisagra. Ver docs/entrada.md, «La tapa».
+            MenuRow(
+                label = stringResource(R.string.pa_lid),
+                icon = Icons.Filled.Bedtime,
+                onClick = onCloseLid,
             )
 
             Box(

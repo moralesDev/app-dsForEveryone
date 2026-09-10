@@ -394,6 +394,48 @@ class EmulatorControllerTest {
         assertTrue(core.audioMuted.get())
     }
 
+    // ---------------------------------------------------------- la tapa
+
+    @Test
+    fun `la tapa llega al core, y solo cuando cambia`() = runTest {
+        controller.open(ROM, batterySave = null)
+        controller.resume()
+        waitUntil { core.frames.get() > 5 }
+
+        // Nadie ha tocado la tapa: el core no se entera de nada. Esto no es
+        // una optimización, es el contrato: abrirla dispara una interrupción.
+        assertEquals(0, core.lidChanges.get())
+
+        controller.input.setLidClosed(true)
+        waitUntil { core.lidClosed.get() }
+        assertEquals(1, core.lidChanges.get())
+
+        // Muchos fotogramas con la tapa cerrada, y sigue habiendo una sola
+        // llamada: no se reenvía el estado cada vuelta como la máscara.
+        val frames = core.frames.get()
+        waitUntil { core.frames.get() > frames + 5 }
+        assertEquals(1, core.lidChanges.get())
+
+        controller.input.setLidClosed(false)
+        waitUntil { !core.lidClosed.get() }
+        assertEquals(2, core.lidChanges.get())
+    }
+
+    @Test
+    fun `pausar no abre la tapa`() = runTest {
+        controller.open(ROM, batterySave = null)
+        controller.resume()
+        controller.input.setLidClosed(true)
+        waitUntil { core.lidClosed.get() }
+
+        // pause() suelta todos los botones; la tapa no es uno de ellos.
+        controller.pause()
+        Thread.sleep(80)
+
+        assertTrue(core.lidClosed.get())
+        assertEquals(1, core.lidChanges.get())
+    }
+
     @Test
     fun `la velocidad se recorta a lo que la UI puede pedir`() {
         controller.setSpeed(5f)

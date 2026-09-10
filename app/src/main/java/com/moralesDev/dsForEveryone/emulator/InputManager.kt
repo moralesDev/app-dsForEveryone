@@ -39,10 +39,12 @@ class InputManager {
     private val mask = AtomicInteger(0)
     private val touch = AtomicReference(TouchState.UP)
     private val micNoise = AtomicBoolean(false)
+    private val lid = AtomicBoolean(false)
 
     private val _pressed = MutableStateFlow(0)
     private val _touch = MutableStateFlow(TouchState.UP)
     private val _micNoise = MutableStateFlow(false)
+    private val _lidClosed = MutableStateFlow(false)
 
     /** Máscara observable para pintar el estado de los botones. */
     val pressed: StateFlow<Int> = _pressed.asStateFlow()
@@ -61,6 +63,12 @@ class InputManager {
 
     /** Si el core debe inyectar ruido de micrófono en este fotograma. */
     val currentMicNoise: Boolean get() = micNoise.get()
+
+    /** Si la tapa está cerrada ahora mismo. Lo lee el hilo de emulación una vez por vuelta. */
+    val currentLidClosed: Boolean get() = lid.get()
+
+    /** La tapa, observable: es lo que pinta el velo de «tapa cerrada» sobre el juego. */
+    val lidClosed: StateFlow<Boolean> = _lidClosed.asStateFlow()
 
     fun press(button: DsButton) {
         publishMask(mask.updateAndGet { it or button.mask })
@@ -109,6 +117,19 @@ class InputManager {
     fun setMicNoise(active: Boolean) {
         micNoise.set(active)
         _micNoise.value = active
+    }
+
+    /**
+     * Cierra o abre la tapa de la consola.
+     *
+     * No es un botón que se mantenga pulsado, y por eso **no** lo suelta
+     * [releaseAll]: es el estado de la bisagra. Si la tapa está cerrada,
+     * pausar, irse a otra aplicación o volver no la abren —una consola con la
+     * tapa bajada sigue con la tapa bajada—; sólo la abre quien la cerró.
+     */
+    fun setLidClosed(closed: Boolean) {
+        lid.set(closed)
+        _lidClosed.value = closed
     }
 
     /** Suelta todo. Se usa al pausar, al abrir el menú y al perder el foco. */
