@@ -15,6 +15,7 @@ import com.moralesDev.dsForEveryone.data.save.SaveStateManager
 import com.moralesDev.dsForEveryone.data.save.SaveStateSlot
 import com.moralesDev.dsForEveryone.data.save.StateIdentity
 import com.moralesDev.dsForEveryone.data.save.StateReadResult
+import com.moralesDev.dsForEveryone.data.settings.EmulationSpeed
 import com.moralesDev.dsForEveryone.data.settings.EmulatorSettings
 import com.moralesDev.dsForEveryone.data.settings.ImageFilter
 import com.moralesDev.dsForEveryone.data.settings.SettingsRepository
@@ -174,6 +175,13 @@ class GameViewModel @Inject constructor(
             }
         }
 
+        // La velocidad guardada se aplica al hilo de emulación en cuanto
+        // cambia, sin esperar a que se reanude nada: el botón de avance
+        // rápido escribe el ajuste y el efecto llega por aquí.
+        viewModelScope.launch {
+            settings.collect { controller.setSpeed(it.speed.multiplier) }
+        }
+
         viewModelScope.launch {
             val rom = romId?.let { romRepository.findById(it) }
             _rom.value = rom
@@ -231,9 +239,62 @@ class GameViewModel @Inject constructor(
 
     fun onMicNoise(active: Boolean) = controller.input.setMicNoise(active)
 
+    /** La tapa, para el velo de la pantalla de juego. */
+    val lidClosed: StateFlow<Boolean> get() = controller.input.lidClosed
+
+    /**
+     * Cierra la tapa **y reanuda**: el juego tiene que estar corriendo para
+     * enterarse. Se llama desde el menú de pausa, donde la emulación está
+     * detenida de verdad, así que cerrar la tapa sin reanudar no haría nada
+     * —el bit se quedaría puesto sin que nadie lo leyera—. Ver docs/entrada.md.
+     */
+    fun closeLid() {
+        controller.input.setLidClosed(true)
+        controller.resume()
+    }
+
+    /** Abre la tapa. El juego ya está corriendo; sólo se levanta el bit. */
+    fun openLid() = controller.input.setLidClosed(false)
+
     fun pause() = controller.pause()
 
     fun resume() = controller.resume()
+
+    /**
+     * Si la partida se detuvo sólo porque la aplicación dejó de verse. Se
+     * distingue de una pausa del usuario —el menú de pausa— porque a la
+     * vuelta hay que reanudar una y no la otra: quien dejó el menú abierto
+     * espera encontrárselo abierto.
+     */
+    private var pausedByBackground = false
+
+    /**
+     * La pantalla de juego deja de verse (inicio, otra aplicación, apagar la
+     * pantalla). El hilo de emulación **no** se detiene solo: seguiría
+     * emulando y sonando en segundo plano, gastando batería en un juego que
+     * nadie está mirando.
+     *
+     * Además se vuelca la partida: irse de la aplicación es justo el momento
+     * en el que el sistema puede matar el proceso sin avisar, y entonces
+     * `onCleared` no llega a ejecutarse nunca.
+     */
+    fun onScreenHidden() {
+        if (controller.status.value == EmulatorStatus.RUNNING) {
+            pausedByBackground = true
+            controller.pause()
+        }
+        val rid = romId ?: return
+        applicationScope.launch {
+            controller.flushBattery()?.let { saveManager.persistBattery(rid, it) }
+        }
+    }
+
+    /** Vuelve a verse: se reanuda sólo si la pausa la había puesto [onScreenHidden]. */
+    fun onScreenShown() {
+        if (!pausedByBackground) return
+        pausedByBackground = false
+        controller.resume()
+    }
 
     fun setLayoutMode(mode: LayoutMode, portrait: Boolean) {
         viewModelScope.launch {
@@ -247,6 +308,10 @@ class GameViewModel @Inject constructor(
 
     fun setTouchMode(mode: TouchMode) {
         viewModelScope.launch { settingsRepository.setTouchMode(mode) }
+    }
+
+    fun setSpeed(speed: EmulationSpeed) {
+        viewModelScope.launch { settingsRepository.setSpeed(speed) }
     }
 
     fun setImageFilter(filter: ImageFilter) {

@@ -119,4 +119,32 @@ class LayoutEngineTest {
         assertEquals(23f, LayoutEngine.snapToGrid(23f, 0f), 0.001f)
         assertEquals(23f, LayoutEngine.snapToGrid(23f, -5f), 0.001f)
     }
+
+    // ---------------------------- inset
+
+    @Test
+    fun `inset recorta cada lado por su margen`() {
+        val recortado = LayoutRect(0f, 0f, 100f, 200f)
+            .inset(LayoutInsets(left = 5f, top = 10f, right = 15f, bottom = 20f))
+
+        assertEquals(LayoutRect(5f, 10f, 85f, 180f), recortado)
+    }
+
+    @Test
+    fun `inset sin margenes deja el rectangulo igual`() {
+        val rect = LayoutRect(3f, 4f, 100f, 200f)
+
+        assertEquals(rect, rect.inset(LayoutInsets.NONE))
+    }
+
+    @Test
+    fun `unos margenes mayores que el rectangulo lo dejan sin area, no invertido`() {
+        val recortado = LayoutRect(0f, 0f, 100f, 100f)
+            .inset(LayoutInsets(left = 80f, top = 90f, right = 80f, bottom = 90f))
+
+        assertEquals(80f, recortado.left, 0.001f)
+        assertEquals(90f, recortado.top, 0.001f)
+        assertEquals(0f, recortado.width, 0.001f)
+        assertEquals(0f, recortado.height, 0.001f)
+    }
 }

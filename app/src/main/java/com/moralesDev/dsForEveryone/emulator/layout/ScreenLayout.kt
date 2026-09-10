@@ -58,6 +58,12 @@ object ScreenLayout {
      *   [LayoutMode.MAIN_AND_SECONDARY], 0..1 relativo a la principal.
      * @param swapped intercambia qué pantalla se pinta arriba y cuál abajo.
      *   La táctil lógica ([ScreenPlacement.touchScreen]) no cambia por esto.
+     * @param insets márgenes que reservan las barras del sistema dentro de
+     *   [available]. Las pantallas se colocan sólo en lo que queda: la táctil
+     *   no puede caer debajo de la barra de navegación, porque ahí los toques
+     *   son del sistema y una opción del juego dibujada en esa franja sería
+     *   imposible de pulsar. Las proporciones se calculan ya sobre el hueco
+     *   recortado, así que las dos pantallas siguen siendo 4:3.
      */
     fun resolve(
         mode: LayoutMode,
@@ -65,10 +71,11 @@ object ScreenLayout {
         gap: Float = 0f,
         secondaryScale: Float = 0.35f,
         swapped: Boolean = false,
+        insets: LayoutInsets = LayoutInsets.NONE,
     ): ScreenPlacement {
         val clampedGap = gap.coerceIn(0f, 1f)
         val clampedScale = secondaryScale.coerceIn(0.05f, 0.95f)
-        val area = LayoutRect(0f, 0f, available.width, available.height)
+        val area = LayoutRect(0f, 0f, available.width, available.height).inset(insets)
 
         // "first"/"second" son las posiciones físicas ANTES de aplicar el
         // intercambio: first es la que ocuparía la pantalla superior, second

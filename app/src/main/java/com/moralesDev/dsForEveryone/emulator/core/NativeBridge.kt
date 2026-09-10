@@ -65,6 +65,12 @@ internal object NativeBridge {
 
     external fun nativeSetMicNoise(handle: Long, active: Boolean)
 
+    /** Ver [EmulatorCore.setAudioMuted]: el core sigue produciendo muestras, sólo que no se entregan. */
+    external fun nativeSetAudioMuted(handle: Long, muted: Boolean)
+
+    /** Ver [EmulatorCore.setLidClosed]. Sólo se llama cuando el estado cambia: abrir dispara una IRQ. */
+    external fun nativeSetLidClosed(handle: Long, closed: Boolean)
+
     external fun nativeStateSize(handle: Long): Int
 
     external fun nativeSerializeState(handle: Long): ByteArray?

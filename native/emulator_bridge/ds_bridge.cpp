@@ -93,6 +93,11 @@ struct Emulator {
     std::atomic<bool> micNoiseActive{false};
     std::atomic<bool> batteryDirty{false};
 
+    // Avance rápido: a 1,5x o 2x el SPU produce muestras más deprisa de lo
+    // que AAudio las consume, así que se siguen vaciando del SPU pero no se
+    // empujan al anillo. Ver nativeRunFrame y EmulatorCore.setAudioMuted.
+    std::atomic<bool> audioMuted{false};
+
     std::unique_ptr<int16_t[]> ring{new int16_t[kAudioRingFrames * 2]};
     std::atomic<unsigned> ringRead{0};
     std::atomic<unsigned> ringWrite{0};
@@ -154,10 +159,31 @@ unsigned RingPop(Emulator* emu, int16_t* out, unsigned count) {
     return available;
 }
 
+/**
+ * Descarta lo que quede en el anillo. Lo llama SIEMPRE el consumidor (el
+ * callback de AAudio), que es el dueño de ringRead: adelantar ese índice
+ * desde el hilo de emulación sería una carrera con el propio callback.
+ */
+void RingDiscard(Emulator* emu) {
+    const unsigned write = emu->ringWrite.load(std::memory_order_acquire);
+    emu->ringRead.store(write, std::memory_order_release);
+}
+
 aaudio_data_callback_result_t AudioCallback(
     AAudioStream*, void* userData, void* audioData, int32_t numFrames) {
     auto* emu = static_cast<Emulator*>(userData);
     auto* out = static_cast<int16_t*>(audioData);
+
+    // Silenciado (avance rápido, o partida en pausa): silencio inmediato, y
+    // se tira lo que quedaba pendiente. Sin esto sonaría el medio segundo
+    // que ya estaba en el anillo —al salir de la aplicación, la música
+    // seguiría un instante— y ese resto volvería a sonar, viejo, al reanudar.
+    if (emu->audioMuted.load(std::memory_order_relaxed)) {
+        RingDiscard(emu);
+        memset(out, 0, static_cast<size_t>(numFrames) * 2 * sizeof(int16_t));
+        return AAUDIO_CALLBACK_RESULT_CONTINUE;
+    }
+
     unsigned got = RingPop(emu, out, static_cast<unsigned>(numFrames));
     if (got < static_cast<unsigned>(numFrames)) {
         // El anillo se vacía si la emulación no ha entregado nada todavía o
@@ -769,7 +795,13 @@ Java_com_moralesDev_dsForEveryone_emulator_core_NativeBridge_nativeRunFrame(
         if (available > kAudioDrainMax) available = kAudioDrainMax;
         int16_t buffer[kAudioDrainMax * 2];
         int got = spu.ReadOutput(buffer, available);
-        if (got > 0) RingPush(emu, buffer, static_cast<unsigned>(got));
+        // Silenciado (avance rápido): se vacía el SPU igual —su búfer de
+        // salida hay que consumirlo, o se llena y descarta él por su cuenta—
+        // pero no se entrega nada al anillo. El resultado es silencio limpio,
+        // no audio picado.
+        if (got > 0 && !emu->audioMuted.load(std::memory_order_relaxed)) {
+            RingPush(emu, buffer, static_cast<unsigned>(got));
+        }
     }
 }
 
@@ -862,6 +894,25 @@ Java_com_moralesDev_dsForEveryone_emulator_core_NativeBridge_nativeSetMicNoise(
     JNIEnv*, jobject, jlong handle, jboolean active) {
     Emulator* emu = FromHandle(handle);
     if (emu) emu->micNoiseActive.store(active == JNI_TRUE, std::memory_order_relaxed);
+}
+
+JNIEXPORT void JNICALL
+Java_com_moralesDev_dsForEveryone_emulator_core_NativeBridge_nativeSetLidClosed(
+    JNIEnv*, jobject, jlong handle, jboolean closed) {
+    Emulator* emu = FromHandle(handle);
+    if (!emu || !emu->loaded) return;
+
+    // Ojo con llamar a esto de más: SetLidClosed(false) no sólo baja el bit,
+    // dispara IRQ_LidOpen cada vez (NDS.cpp). Quien llama —el hilo de
+    // emulación— sólo lo hace cuando el estado cambia de verdad.
+    emu->nds->SetLidClosed(closed == JNI_TRUE);
+}
+
+JNIEXPORT void JNICALL
+Java_com_moralesDev_dsForEveryone_emulator_core_NativeBridge_nativeSetAudioMuted(
+    JNIEnv*, jobject, jlong handle, jboolean muted) {
+    Emulator* emu = FromHandle(handle);
+    if (emu) emu->audioMuted.store(muted == JNI_TRUE, std::memory_order_relaxed);
 }
 
 JNIEXPORT jint JNICALL

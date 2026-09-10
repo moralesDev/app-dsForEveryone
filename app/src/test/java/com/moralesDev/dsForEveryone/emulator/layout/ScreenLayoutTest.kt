@@ -200,4 +200,95 @@ class ScreenLayoutTest {
             assertTrue(placement.touchScreen.width >= 0f && placement.touchScreen.height >= 0f)
         }
     }
+
+    // ---------------------------- márgenes de las barras del sistema
+
+    /**
+     * En horizontal las dos pantallas ocupan todo el alto, así que la táctil
+     * se metía debajo de la barra de navegación y las pulsaciones de esa
+     * franja se las quedaba el sistema. Con márgenes, ninguna pantalla puede
+     * pisarlos en ningún modo.
+     */
+    @Test
+    fun `ninguna pantalla invade los margenes del sistema`() {
+        // Barra de estado arriba y de navegación a la derecha: la colocación
+        // típica de un teléfono en horizontal con los tres botones.
+        val insets = LayoutInsets(left = 0f, top = 66f, right = 120f, bottom = 48f)
+        for ((label, size) in sizes) {
+            val usable = LayoutRect(
+                insets.left,
+                insets.top,
+                size.width - insets.right,
+                size.height - insets.bottom,
+            )
+            for (mode in LayoutMode.entries) {
+                for (swapped in listOf(false, true)) {
+                    val placement = ScreenLayout.resolve(
+                        mode,
+                        size,
+                        gap = 0.05f,
+                        secondaryScale = 0.35f,
+                        swapped = swapped,
+                        insets = insets,
+                    )
+                    assertTrue(
+                        "$mode en $label: topScreen pisa una barra (${placement.topScreen})",
+                        LayoutEngine.isWithin(placement.topScreen, usable),
+                    )
+                    assertTrue(
+                        "$mode en $label: touchScreen pisa una barra (${placement.touchScreen})",
+                        LayoutEngine.isWithin(placement.touchScreen, usable),
+                    )
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `las pantallas siguen siendo 4-3 con margenes`() {
+        val insets = LayoutInsets(top = 66f, right = 120f, bottom = 48f)
+        for ((label, size) in sizes) {
+            for (mode in LayoutMode.entries) {
+                val placement = ScreenLayout.resolve(mode, size, gap = 0.05f, insets = insets)
+                listOf(placement.topScreen, placement.touchScreen)
+                    .filter { it.width > 0f || it.height > 0f }
+                    .forEach { rect ->
+                        assertEquals(
+                            "$mode en $label: $rect no es 4:3",
+                            ScreenLayout.SCREEN_ASPECT_RATIO,
+                            rect.width / rect.height,
+                            0.01f,
+                        )
+                    }
+            }
+        }
+    }
+
+    @Test
+    fun `sin margenes el resultado no cambia`() {
+        for ((_, size) in sizes) {
+            for (mode in LayoutMode.entries) {
+                val sinMargenes = ScreenLayout.resolve(mode, size, gap = 0.05f, secondaryScale = 0.35f)
+                val conCero = ScreenLayout.resolve(
+                    mode,
+                    size,
+                    gap = 0.05f,
+                    secondaryScale = 0.35f,
+                    insets = LayoutInsets.NONE,
+                )
+                assertEquals(sinMargenes, conCero)
+            }
+        }
+    }
+
+    @Test
+    fun `unos margenes mayores que el hueco no invierten ninguna pantalla`() {
+        val size = LayoutSize(600f, 400f)
+        val insets = LayoutInsets(left = 400f, top = 300f, right = 400f, bottom = 300f)
+        for (mode in LayoutMode.entries) {
+            val placement = ScreenLayout.resolve(mode, size, gap = 0.05f, insets = insets)
+            assertTrue(placement.topScreen.width >= 0f && placement.topScreen.height >= 0f)
+            assertTrue(placement.touchScreen.width >= 0f && placement.touchScreen.height >= 0f)
+        }
+    }
 }

@@ -42,6 +42,9 @@ import com.moralesDev.dsForEveryone.ui.theme.Accent200
 import com.moralesDev.dsForEveryone.ui.theme.Accent400
 import com.moralesDev.dsForEveryone.ui.theme.Glass
 import com.moralesDev.dsForEveryone.ui.theme.GlassBorder
+import com.moralesDev.dsForEveryone.ui.theme.GlassOverVideo
+import com.moralesDev.dsForEveryone.ui.theme.GlassOverVideoBorder
+import com.moralesDev.dsForEveryone.ui.theme.GlassOverVideoStrong
 import com.moralesDev.dsForEveryone.ui.theme.GlassStrong
 import com.moralesDev.dsForEveryone.ui.theme.Neutral600
 import com.moralesDev.dsForEveryone.ui.theme.Surface
@@ -100,7 +103,13 @@ fun AccentButton(
     }
 }
 
-/** Botón de vidrio cuadrado con icono: ajustes, volver, cerrar. */
+/**
+ * Botón de vidrio cuadrado con icono: ajustes, volver, cerrar.
+ *
+ * [overVideo] lo cambia al vidrio invertido de [GlassOverVideo]: es lo que
+ * hay que usar cuando debajo está la imagen del juego y no el fondo de la
+ * aplicación. Ver ese color.
+ */
 @Composable
 fun GlassIconButton(
     icon: ImageVector,
@@ -109,6 +118,7 @@ fun GlassIconButton(
     modifier: Modifier = Modifier,
     size: Dp = 38.dp,
     cornerRadius: Dp = 11.dp,
+    overVideo: Boolean = false,
 ) {
     val interaction = remember { MutableInteractionSource() }
     val pressed by interaction.collectIsPressedAsState()
@@ -120,15 +130,22 @@ fun GlassIconButton(
             .size(size)
             .scale(scale)
             .clip(shape)
-            .background(if (pressed) GlassStrong else Glass)
-            .border(1.dp, GlassBorder, shape)
+            .background(
+                when {
+                    overVideo && pressed -> GlassOverVideoStrong
+                    overVideo -> GlassOverVideo
+                    pressed -> GlassStrong
+                    else -> Glass
+                },
+            )
+            .border(1.dp, if (overVideo) GlassOverVideoBorder else GlassBorder, shape)
             .clickable(interactionSource = interaction, indication = null, onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
         Icon(
             imageVector = icon,
             contentDescription = contentDescription,
-            tint = textAlpha(0.75f),
+            tint = textAlpha(if (overVideo) 0.92f else 0.75f),
             modifier = Modifier.size(18.dp),
         )
     }

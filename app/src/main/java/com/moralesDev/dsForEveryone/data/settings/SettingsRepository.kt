@@ -45,6 +45,7 @@ class SettingsRepository(private val context: Context) {
             screensSwapped = preferences[Keys.SCREENS_SWAPPED] ?: DEFAULT.screensSwapped,
             imageFilter = ImageFilter.fromName(preferences[Keys.IMAGE_FILTER])
                 ?: DEFAULT.imageFilter,
+            speed = EmulationSpeed.fromName(preferences[Keys.SPEED]) ?: DEFAULT.speed,
             touchMode = TouchMode.fromName(preferences[Keys.TOUCH_MODE]) ?: DEFAULT.touchMode,
             touchOffsetDp = preferences[Keys.TOUCH_OFFSET_DP] ?: DEFAULT.touchOffsetDp,
             portraitControlLayout = preferences[Keys.PORTRAIT_CONTROLS]?.let(ControlLayout::decode),
@@ -75,6 +76,8 @@ class SettingsRepository(private val context: Context) {
     suspend fun setScreensSwapped(swapped: Boolean) = edit { it[Keys.SCREENS_SWAPPED] = swapped }
 
     suspend fun setImageFilter(filter: ImageFilter) = edit { it[Keys.IMAGE_FILTER] = filter.name }
+
+    suspend fun setSpeed(speed: EmulationSpeed) = edit { it[Keys.SPEED] = speed.name }
 
     suspend fun setTouchMode(mode: TouchMode) = edit { it[Keys.TOUCH_MODE] = mode.name }
 
@@ -125,6 +128,7 @@ class SettingsRepository(private val context: Context) {
         val SECONDARY_SCALE = floatPreferencesKey("secondary_scale")
         val SCREENS_SWAPPED = booleanPreferencesKey("screens_swapped")
         val IMAGE_FILTER = stringPreferencesKey("image_filter")
+        val SPEED = stringPreferencesKey("speed")
         val TOUCH_MODE = stringPreferencesKey("touch_mode")
         val TOUCH_OFFSET_DP = floatPreferencesKey("touch_offset_dp")
         val PORTRAIT_CONTROLS = stringPreferencesKey("portrait_controls")

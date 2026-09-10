@@ -9,9 +9,12 @@ import android.opengl.GLSurfaceView
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.offset
@@ -21,7 +24,9 @@ import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Bedtime
 import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -40,11 +45,15 @@ import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.moralesDev.dsForEveryone.R
 import com.moralesDev.dsForEveryone.data.cheats.CheatsManager
@@ -53,12 +62,13 @@ import com.moralesDev.dsForEveryone.emulator.DsButton
 import com.moralesDev.dsForEveryone.emulator.layout.ControlGroup
 import com.moralesDev.dsForEveryone.emulator.layout.ControlLayout
 import com.moralesDev.dsForEveryone.emulator.layout.ControlLayoutProfile
+import com.moralesDev.dsForEveryone.emulator.layout.LayoutInsets
 import com.moralesDev.dsForEveryone.emulator.layout.LayoutRect
 import com.moralesDev.dsForEveryone.emulator.layout.LayoutSize
 import com.moralesDev.dsForEveryone.emulator.layout.ScreenLayout
 import com.moralesDev.dsForEveryone.emulator.layout.ScreenPlacement
 import com.moralesDev.dsForEveryone.emulator.layout.TouchRouter
-import com.moralesDev.dsForEveryone.emulator.layout.shiftedDown
+import com.moralesDev.dsForEveryone.emulator.layout.inset
 import com.moralesDev.dsForEveryone.emulator.render.DsGLRenderer
 import com.moralesDev.dsForEveryone.ui.components.GlassIconButton
 import com.moralesDev.dsForEveryone.ui.game.controls.ActionButtons
@@ -69,7 +79,10 @@ import com.moralesDev.dsForEveryone.ui.game.controls.SystemButton
 import com.moralesDev.dsForEveryone.ui.resolve
 import com.moralesDev.dsForEveryone.ui.theme.Background
 import com.moralesDev.dsForEveryone.ui.theme.GlassBorder
+import com.moralesDev.dsForEveryone.ui.theme.ScreenBezel
+import com.moralesDev.dsForEveryone.ui.theme.GlassOverVideo
 import com.moralesDev.dsForEveryone.ui.theme.Surface
+import com.moralesDev.dsForEveryone.ui.theme.textAlpha
 
 /**
  * Pantalla de juego (entregable 2.6): las dos pantallas con [DsGLRenderer],
@@ -110,12 +123,18 @@ fun GameScreen(onExit: () -> Unit) {
     val isCheatsOpen by viewModel.isCheatsOpen.collectAsStateWithLifecycle()
     val cheats by viewModel.cheats.collectAsStateWithLifecycle()
     val hasAnySaveState by viewModel.hasAnySaveState.collectAsStateWithLifecycle()
+    val lidClosed by viewModel.lidClosed.collectAsStateWithLifecycle()
     var isMenuOpen by remember { mutableStateOf(false) }
 
     FreeOrientationWhileGamepadConnected(isGamepadConnected)
+    PauseWhileHidden(onHidden = viewModel::onScreenHidden, onShown = viewModel::onScreenShown)
 
     BackHandler {
         when {
+            // Con la tapa cerrada el juego está corriendo y el velo lo tapa
+            // todo: atrás abre la tapa, que es lo único que se puede hacer
+            // desde ahí, en vez de sacar del juego a ciegas.
+            lidClosed -> viewModel.openLid()
             // La hoja de ranuras y la de trucos viven dentro del menú de
             // pausa (isMenuOpen sigue en true por debajo, ver más abajo):
             // cerrarlas vuelve a mostrar el menú, no reanuda la partida.
@@ -138,52 +157,53 @@ fun GameScreen(onExit: () -> Unit) {
     val density = LocalDensity.current
     val minTouchTargetPx = with(density) { ControlLayout.MIN_TOUCH_TARGET_DP.dp.toPx() }
 
-    // Ni la barra de estado ni la de navegación consumen touches para la
-    // app, pero por motivos distintos hay que dejarles hueco: la de estado
-    // taparía parte del dibujo de la pantalla superior si empezara en
-    // y = 0, así que las dos pantallas se calculan en el hueco que queda
-    // por debajo y se corren hacia abajo esa misma distancia. La de
-    // navegación no tapa dibujo (las pantallas no llegan tan abajo), pero sí
-    // haría inalcanzable cualquier mando que cayera ahí, así que a los
-    // mandos —más abajo— se les da el hueco completo menos ese margen.
-    val topInsetPx = WindowInsets.systemBars.getTop(density).toFloat()
-    val bottomInsetPx = WindowInsets.systemBars.getBottom(density).toFloat()
+    // Las barras del sistema no consumen toques de la app, pero el sistema sí
+    // se queda los suyos: lo que caiga debajo de una barra es inalcanzable,
+    // se dibuje o no. Así que hay un único hueco utilizable —la ventana menos
+    // las cuatro barras— y dentro de él van tanto las dos pantallas como los
+    // mandos. Los cuatro lados y no sólo arriba y abajo: en horizontal, con
+    // los tres botones, la barra de navegación se coloca a un lado.
+    val systemBars = WindowInsets.systemBars
+    val insets = LayoutInsets(
+        left = systemBars.getLeft(density, LocalLayoutDirection.current).toFloat(),
+        top = systemBars.getTop(density).toFloat(),
+        right = systemBars.getRight(density, LocalLayoutDirection.current).toFloat(),
+        bottom = systemBars.getBottom(density).toFloat(),
+    )
 
     var availableSize by remember { mutableStateOf(LayoutSize(0f, 0f)) }
+    val usableArea = remember(availableSize, insets) {
+        LayoutRect(0f, 0f, availableSize.width, availableSize.height).inset(insets)
+    }
+
     val placement = remember(
         activeMode,
         availableSize,
-        topInsetPx,
+        insets,
         settings.screenGap,
         settings.secondaryScale,
         settings.screensSwapped,
     ) {
         if (availableSize.width > 0f && availableSize.height > 0f) {
-            val screensAvailable = LayoutSize(availableSize.width, (availableSize.height - topInsetPx).coerceAtLeast(0f))
-            val raw = ScreenLayout.resolve(
+            ScreenLayout.resolve(
                 mode = activeMode,
-                available = screensAvailable,
+                available = availableSize,
                 gap = settings.screenGap,
                 secondaryScale = settings.secondaryScale,
                 swapped = settings.screensSwapped,
-            )
-            ScreenPlacement(
-                topScreen = raw.topScreen.shiftedDown(topInsetPx),
-                touchScreen = raw.touchScreen.shiftedDown(topInsetPx),
+                insets = insets,
             )
         } else {
             null
         }
     }
 
-    val controlAvailableSize = LayoutSize(availableSize.width, (availableSize.height - bottomInsetPx).coerceAtLeast(0f))
-
     val activeControlLayout = if (isPortrait) settings.portraitControlLayout else settings.landscapeControlLayout
-    val controlProfile = remember(placement, controlAvailableSize, activeControlLayout, minTouchTargetPx) {
+    val controlProfile = remember(placement, usableArea, activeControlLayout, minTouchTargetPx) {
         val current = placement ?: return@remember null
         ControlLayout.resolveProfile(
             custom = activeControlLayout,
-            available = controlAvailableSize,
+            area = usableArea,
             touchScreen = current.touchScreen,
             minTouchTarget = minTouchTargetPx,
             opacity = ControlLayout.DEFAULT_OPACITY,
@@ -242,6 +262,10 @@ fun GameScreen(onExit: () -> Unit) {
             )
         }
 
+        // Un solo botón encima del juego, y por eso está: el de menú. El
+        // avance rápido vivió aquí al lado y tapaba demasiado —dos pastillas
+        // sobre la esquina de la pantalla superior—, así que se cambia sólo
+        // desde el menú de pausa, que es donde ya estaba el mismo ajuste.
         GlassIconButton(
             icon = Icons.Filled.Menu,
             contentDescription = stringResource(R.string.cd_menu),
@@ -249,6 +273,10 @@ fun GameScreen(onExit: () -> Unit) {
                 isMenuOpen = true
                 viewModel.pause()
             },
+            // Debajo está el juego, no el fondo de la aplicación: con el
+            // vidrio claro de siempre, un juego de fondo blanco borra el
+            // botón. Ver GlassOverVideo.
+            overVideo = true,
             modifier = Modifier
                 .align(Alignment.TopEnd)
                 .windowInsetsPadding(WindowInsets.systemBars)
@@ -259,6 +287,8 @@ fun GameScreen(onExit: () -> Unit) {
             PauseMenu(
                 activeLayoutMode = activeMode,
                 onLayoutModeChange = { mode -> viewModel.setLayoutMode(mode, isPortrait) },
+                speed = settings.speed,
+                onSpeedChange = viewModel::setSpeed,
                 touchMode = settings.touchMode,
                 onTouchModeChange = viewModel::setTouchMode,
                 imageFilter = settings.imageFilter,
@@ -273,6 +303,10 @@ fun GameScreen(onExit: () -> Unit) {
                 // porque «Guardar estado» terminó de guardar) reaparece el
                 // menú de pausa en vez de dejar la pantalla sin overlay.
                 onCheats = viewModel::openCheats,
+                onCloseLid = {
+                    isMenuOpen = false
+                    viewModel.closeLid()
+                },
                 onResume = {
                     isMenuOpen = false
                     viewModel.resume()
@@ -314,6 +348,10 @@ fun GameScreen(onExit: () -> Unit) {
             )
         }
 
+        if (lidClosed) {
+            ClosedLidVeil(onOpen = viewModel::openLid)
+        }
+
         message?.let { pending ->
             GameToast(text = pending.resolve(), onDismiss = viewModel::consumeMessage)
         }
@@ -343,6 +381,51 @@ private fun GameToast(text: String, onDismiss: () -> Unit) {
                 .border(1.dp, GlassBorder, RoundedCornerShape(12.dp))
                 .padding(horizontal = 16.dp, vertical = 12.dp),
         )
+    }
+}
+
+/**
+ * Lo que se ve con la tapa cerrada: la consola bajada, no el juego detenido.
+ *
+ * La partida **sigue corriendo por debajo** —es justo el sentido de cerrar la
+ * tapa: que el juego se entere y haga lo suyo—, así que esto no es un menú ni
+ * una pausa, sólo tapa las dos pantallas como haría la carcasa. Absorbe todos
+ * los toques: con la tapa bajada no se puede pulsar nada de la consola, y el
+ * único gesto posible es volver a abrirla.
+ */
+@Composable
+private fun ClosedLidVeil(onOpen: () -> Unit) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(ScreenBezel.copy(alpha = 0.94f))
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                onClick = onOpen,
+            ),
+        contentAlignment = Alignment.Center,
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Icon(
+                imageVector = Icons.Filled.Bedtime,
+                contentDescription = null,
+                tint = textAlpha(0.65f),
+                modifier = Modifier.size(34.dp),
+            )
+            Text(
+                text = stringResource(R.string.lid_closed),
+                style = MaterialTheme.typography.titleSmall,
+                color = textAlpha(0.85f),
+                modifier = Modifier.padding(top = 14.dp),
+            )
+            Text(
+                text = stringResource(R.string.lid_open_hint),
+                style = MaterialTheme.typography.labelMedium,
+                color = textAlpha(0.5f),
+                modifier = Modifier.padding(top = 6.dp),
+            )
+        }
     }
 }
 
@@ -505,6 +588,32 @@ private fun ControlGroups(
                 modifier = groupModifier,
             )
         }
+    }
+}
+
+/**
+ * Detiene la emulación mientras la pantalla de juego no se ve, y la reanuda
+ * al volver.
+ *
+ * `ON_STOP` y no `ON_PAUSE`: en pantalla dividida o con un diálogo del
+ * sistema encima la partida se sigue viendo, y ahí pararla sería un fallo,
+ * no un arreglo. Sin esto el hilo de emulación no se entera de nada —lo para
+ * `onCleared`, que sólo llega al salir del juego de verdad— y el juego se
+ * queda corriendo, y sonando, con la aplicación en segundo plano.
+ */
+@Composable
+private fun PauseWhileHidden(onHidden: () -> Unit, onShown: () -> Unit) {
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            when (event) {
+                Lifecycle.Event.ON_STOP -> onHidden()
+                Lifecycle.Event.ON_START -> onShown()
+                else -> Unit
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
 }
 

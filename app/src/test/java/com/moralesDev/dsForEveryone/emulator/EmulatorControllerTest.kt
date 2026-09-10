@@ -304,6 +304,148 @@ class EmulatorControllerTest {
         assertFalse(controller.status.value == EmulatorStatus.RUNNING)
     }
 
+    // ---------------------------------------------------------- avance rápido
+
+    @Test
+    fun `el avance rapido emula mas fotogramas en la misma ventana de reloj`() = runTest {
+        controller.open(ROM, batterySave = null)
+        controller.resume()
+        waitUntil { core.frames.get() > 2 }
+
+        val normalStart = core.frames.get()
+        Thread.sleep(WINDOW_MS)
+        val atNormalSpeed = core.frames.get() - normalStart
+
+        controller.setSpeed(2f)
+        Thread.sleep(30)
+        val fastStart = core.frames.get()
+        Thread.sleep(WINDOW_MS)
+        val atDoubleSpeed = core.frames.get() - fastStart
+
+        // El margen es generoso a propósito: lo que se comprueba es que el
+        // período se acorta de verdad, no que el reloj de una máquina de
+        // pruebas cargada acierte los 2x clavados.
+        assertTrue(
+            "A 2x deberían salir bastantes más fotogramas: $atNormalSpeed frente a $atDoubleSpeed",
+            atDoubleSpeed > atNormalSpeed * 1.4,
+        )
+    }
+
+    @Test
+    fun `el avance rapido silencia el audio y volver a 1x lo devuelve`() = runTest {
+        controller.open(ROM, batterySave = null)
+        controller.resume()
+        waitUntil { core.frames.get() > 2 }
+        assertFalse("A 1x no se silencia nada", core.audioMuted.get())
+
+        controller.setSpeed(1.5f)
+        waitUntil { core.audioMuted.get() }
+
+        controller.setSpeed(1f)
+        waitUntil { !core.audioMuted.get() }
+    }
+
+    @Test
+    fun `el silenciado solo se toca cuando la velocidad cambia`() = runTest {
+        controller.open(ROM, batterySave = null)
+        controller.setSpeed(2f)
+        controller.resume()
+        waitUntil { core.audioMuted.get() }
+
+        // Muchos fotogramas después, sigue habiendo una sola llamada: el
+        // core no se toca una vez por vuelta para repetirle lo mismo.
+        val changes = core.audioMuteChanges.get()
+        Thread.sleep(WINDOW_MS)
+
+        assertTrue(core.frames.get() > 5)
+        assertEquals(changes, core.audioMuteChanges.get())
+    }
+
+    @Test
+    fun `en pausa no suena nada, y al reanudar vuelve el sonido`() = runTest {
+        controller.open(ROM, batterySave = null)
+        controller.resume()
+        waitUntil { core.frames.get() > 2 }
+        assertFalse(core.audioMuted.get())
+
+        // Es lo que pasa al irse de la aplicación: sin esto seguiría sonando
+        // el audio que quedó en el anillo.
+        controller.pause()
+        waitUntil { core.audioMuted.get() }
+
+        controller.resume()
+        waitUntil { !core.audioMuted.get() }
+    }
+
+    @Test
+    fun `reanudar en avance rapido sigue silenciado`() = runTest {
+        controller.open(ROM, batterySave = null)
+        controller.setSpeed(2f)
+        controller.resume()
+        waitUntil { core.audioMuted.get() }
+
+        controller.pause()
+        waitUntil { core.audioMuted.get() }
+        controller.resume()
+
+        // Sigue en 2x: reanudar no devuelve el sonido que el avance rápido
+        // quitó, sólo el que quitó la pausa.
+        Thread.sleep(80)
+        assertTrue(core.audioMuted.get())
+    }
+
+    // ---------------------------------------------------------- la tapa
+
+    @Test
+    fun `la tapa llega al core, y solo cuando cambia`() = runTest {
+        controller.open(ROM, batterySave = null)
+        controller.resume()
+        waitUntil { core.frames.get() > 5 }
+
+        // Nadie ha tocado la tapa: el core no se entera de nada. Esto no es
+        // una optimización, es el contrato: abrirla dispara una interrupción.
+        assertEquals(0, core.lidChanges.get())
+
+        controller.input.setLidClosed(true)
+        waitUntil { core.lidClosed.get() }
+        assertEquals(1, core.lidChanges.get())
+
+        // Muchos fotogramas con la tapa cerrada, y sigue habiendo una sola
+        // llamada: no se reenvía el estado cada vuelta como la máscara.
+        val frames = core.frames.get()
+        waitUntil { core.frames.get() > frames + 5 }
+        assertEquals(1, core.lidChanges.get())
+
+        controller.input.setLidClosed(false)
+        waitUntil { !core.lidClosed.get() }
+        assertEquals(2, core.lidChanges.get())
+    }
+
+    @Test
+    fun `pausar no abre la tapa`() = runTest {
+        controller.open(ROM, batterySave = null)
+        controller.resume()
+        controller.input.setLidClosed(true)
+        waitUntil { core.lidClosed.get() }
+
+        // pause() suelta todos los botones; la tapa no es uno de ellos.
+        controller.pause()
+        Thread.sleep(80)
+
+        assertTrue(core.lidClosed.get())
+        assertEquals(1, core.lidChanges.get())
+    }
+
+    @Test
+    fun `la velocidad se recorta a lo que la UI puede pedir`() {
+        controller.setSpeed(5f)
+        assertEquals(2f, controller.speedMultiplier, 0.001f)
+
+        // Cámara lenta no es una función de este emulador.
+        controller.setSpeed(0.25f)
+        assertEquals(1f, controller.speedMultiplier, 0.001f)
+    }
+
     private fun waitUntil(timeoutMs: Long = 2_000, condition: () -> Boolean) {
         val deadline = System.currentTimeMillis() + timeoutMs
         while (System.currentTimeMillis() < deadline) {
@@ -315,5 +457,8 @@ class EmulatorControllerTest {
 
     private companion object {
         val ROM = ByteArray(256) { it.toByte() }
+
+        /** Ventana de medida del avance rápido: ~18 fotogramas a 1x, ~36 a 2x. */
+        const val WINDOW_MS = 300L
     }
 }

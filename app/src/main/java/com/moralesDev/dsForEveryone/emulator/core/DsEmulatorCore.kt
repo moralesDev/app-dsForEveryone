@@ -84,6 +84,14 @@ class DsEmulatorCore : EmulatorCore {
         if (isUsable) NativeBridge.nativeSetTouch(handle, x, y, down)
     }
 
+    override fun setAudioMuted(muted: Boolean) {
+        if (isUsable) NativeBridge.nativeSetAudioMuted(handle, muted)
+    }
+
+    override fun setLidClosed(closed: Boolean) {
+        if (isUsable) NativeBridge.nativeSetLidClosed(handle, closed)
+    }
+
     override fun setMicNoise(active: Boolean) {
         if (isUsable) NativeBridge.nativeSetMicNoise(handle, active)
     }

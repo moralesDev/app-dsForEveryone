@@ -42,6 +42,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Density
@@ -50,16 +51,16 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.moralesDev.dsForEveryone.R
 import com.moralesDev.dsForEveryone.emulator.layout.ControlGroup
-import com.moralesDev.dsForEveryone.emulator.layout.ControlGroupFraction
 import com.moralesDev.dsForEveryone.emulator.layout.ControlGroupPlacement
 import com.moralesDev.dsForEveryone.emulator.layout.ControlLayout
 import com.moralesDev.dsForEveryone.emulator.layout.LayoutEngine
+import com.moralesDev.dsForEveryone.emulator.layout.LayoutInsets
 import com.moralesDev.dsForEveryone.emulator.layout.LayoutMode
 import com.moralesDev.dsForEveryone.emulator.layout.LayoutRect
 import com.moralesDev.dsForEveryone.emulator.layout.LayoutSize
 import com.moralesDev.dsForEveryone.emulator.layout.ScreenLayout
 import com.moralesDev.dsForEveryone.emulator.layout.ScreenPlacement
-import com.moralesDev.dsForEveryone.emulator.layout.shiftedDown
+import com.moralesDev.dsForEveryone.emulator.layout.inset
 import com.moralesDev.dsForEveryone.ui.components.GlassIconButton
 import com.moralesDev.dsForEveryone.ui.game.LayoutModeChips
 import com.moralesDev.dsForEveryone.ui.theme.Accent
@@ -109,25 +110,34 @@ fun LayoutEditorScreen(onBack: () -> Unit) {
     LaunchedEffect(settings.screenGap) { if (!isDraggingScreens) gapState = settings.screenGap }
     LaunchedEffect(settings.secondaryScale) { if (!isDraggingScreens) scaleState = settings.secondaryScale }
 
-    // Mismos márgenes que usa GameScreen —ver ese archivo—: las pantallas se
-    // corren por debajo de la barra de estado, y los mandos cuentan con el
-    // hueco completo menos la barra de navegación.
-    val topInsetPx = WindowInsets.systemBars.getTop(density).toFloat()
-    val bottomInsetPx = WindowInsets.systemBars.getBottom(density).toFloat()
+    // Mismos márgenes que usa GameScreen —ver ese archivo—: un único hueco
+    // utilizable, la ventana menos las cuatro barras del sistema, para las
+    // pantallas y para los mandos.
+    val systemBars = WindowInsets.systemBars
+    val insets = LayoutInsets(
+        left = systemBars.getLeft(density, LocalLayoutDirection.current).toFloat(),
+        top = systemBars.getTop(density).toFloat(),
+        right = systemBars.getRight(density, LocalLayoutDirection.current).toFloat(),
+        bottom = systemBars.getBottom(density).toFloat(),
+    )
+    val usableArea = remember(availableSize, insets) {
+        LayoutRect(0f, 0f, availableSize.width, availableSize.height).inset(insets)
+    }
 
-    val placement = remember(activeMode, availableSize, topInsetPx, gapState, scaleState, settings.screensSwapped) {
+    // A este hueco es al que `gap` es relativo dentro de ScreenLayout, así que
+    // la barra de arrastre tiene que traducir sus píxeles con esta misma
+    // medida y no con la del contenedor entero.
+    val screensAvailable = usableArea.size
+
+    val placement = remember(activeMode, availableSize, insets, gapState, scaleState, settings.screensSwapped) {
         if (availableSize.width > 0f && availableSize.height > 0f) {
-            val screensAvailable = LayoutSize(availableSize.width, (availableSize.height - topInsetPx).coerceAtLeast(0f))
-            val raw = ScreenLayout.resolve(
+            ScreenLayout.resolve(
                 mode = activeMode,
-                available = screensAvailable,
+                available = availableSize,
                 gap = gapState,
                 secondaryScale = scaleState,
                 swapped = settings.screensSwapped,
-            )
-            ScreenPlacement(
-                topScreen = raw.topScreen.shiftedDown(topInsetPx),
-                touchScreen = raw.touchScreen.shiftedDown(topInsetPx),
+                insets = insets,
             )
         } else {
             null
@@ -135,13 +145,12 @@ fun LayoutEditorScreen(onBack: () -> Unit) {
     }
 
     val minTouchTargetPx = with(density) { ControlLayout.MIN_TOUCH_TARGET_DP.dp.toPx() }
-    val controlAvailableSize = LayoutSize(availableSize.width, (availableSize.height - bottomInsetPx).coerceAtLeast(0f))
 
-    val controlProfile = remember(placement, controlAvailableSize, customControlLayout, minTouchTargetPx) {
+    val controlProfile = remember(placement, usableArea, customControlLayout, minTouchTargetPx) {
         val current = placement ?: return@remember null
         ControlLayout.resolveProfile(
             custom = customControlLayout,
-            available = controlAvailableSize,
+            area = usableArea,
             touchScreen = current.touchScreen,
             minTouchTarget = minTouchTargetPx,
             opacity = ControlLayout.DEFAULT_OPACITY,
@@ -174,7 +183,7 @@ fun LayoutEditorScreen(onBack: () -> Unit) {
                 GapHandle(
                     mode = activeMode,
                     placement = current,
-                    available = availableSize,
+                    available = screensAvailable,
                     density = density,
                     onDragStart = { isDraggingScreens = true },
                     onDragDelta = { deltaFraction -> gapState = (gapState + deltaFraction).coerceIn(0f, 1f) },
@@ -202,7 +211,6 @@ fun LayoutEditorScreen(onBack: () -> Unit) {
 
         controlProfile?.let { profile ->
             val touchRect = placement?.touchScreen ?: LayoutRect(0f, 0f, 0f, 0f)
-            val area = LayoutRect(0f, 0f, controlAvailableSize.width, controlAvailableSize.height)
 
             profile.groups.forEach { (group, groupPlacement) ->
                 key(group) {
@@ -211,21 +219,18 @@ fun LayoutEditorScreen(onBack: () -> Unit) {
                         group = group,
                         placement = groupPlacement,
                         isSelected = selectedGroup == group,
-                        area = area,
+                        area = usableArea,
                         blockers = blockers,
                         density = density,
                         onSelect = { selectedGroup = group },
                         onCommit = { newBounds ->
-                            val fractions = ControlLayout.toFractions(profile, controlAvailableSize)
                             viewModel.setControlGroup(
                                 portrait = isPortrait,
-                                base = fractions,
+                                base = ControlLayout.toFractions(profile, usableArea),
                                 group = group,
-                                placement = ControlGroupFraction(
-                                    left = newBounds.left / controlAvailableSize.width,
-                                    top = newBounds.top / controlAvailableSize.height,
-                                    width = newBounds.width / controlAvailableSize.width,
-                                    height = newBounds.height / controlAvailableSize.height,
+                                placement = ControlLayout.fractionOf(
+                                    bounds = newBounds,
+                                    area = usableArea,
                                     opacity = groupPlacement.opacity,
                                 ),
                             )
@@ -280,17 +285,13 @@ fun LayoutEditorScreen(onBack: () -> Unit) {
                     group = selected,
                     opacity = profile.groups.getValue(selected).opacity,
                     onOpacityChange = { newOpacity ->
-                        val bounds = profile.groups.getValue(selected).bounds
-                        val fractions = ControlLayout.toFractions(profile, controlAvailableSize)
                         viewModel.setControlGroup(
                             portrait = isPortrait,
-                            base = fractions,
+                            base = ControlLayout.toFractions(profile, usableArea),
                             group = selected,
-                            placement = ControlGroupFraction(
-                                left = bounds.left / controlAvailableSize.width,
-                                top = bounds.top / controlAvailableSize.height,
-                                width = bounds.width / controlAvailableSize.width,
-                                height = bounds.height / controlAvailableSize.height,
+                            placement = ControlLayout.fractionOf(
+                                bounds = profile.groups.getValue(selected).bounds,
+                                area = usableArea,
                                 opacity = newOpacity,
                             ),
                         )

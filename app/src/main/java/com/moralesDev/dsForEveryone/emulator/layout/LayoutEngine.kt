@@ -25,8 +25,39 @@ data class LayoutRect(val left: Float, val top: Float, val right: Float, val bot
     }
 }
 
-/** Traslada el rectángulo [dy] píxeles hacia abajo, sin tocar ancho ni alto. */
-fun LayoutRect.shiftedDown(dy: Float): LayoutRect = LayoutRect(left, top + dy, right, bottom + dy)
+/**
+ * Los márgenes que hay que reservar dentro de un hueco, en píxeles: en la app,
+ * los de las barras del sistema. No es un tipo de Compose a propósito —quien
+ * llama traduce `WindowInsets` a esto— para que la geometría se siga probando
+ * en JVM sin Android.
+ */
+data class LayoutInsets(
+    val left: Float = 0f,
+    val top: Float = 0f,
+    val right: Float = 0f,
+    val bottom: Float = 0f,
+) {
+    companion object {
+        /** Sin márgenes: el hueco entero. */
+        val NONE = LayoutInsets()
+    }
+}
+
+/**
+ * El rectángulo que queda al reservar [insets] por cada lado. Si los márgenes
+ * se comen el rectángulo entero el resultado queda con área cero, nunca
+ * invertido.
+ */
+fun LayoutRect.inset(insets: LayoutInsets): LayoutRect {
+    val insetLeft = left + insets.left
+    val insetTop = top + insets.top
+    return LayoutRect(
+        left = insetLeft,
+        top = insetTop,
+        right = (right - insets.right).coerceAtLeast(insetLeft),
+        bottom = (bottom - insets.bottom).coerceAtLeast(insetTop),
+    )
+}
 
 /**
  * Geometría pura para colocar rectángulos con restricciones dentro de un

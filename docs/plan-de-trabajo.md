@@ -924,7 +924,8 @@ funcionalidad, y conviene hacerlo de una en una, como en el proyecto hermano:
 - Mandos físicos por Bluetooth y USB, con el cursor virtual como forma de usar
   la pantalla táctil
 - Exportar e importar partidas
-- Fast-forward, si los números de la fase 4 dejan margen
+- ~~Fast-forward~~ — hecho: 1x / 1,5x / 2x en el menú de pausa. El audio se
+  silencia mientras corre rápido. Ver `integracion-core.md`, «Avance rápido»
 - Wi-Fi local entre dos instancias, que en DS es mucho más jugosa que el cable
   link de GBA
 

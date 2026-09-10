@@ -57,6 +57,10 @@ data class ControlLayoutProfile(
  * perfil en `EmulatorSettings`: guardar píxeles absolutos no sobreviviría a
  * abrir la app en otro dispositivo, o incluso en el mismo con otra barra de
  * sistema.
+ *
+ * El hueco al que son relativas es el **área utilizable** —la que pasa quien
+ * llama, ya sin las barras del sistema—, no la ventana entera: `left = 0f` es
+ * el borde izquierdo de lo que se puede pulsar, no el de la pantalla física.
  */
 data class ControlGroupFraction(
     val left: Float,
@@ -111,57 +115,70 @@ object ControlLayout {
      * de juego y el editor de disposición llaman a esta misma función con los
      * mismos argumentos — es lo que garantiza que uno y otro coloquen igual.
      *
+     * @param area el hueco utilizable, en coordenadas absolutas de la
+     *   ventana: quien llama le resta ya las barras del sistema. Ningún grupo
+     *   sale de ahí, y por eso ninguno puede caer debajo de una barra, donde
+     *   el toque se lo queda el sistema y el botón sería imposible de pulsar.
      * @param minTouchTarget objetivo táctil mínimo (48 dp convertidos a
      *   píxeles por quien llama; esta clase no conoce unidades de Compose).
      *   Ver [defaultProfile].
      */
     fun resolveProfile(
         custom: Map<ControlGroup, ControlGroupFraction>?,
-        available: LayoutSize,
+        area: LayoutRect,
         touchScreen: LayoutRect,
         minTouchTarget: Float,
         opacity: Float = DEFAULT_OPACITY,
     ): ControlLayoutProfile {
-        val fromCustom = custom?.let { fromFractions(it, available) }
-        return fromCustom ?: defaultProfile(available, touchScreen, minTouchTarget, opacity)
+        val fromCustom = custom?.let { fromFractions(it, area) }
+        return fromCustom ?: defaultProfile(area, touchScreen, minTouchTarget, opacity)
     }
 
-    /** [available] en las mismas unidades que las de [ControlGroupPlacement.bounds] (habitualmente píxeles). */
+    /**
+     * Las fracciones de un grupo dentro de [area]. Es la única traducción de
+     * píxeles a fracción que hay: el editor la usa para lo que acaba de
+     * arrastrar y [toFractions] para el perfil entero, de modo que el origen
+     * del área —que no es (0,0) en cuanto hay una barra a la izquierda o
+     * arriba— no se pueda olvidar en un sitio y no en otro.
+     */
+    fun fractionOf(bounds: LayoutRect, area: LayoutRect, opacity: Float): ControlGroupFraction =
+        ControlGroupFraction(
+            left = (bounds.left - area.left) / area.width,
+            top = (bounds.top - area.top) / area.height,
+            width = bounds.width / area.width,
+            height = bounds.height / area.height,
+            opacity = opacity,
+        )
+
+    /** [area] en las mismas unidades que las de [ControlGroupPlacement.bounds] (habitualmente píxeles). */
     fun toFractions(
         profile: ControlLayoutProfile,
-        available: LayoutSize,
+        area: LayoutRect,
     ): Map<ControlGroup, ControlGroupFraction> {
-        if (available.width <= 0f || available.height <= 0f) return emptyMap()
+        if (area.width <= 0f || area.height <= 0f) return emptyMap()
         return profile.groups.mapValues { (_, placement) ->
-            val bounds = placement.bounds
-            ControlGroupFraction(
-                left = bounds.left / available.width,
-                top = bounds.top / available.height,
-                width = bounds.width / available.width,
-                height = bounds.height / available.height,
-                opacity = placement.opacity,
-            )
+            fractionOf(placement.bounds, area, placement.opacity)
         }
     }
 
     /**
-     * Inversa de [toFractions]. Devuelve `null` si faltan grupos o si
-     * [available] no tiene área: un perfil a medias no es un perfil, y quien
-     * llama debe caer a [defaultProfile] en vez de arrastrar una lectura mala.
+     * Inversa de [toFractions]. Devuelve `null` si faltan grupos o si [area]
+     * no tiene área: un perfil a medias no es un perfil, y quien llama debe
+     * caer a [defaultProfile] en vez de arrastrar una lectura mala.
      */
     fun fromFractions(
         fractions: Map<ControlGroup, ControlGroupFraction>,
-        available: LayoutSize,
+        area: LayoutRect,
     ): ControlLayoutProfile? {
         if (fractions.keys != ControlGroup.entries.toSet()) return null
-        if (available.width <= 0f || available.height <= 0f) return null
+        if (area.width <= 0f || area.height <= 0f) return null
         val groups = fractions.mapValues { (_, fraction) ->
             ControlGroupPlacement(
                 bounds = LayoutRect(
-                    left = fraction.left * available.width,
-                    top = fraction.top * available.height,
-                    right = (fraction.left + fraction.width) * available.width,
-                    bottom = (fraction.top + fraction.height) * available.height,
+                    left = area.left + fraction.left * area.width,
+                    top = area.top + fraction.top * area.height,
+                    right = area.left + (fraction.left + fraction.width) * area.width,
+                    bottom = area.top + (fraction.top + fraction.height) * area.height,
                 ),
                 opacity = fraction.opacity,
             )
@@ -264,12 +281,11 @@ object ControlLayout {
      * con [hasOverlap], no con esta función.
      */
     fun defaultProfile(
-        available: LayoutSize,
+        area: LayoutRect,
         touchScreen: LayoutRect,
         minTouchTarget: Float,
         opacity: Float = DEFAULT_OPACITY,
     ): ControlLayoutProfile {
-        val area = LayoutRect(0f, 0f, available.width, available.height)
         val bandChoice = chooseBand(area, touchScreen, minTouchTarget)
         val band = bandChoice.rect
 

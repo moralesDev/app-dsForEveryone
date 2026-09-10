@@ -140,6 +140,25 @@ class EmulatorController(private val core: EmulatorCore) {
         _status.value = EmulatorStatus.RUNNING
     }
 
+    /**
+     * Velocidad de la emulación, 1x o avance rápido. Es estado compartido
+     * —lo escribe la UI, lo lee el hilo de emulación al principio de cada
+     * vuelta—, igual que la máscara de botones: un comando encolado sólo
+     * añadiría latencia a algo que se cambia con un botón durante la partida.
+     *
+     * Lo único que cambia es el período entre fotogramas. El silenciado que
+     * lo acompaña sí lo aplica el propio hilo, cuando nota que el valor
+     * cambió: el core no se toca desde fuera ni para esto.
+     */
+    fun setSpeed(multiplier: Float) {
+        speedMultiplier = multiplier.coerceIn(MIN_SPEED, MAX_SPEED)
+    }
+
+    /** La velocidad que está usando el bucle ahora mismo, ya recortada a [MIN_SPEED]..[MAX_SPEED]. */
+    @Volatile
+    var speedMultiplier: Float = 1f
+        private set
+
     fun pause() {
         val running = thread ?: return
         running.paused = true
@@ -249,10 +268,21 @@ class EmulatorController(private val core: EmulatorCore) {
             var windowStartedAt = nextFrameAt
             var framesInWindow = 0
             var lastBatteryCheckAt = nextFrameAt
+            var appliedSpeed = 1f
+            var audioMuted = false
+            var appliedLid = false
 
             try {
                 while (running) {
                     if (paused) {
+                        // En pausa no suena nada: sin esto seguiría oyéndose
+                        // el audio que quedó en el anillo —medio segundo de
+                        // música después de irse de la aplicación— y ese
+                        // resto volvería a sonar, viejo, al reanudar.
+                        if (!audioMuted) {
+                            audioMuted = true
+                            core.setAudioMuted(true)
+                        }
                         // Sigue atendiendo comandos: guardar estado desde el
                         // menú ocurre precisamente con la emulación detenida.
                         commands.poll(PAUSED_POLL_MS, TimeUnit.MILLISECONDS)?.run()
@@ -264,10 +294,32 @@ class EmulatorController(private val core: EmulatorCore) {
 
                     drainCommands()
 
+                    // La velocidad se lee una vez por vuelta, como la máscara
+                    // de botones. El silenciado sólo se toca cuando cambia:
+                    // es una llamada al core, y el core es de este hilo.
+                    // Corriendo, sonar es lo normal; sólo el avance rápido
+                    // silencia (ver setSpeed).
+                    val speed = speedMultiplier
+                    val shouldMute = speed != 1f
+                    if (speed != appliedSpeed || shouldMute != audioMuted) {
+                        appliedSpeed = speed
+                        audioMuted = shouldMute
+                        core.setAudioMuted(shouldMute)
+                    }
+
                     core.setKeys(input.currentMask)
                     val touch = input.currentTouch
                     core.setTouch(touch.x, touch.y, touch.down)
                     core.setMicNoise(input.currentMicNoise)
+
+                    // La tapa no se entrega cada fotograma como los botones:
+                    // abrirla dispara una interrupción en el core, así que
+                    // sólo se toca cuando el estado cambia de verdad.
+                    val lidClosed = input.currentLidClosed
+                    if (lidClosed != appliedLid) {
+                        appliedLid = lidClosed
+                        core.setLidClosed(lidClosed)
+                    }
                     core.runFrame()
                     frameReady = core.captureFrameInto(frameBuffer)
 
@@ -292,7 +344,7 @@ class EmulatorController(private val core: EmulatorCore) {
                         framesInWindow = 0
                     }
 
-                    nextFrameAt += DsVideo.FRAME_DURATION_NANOS
+                    nextFrameAt += DsVideo.frameDurationNanosAt(speed)
                     val sleepNanos = nextFrameAt - System.nanoTime()
                     if (sleepNanos > 0) {
                         LockSupport.parkNanos(sleepNanos)
@@ -326,6 +378,14 @@ class EmulatorController(private val core: EmulatorCore) {
         const val JOIN_TIMEOUT_MS = 1_000L
         const val FPS_WINDOW_NANOS = 500_000_000L
         const val BYTES_PER_PIXEL = 4
+
+        /**
+         * Nunca por debajo del tiempo real (cámara lenta no es una función de
+         * este emulador) ni por encima de 2x, que es el tope que ofrece la
+         * UI: un valor mayor sólo llegaría aquí por un error de quien llama.
+         */
+        const val MIN_SPEED = 1f
+        const val MAX_SPEED = 2f
 
         /** Una comprobación por segundo de reloj real: suficiente y sin castigar el disco. */
         const val BATTERY_CHECK_INTERVAL_NANOS = 1_000_000_000L

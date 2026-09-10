@@ -38,7 +38,6 @@
 
     <!-- Destinos todavía vacíos del grafo de navegación -->
     <string name="scr_settings_title">Configuración</string>
-    <string name="scr_settings_body">Todavía no hay ajustes reales. Cada uno llega junto con la función a la que pertenece.</string>
     <string name="scr_about_title">Acerca de</string>
     <string name="scr_about_body">DsForEveryone usa melonDS para emular la Nintendo DS, publicado bajo la GNU General Public License v3.0. Enlazar su código dentro de esta aplicación hace que toda ella —interfaz, sistema de partidas, puente incluido— se distribuya bajo la misma licencia. Puedes conservar, modificar y redistribuir esta aplicación en los términos de esa licencia.</string>
     <string name="ab_core_label">Núcleo de emulación: melonDS 1.1 · GPL-3.0-or-later</string>
@@ -46,8 +45,6 @@
     <string name="ab_source_link">Código fuente de esta aplicación</string>
     <string name="nav_open_settings">Configuración</string>
     <string name="nav_open_about">Acerca de</string>
-    <string name="nav_open_layout_editor">Editor de disposición</string>
-    <string name="nav_open_gamepad_mapping">Mando físico</string>
 
     <!-- Accesibilidad -->
     <string name="cd_back">Volver</string>
@@ -61,9 +58,11 @@
     <string name="pa_exit">Salir</string>
     <string name="pa_layout">Disposición de pantallas</string>
     <string name="pa_touch_mode">Modo de toque</string>
+    <string name="pa_speed">Velocidad</string>
     <string name="pa_save">Guardar partida</string>
     <string name="pa_load">Cargar partida</string>
     <string name="pa_cheats">Trucos</string>
+    <string name="pa_lid">Cerrar la tapa</string>
     <string name="pa_cheats_count">%1$d/%2$d</string>
 
     <!-- Modos de disposición de pantallas -->
@@ -73,9 +72,43 @@
     <string name="layout_bottom_only">Solo inferior</string>
     <string name="layout_main_secondary">Principal + secundaria</string>
 
+    <!-- La tapa de la consola -->
+    <string name="lid_closed">Tapa cerrada</string>
+    <string name="lid_open_hint">Toca para abrirla</string>
+
+    <!-- Velocidad de emulación -->
+    <string name="speed_normal">1x</string>
+    <string name="speed_1_5x">1,5x</string>
+    <string name="speed_2x">2x</string>
+    <string name="speed_muted_hint">El sonido se silencia mientras corre rápido.</string>
+
     <!-- Modos de toque -->
     <string name="touch_direct">Directo</string>
     <string name="touch_offset">Desplazamiento</string>
+
+    <!-- Configuración -->
+    <string name="se_section_app">Aplicación</string>
+    <string name="se_section_image">Imagen</string>
+    <string name="se_section_input">Entrada</string>
+    <string name="se_section_about">Información</string>
+    <string name="se_language">Idioma</string>
+    <string name="se_language_hint">Sólo el de la aplicación; no cambia el del teléfono.</string>
+    <string name="se_language_es">Español</string>
+    <string name="se_language_en">English</string>
+    <string name="se_welcome">Pantalla de bienvenida</string>
+    <string name="se_welcome_hint">Mostrarla cada vez que se abre la aplicación.</string>
+    <string name="se_filter_hint">Nítido deja los píxeles cuadrados; Suavizado los interpola.</string>
+    <string name="se_screens">Disposición de pantallas y controles</string>
+    <string name="se_screens_hint">Dónde va cada pantalla y cada mando, por orientación.</string>
+    <string name="se_touch_hint">Directo pone el lápiz bajo el dedo; Desplazamiento, por encima.</string>
+    <string name="se_touch_distance">Distancia del lápiz</string>
+    <string name="se_touch_distance_hint">Cuánto se separa el punto de contacto de la yema.</string>
+    <string name="se_touch_short">Corta</string>
+    <string name="se_touch_medium">Media</string>
+    <string name="se_touch_long">Larga</string>
+    <string name="se_gamepad">Mando físico</string>
+    <string name="se_gamepad_hint">Qué botón del mando hace qué en el juego.</string>
+    <string name="se_about_hint">Licencia, versión y el core que emula la consola.</string>
 
     <!-- Filtro de imagen -->
     <string name="se_filter">Filtro de imagen</string>
