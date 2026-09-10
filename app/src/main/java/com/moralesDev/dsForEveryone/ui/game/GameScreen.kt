@@ -40,6 +40,7 @@ import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
@@ -53,12 +54,13 @@ import com.moralesDev.dsForEveryone.emulator.DsButton
 import com.moralesDev.dsForEveryone.emulator.layout.ControlGroup
 import com.moralesDev.dsForEveryone.emulator.layout.ControlLayout
 import com.moralesDev.dsForEveryone.emulator.layout.ControlLayoutProfile
+import com.moralesDev.dsForEveryone.emulator.layout.LayoutInsets
 import com.moralesDev.dsForEveryone.emulator.layout.LayoutRect
 import com.moralesDev.dsForEveryone.emulator.layout.LayoutSize
 import com.moralesDev.dsForEveryone.emulator.layout.ScreenLayout
 import com.moralesDev.dsForEveryone.emulator.layout.ScreenPlacement
 import com.moralesDev.dsForEveryone.emulator.layout.TouchRouter
-import com.moralesDev.dsForEveryone.emulator.layout.shiftedDown
+import com.moralesDev.dsForEveryone.emulator.layout.inset
 import com.moralesDev.dsForEveryone.emulator.render.DsGLRenderer
 import com.moralesDev.dsForEveryone.ui.components.GlassIconButton
 import com.moralesDev.dsForEveryone.ui.game.controls.ActionButtons
@@ -138,52 +140,53 @@ fun GameScreen(onExit: () -> Unit) {
     val density = LocalDensity.current
     val minTouchTargetPx = with(density) { ControlLayout.MIN_TOUCH_TARGET_DP.dp.toPx() }
 
-    // Ni la barra de estado ni la de navegación consumen touches para la
-    // app, pero por motivos distintos hay que dejarles hueco: la de estado
-    // taparía parte del dibujo de la pantalla superior si empezara en
-    // y = 0, así que las dos pantallas se calculan en el hueco que queda
-    // por debajo y se corren hacia abajo esa misma distancia. La de
-    // navegación no tapa dibujo (las pantallas no llegan tan abajo), pero sí
-    // haría inalcanzable cualquier mando que cayera ahí, así que a los
-    // mandos —más abajo— se les da el hueco completo menos ese margen.
-    val topInsetPx = WindowInsets.systemBars.getTop(density).toFloat()
-    val bottomInsetPx = WindowInsets.systemBars.getBottom(density).toFloat()
+    // Las barras del sistema no consumen toques de la app, pero el sistema sí
+    // se queda los suyos: lo que caiga debajo de una barra es inalcanzable,
+    // se dibuje o no. Así que hay un único hueco utilizable —la ventana menos
+    // las cuatro barras— y dentro de él van tanto las dos pantallas como los
+    // mandos. Los cuatro lados y no sólo arriba y abajo: en horizontal, con
+    // los tres botones, la barra de navegación se coloca a un lado.
+    val systemBars = WindowInsets.systemBars
+    val insets = LayoutInsets(
+        left = systemBars.getLeft(density, LocalLayoutDirection.current).toFloat(),
+        top = systemBars.getTop(density).toFloat(),
+        right = systemBars.getRight(density, LocalLayoutDirection.current).toFloat(),
+        bottom = systemBars.getBottom(density).toFloat(),
+    )
 
     var availableSize by remember { mutableStateOf(LayoutSize(0f, 0f)) }
+    val usableArea = remember(availableSize, insets) {
+        LayoutRect(0f, 0f, availableSize.width, availableSize.height).inset(insets)
+    }
+
     val placement = remember(
         activeMode,
         availableSize,
-        topInsetPx,
+        insets,
         settings.screenGap,
         settings.secondaryScale,
         settings.screensSwapped,
     ) {
         if (availableSize.width > 0f && availableSize.height > 0f) {
-            val screensAvailable = LayoutSize(availableSize.width, (availableSize.height - topInsetPx).coerceAtLeast(0f))
-            val raw = ScreenLayout.resolve(
+            ScreenLayout.resolve(
                 mode = activeMode,
-                available = screensAvailable,
+                available = availableSize,
                 gap = settings.screenGap,
                 secondaryScale = settings.secondaryScale,
                 swapped = settings.screensSwapped,
-            )
-            ScreenPlacement(
-                topScreen = raw.topScreen.shiftedDown(topInsetPx),
-                touchScreen = raw.touchScreen.shiftedDown(topInsetPx),
+                insets = insets,
             )
         } else {
             null
         }
     }
 
-    val controlAvailableSize = LayoutSize(availableSize.width, (availableSize.height - bottomInsetPx).coerceAtLeast(0f))
-
     val activeControlLayout = if (isPortrait) settings.portraitControlLayout else settings.landscapeControlLayout
-    val controlProfile = remember(placement, controlAvailableSize, activeControlLayout, minTouchTargetPx) {
+    val controlProfile = remember(placement, usableArea, activeControlLayout, minTouchTargetPx) {
         val current = placement ?: return@remember null
         ControlLayout.resolveProfile(
             custom = activeControlLayout,
-            available = controlAvailableSize,
+            area = usableArea,
             touchScreen = current.touchScreen,
             minTouchTarget = minTouchTargetPx,
             opacity = ControlLayout.DEFAULT_OPACITY,

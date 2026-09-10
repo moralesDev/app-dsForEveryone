@@ -98,6 +98,26 @@ para los mandos**. Eso no se arregla en este documento: se arregla en
 [`entrada.md`](entrada.md), y es la razón de que el editor de disposición de
 controles sea obligatorio desde el principio y no una funcionalidad futura.
 
+### Las barras del sistema recortan el hueco antes de nada
+
+`ScreenLayout.resolve` recibe unos márgenes (`LayoutInsets`) y coloca las dos
+pantallas **dentro de lo que queda**, no en el contenedor entero. No es una
+cuestión estética: la app va a pantalla completa (`enableEdgeToEdge`), así que
+dibujar debajo de la barra de navegación se puede, pero **pulsar ahí no** — ese
+toque es del sistema. En vertical daba igual, porque las pantallas no llegan
+tan abajo; en horizontal ocupan todo el alto y la táctil se metía debajo de la
+barra: una opción del juego dibujada en esa franja quedaba imposible de
+seleccionar.
+
+Los cuatro lados, no sólo arriba y abajo: en horizontal, con los tres botones,
+la barra de navegación se coloca a un lado.
+
+El recorte ocurre **antes** de calcular las proporciones, así que las dos
+pantallas siguen siendo 4:3 exactas; lo que cambia es que son un poco más
+pequeñas. `GameScreen` y el editor de disposición pasan los mismos márgenes,
+que es lo que garantiza que lo que se coloca en el editor sea lo que se ve en
+el juego.
+
 ## Los modos que hay que dar
 
 El mínimo razonable, con perfiles independientes por orientación:

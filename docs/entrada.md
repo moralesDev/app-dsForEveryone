@@ -188,6 +188,21 @@ Y lo dicho en [`pantallas.md`](pantallas.md): esto y la colocación de las
 pantallas son el **mismo problema** —rectángulos con restricciones dentro de un
 área— y se resuelven con un solo `LayoutEngine`.
 
+### El área es la utilizable, no la ventana
+
+Ese «área» es la ventana **menos las barras del sistema**, la misma que usan
+las pantallas (ver [`pantallas.md`](pantallas.md)). Un mando debajo de una
+barra no es un mando medio tapado: es un mando que **no se puede pulsar**,
+porque ese toque se lo queda el sistema. Y no basta con la de abajo — en
+horizontal, con los tres botones, la barra de navegación se coloca a un lado, y
+la de estado se come la fila de arriba, que es justo donde viven L y R.
+
+Por eso `ControlLayout` trabaja sobre un `LayoutRect` con coordenadas
+absolutas y no sobre un `LayoutSize` desde (0,0): el origen del hueco importa.
+Las fracciones que se persisten son relativas a ese hueco utilizable, así que
+un perfil guardado sigue estando dentro aunque cambien las barras —otro
+dispositivo, gestos en vez de tres botones, la otra orientación—.
+
 ## 5. Mando físico (Bluetooth y USB)
 
 Android no distingue transporte para un mando de juego: uno emparejado por
