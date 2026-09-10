@@ -362,6 +362,39 @@ class EmulatorControllerTest {
     }
 
     @Test
+    fun `en pausa no suena nada, y al reanudar vuelve el sonido`() = runTest {
+        controller.open(ROM, batterySave = null)
+        controller.resume()
+        waitUntil { core.frames.get() > 2 }
+        assertFalse(core.audioMuted.get())
+
+        // Es lo que pasa al irse de la aplicación: sin esto seguiría sonando
+        // el audio que quedó en el anillo.
+        controller.pause()
+        waitUntil { core.audioMuted.get() }
+
+        controller.resume()
+        waitUntil { !core.audioMuted.get() }
+    }
+
+    @Test
+    fun `reanudar en avance rapido sigue silenciado`() = runTest {
+        controller.open(ROM, batterySave = null)
+        controller.setSpeed(2f)
+        controller.resume()
+        waitUntil { core.audioMuted.get() }
+
+        controller.pause()
+        waitUntil { core.audioMuted.get() }
+        controller.resume()
+
+        // Sigue en 2x: reanudar no devuelve el sonido que el avance rápido
+        // quitó, sólo el que quitó la pausa.
+        Thread.sleep(80)
+        assertTrue(core.audioMuted.get())
+    }
+
+    @Test
     fun `la velocidad se recorta a lo que la UI puede pedir`() {
         controller.setSpeed(5f)
         assertEquals(2f, controller.speedMultiplier, 0.001f)

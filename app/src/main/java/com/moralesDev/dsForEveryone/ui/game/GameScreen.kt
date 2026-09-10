@@ -54,6 +54,9 @@ import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.moralesDev.dsForEveryone.R
 import com.moralesDev.dsForEveryone.data.cheats.CheatsManager
@@ -129,6 +132,7 @@ fun GameScreen(onExit: () -> Unit) {
     var isMenuOpen by remember { mutableStateOf(false) }
 
     FreeOrientationWhileGamepadConnected(isGamepadConnected)
+    PauseWhileHidden(onHidden = viewModel::onScreenHidden, onShown = viewModel::onScreenShown)
 
     BackHandler {
         when {
@@ -579,6 +583,32 @@ private fun ControlGroups(
                 modifier = groupModifier,
             )
         }
+    }
+}
+
+/**
+ * Detiene la emulación mientras la pantalla de juego no se ve, y la reanuda
+ * al volver.
+ *
+ * `ON_STOP` y no `ON_PAUSE`: en pantalla dividida o con un diálogo del
+ * sistema encima la partida se sigue viendo, y ahí pararla sería un fallo,
+ * no un arreglo. Sin esto el hilo de emulación no se entera de nada —lo para
+ * `onCleared`, que sólo llega al salir del juego de verdad— y el juego se
+ * queda corriendo, y sonando, con la aplicación en segundo plano.
+ */
+@Composable
+private fun PauseWhileHidden(onHidden: () -> Unit, onShown: () -> Unit) {
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            when (event) {
+                Lifecycle.Event.ON_STOP -> onHidden()
+                Lifecycle.Event.ON_START -> onShown()
+                else -> Unit
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
 }
 

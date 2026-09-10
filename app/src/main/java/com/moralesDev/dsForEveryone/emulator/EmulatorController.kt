@@ -269,10 +269,19 @@ class EmulatorController(private val core: EmulatorCore) {
             var framesInWindow = 0
             var lastBatteryCheckAt = nextFrameAt
             var appliedSpeed = 1f
+            var audioMuted = false
 
             try {
                 while (running) {
                     if (paused) {
+                        // En pausa no suena nada: sin esto seguiría oyéndose
+                        // el audio que quedó en el anillo —medio segundo de
+                        // música después de irse de la aplicación— y ese
+                        // resto volvería a sonar, viejo, al reanudar.
+                        if (!audioMuted) {
+                            audioMuted = true
+                            core.setAudioMuted(true)
+                        }
                         // Sigue atendiendo comandos: guardar estado desde el
                         // menú ocurre precisamente con la emulación detenida.
                         commands.poll(PAUSED_POLL_MS, TimeUnit.MILLISECONDS)?.run()
@@ -287,10 +296,14 @@ class EmulatorController(private val core: EmulatorCore) {
                     // La velocidad se lee una vez por vuelta, como la máscara
                     // de botones. El silenciado sólo se toca cuando cambia:
                     // es una llamada al core, y el core es de este hilo.
+                    // Corriendo, sonar es lo normal; sólo el avance rápido
+                    // silencia (ver setSpeed).
                     val speed = speedMultiplier
-                    if (speed != appliedSpeed) {
+                    val shouldMute = speed != 1f
+                    if (speed != appliedSpeed || shouldMute != audioMuted) {
                         appliedSpeed = speed
-                        core.setAudioMuted(speed != 1f)
+                        audioMuted = shouldMute
+                        core.setAudioMuted(shouldMute)
                     }
 
                     core.setKeys(input.currentMask)

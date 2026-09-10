@@ -159,10 +159,31 @@ unsigned RingPop(Emulator* emu, int16_t* out, unsigned count) {
     return available;
 }
 
+/**
+ * Descarta lo que quede en el anillo. Lo llama SIEMPRE el consumidor (el
+ * callback de AAudio), que es el dueño de ringRead: adelantar ese índice
+ * desde el hilo de emulación sería una carrera con el propio callback.
+ */
+void RingDiscard(Emulator* emu) {
+    const unsigned write = emu->ringWrite.load(std::memory_order_acquire);
+    emu->ringRead.store(write, std::memory_order_release);
+}
+
 aaudio_data_callback_result_t AudioCallback(
     AAudioStream*, void* userData, void* audioData, int32_t numFrames) {
     auto* emu = static_cast<Emulator*>(userData);
     auto* out = static_cast<int16_t*>(audioData);
+
+    // Silenciado (avance rápido, o partida en pausa): silencio inmediato, y
+    // se tira lo que quedaba pendiente. Sin esto sonaría el medio segundo
+    // que ya estaba en el anillo —al salir de la aplicación, la música
+    // seguiría un instante— y ese resto volvería a sonar, viejo, al reanudar.
+    if (emu->audioMuted.load(std::memory_order_relaxed)) {
+        RingDiscard(emu);
+        memset(out, 0, static_cast<size_t>(numFrames) * 2 * sizeof(int16_t));
+        return AAUDIO_CALLBACK_RESULT_CONTINUE;
+    }
+
     unsigned got = RingPop(emu, out, static_cast<unsigned>(numFrames));
     if (got < static_cast<unsigned>(numFrames)) {
         // El anillo se vacía si la emulación no ha entregado nada todavía o

@@ -243,6 +243,42 @@ class GameViewModel @Inject constructor(
 
     fun resume() = controller.resume()
 
+    /**
+     * Si la partida se detuvo sólo porque la aplicación dejó de verse. Se
+     * distingue de una pausa del usuario —el menú de pausa— porque a la
+     * vuelta hay que reanudar una y no la otra: quien dejó el menú abierto
+     * espera encontrárselo abierto.
+     */
+    private var pausedByBackground = false
+
+    /**
+     * La pantalla de juego deja de verse (inicio, otra aplicación, apagar la
+     * pantalla). El hilo de emulación **no** se detiene solo: seguiría
+     * emulando y sonando en segundo plano, gastando batería en un juego que
+     * nadie está mirando.
+     *
+     * Además se vuelca la partida: irse de la aplicación es justo el momento
+     * en el que el sistema puede matar el proceso sin avisar, y entonces
+     * `onCleared` no llega a ejecutarse nunca.
+     */
+    fun onScreenHidden() {
+        if (controller.status.value == EmulatorStatus.RUNNING) {
+            pausedByBackground = true
+            controller.pause()
+        }
+        val rid = romId ?: return
+        applicationScope.launch {
+            controller.flushBattery()?.let { saveManager.persistBattery(rid, it) }
+        }
+    }
+
+    /** Vuelve a verse: se reanuda sólo si la pausa la había puesto [onScreenHidden]. */
+    fun onScreenShown() {
+        if (!pausedByBackground) return
+        pausedByBackground = false
+        controller.resume()
+    }
+
     fun setLayoutMode(mode: LayoutMode, portrait: Boolean) {
         viewModelScope.launch {
             if (portrait) {
