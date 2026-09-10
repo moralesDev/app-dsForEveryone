@@ -32,7 +32,6 @@
 
     <!-- Still-empty destinations in the navigation graph -->
     <string name="scr_settings_title">Settings</string>
-    <string name="scr_settings_body">There are no real settings yet. Each one arrives with the feature it belongs to.</string>
     <string name="scr_about_title">About</string>
     <string name="scr_about_body">DsForEveryone uses melonDS to emulate the Nintendo DS, published under the GNU General Public License v3.0. Linking its code inside this application makes the whole app — interface, save system, bridge included — distributed under the same license. You can keep, modify, and redistribute this application under the terms of that license.</string>
     <string name="ab_core_label">Emulation core: melonDS 1.1 · GPL-3.0-or-later</string>
@@ -40,8 +39,6 @@
     <string name="ab_source_link">This app\'s source code</string>
     <string name="nav_open_settings">Settings</string>
     <string name="nav_open_about">About</string>
-    <string name="nav_open_layout_editor">Layout editor</string>
-    <string name="nav_open_gamepad_mapping">Gamepad</string>
 
     <!-- Accessibility -->
     <string name="cd_back">Back</string>
@@ -82,6 +79,30 @@
     <!-- Touch modes -->
     <string name="touch_direct">Direct</string>
     <string name="touch_offset">Offset</string>
+
+    <!-- Settings -->
+    <string name="se_section_app">Application</string>
+    <string name="se_section_image">Image</string>
+    <string name="se_section_input">Input</string>
+    <string name="se_section_about">Information</string>
+    <string name="se_language">Language</string>
+    <string name="se_language_hint">The app\'s only; it does not change your phone\'s.</string>
+    <string name="se_language_es">Español</string>
+    <string name="se_language_en">English</string>
+    <string name="se_welcome">Welcome screen</string>
+    <string name="se_welcome_hint">Show it every time the app opens.</string>
+    <string name="se_filter_hint">Sharp keeps square pixels; Smooth interpolates them.</string>
+    <string name="se_screens">Screen and control layout</string>
+    <string name="se_screens_hint">Where each screen and each control goes, per orientation.</string>
+    <string name="se_touch_hint">Direct puts the stylus under your finger; Offset, above it.</string>
+    <string name="se_touch_distance">Stylus distance</string>
+    <string name="se_touch_distance_hint">How far the contact point sits from your fingertip.</string>
+    <string name="se_touch_short">Short</string>
+    <string name="se_touch_medium">Medium</string>
+    <string name="se_touch_long">Long</string>
+    <string name="se_gamepad">Gamepad</string>
+    <string name="se_gamepad_hint">Which gamepad button does what in the game.</string>
+    <string name="se_about_hint">Licence, version and the core that emulates the console.</string>
 
     <!-- Image filter -->
     <string name="se_filter">Image filter</string>

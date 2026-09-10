@@ -190,6 +190,29 @@ Estas decisiones ya están tomadas, probadas en dispositivo y documentadas en
 El inventario completo, con qué se copia, qué se adapta y qué es nuevo, está en
 [`reutilizacion.md`](reutilizacion.md).
 
+### Qué ajuste va en Configuración y cuál en el menú de pausa
+
+Los dos sitios escriben el **mismo** `EmulatorSettings`: no hay una copia «de
+ajustes» de nada, y cambiar el filtro en Configuración cambia el del juego que
+esté abierto. Lo que decide dónde aparece cada uno es cuándo se toca:
+
+- **Menú de pausa** — lo que se cambia *con la partida delante*, porque el
+  efecto sólo se juzga viéndolo: disposición de pantallas, velocidad, modo de
+  toque, filtro, ranuras, trucos, cerrar la tapa. Obligar a salir del juego
+  para cambiar la disposición a mitad de un combate convierte esa función en
+  algo que nadie usa.
+- **Configuración** — lo que se deja puesto *antes* de jugar y no depende de
+  ninguna partida: idioma, pantalla de bienvenida, y las tres puertas a
+  pantallas propias (editor de disposición, mando físico, acerca de).
+- **En los dos** — filtro y modo de toque, a propósito: son el mismo valor, y
+  hay quien los deja puestos de una vez y quien los ajusta jugando.
+
+Lo que **no** entra en ninguno de los dos sigue siendo lo de siempre: no hay
+ajustes decorativos. Cada fila de Configuración cambia algo que se nota, y la
+que no tendría nada que graduar no se enseña —la distancia del lápiz sólo
+aparece con el modo de toque en «Desplazamiento», porque en «Directo» no
+ajustaría nada—.
+
 ## Dónde vive cada dato
 
 | Dato | Dónde | Por qué |
