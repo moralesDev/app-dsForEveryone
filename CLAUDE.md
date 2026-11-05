@@ -62,14 +62,13 @@ Consecuencias prácticas que hay que tener presentes al escribir código:
 
 ## Comandos
 
-El entorno actual es **macOS / zsh**. `gradlew` está versionado sin bit de
-ejecución (el repositorio nació en Windows), así que se invoca con `bash`:
+El entorno actual es **macOS / zsh**:
 
 ```sh
-bash gradlew assembleDebug         # APK (compila el core + puente + app)
-bash gradlew testDebugUnitTest     # pruebas de JVM
-bash gradlew installDebug          # instalar en el dispositivo conectado
-bash gradlew lint                  # lint de AGP
+./gradlew assembleDebug            # APK (compila el core + puente + app)
+./gradlew testDebugUnitTest        # pruebas de JVM
+./gradlew installDebug             # instalar en el dispositivo conectado
+./gradlew lint                     # lint de AGP
 ```
 
 En Windows / PowerShell son los mismos con `.\gradlew.bat`.

@@ -69,6 +69,5 @@ después se han añadido trucos Action Replay, mandos Bluetooth/USB, gestión de
 1. Crea `local.properties` con `sdk.dir=<ruta al SDK de Android>`.
 2. Descomprime melonDS 1.1 en `third_party/melonDS/` desde el tarball de la
    etiqueta (`https://github.com/melonDS-emu/melonDS/archive/refs/tags/1.1.tar.gz`).
-3. `./gradlew assembleDebug` (o `bash gradlew …` si el script no tiene bit de
-   ejecución; `.\gradlew.bat` en Windows). Gradle descarga el NDK y CMake
+3. `./gradlew assembleDebug` (`.\gradlew.bat` en Windows). Gradle descarga el NDK y CMake
    fijados si faltan.
