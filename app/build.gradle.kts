@@ -260,8 +260,13 @@ val coreVersionGuardedSources = files(
     },
 )
 
+// Las dos variantes compilan el nativo en RelWithDebInfo (ver
+// CMAKE_BUILD_TYPE en defaultConfig), así que ambas buscan el objeto en
+// .cxx/RelWithDebInfo. Apuntar la debug a .cxx/Debug sólo «funcionaba»
+// mientras sobreviviera un .cxx/Debug de antes de forzar el tipo: se
+// verificaba un objeto rancio, no el que entra en el APK.
 listOf(
-    Triple("Debug", "stripDebugDebugSymbols", "Debug"),
+    Triple("Debug", "stripDebugDebugSymbols", "RelWithDebInfo"),
     Triple("Release", "stripReleaseDebugSymbols", "RelWithDebInfo"),
 ).forEach { (variant, stripTask, cxxConfig) ->
     val verifyTask = tasks.register<VerifyCoreVersionTask>("verifyCoreVersion$variant") {
