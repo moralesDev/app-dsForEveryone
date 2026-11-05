@@ -350,7 +350,11 @@ class EmulatorControllerTest {
         controller.open(ROM, batterySave = null)
         controller.setSpeed(2f)
         controller.resume()
-        waitUntil { core.audioMuted.get() }
+        // No basta con esperar al silencio: el hilo arranca en pausa y ya
+        // silencia ahí, así que `audioMuted` puede cumplirse antes de que el
+        // bucle corriendo aplique la velocidad (y vuelva a silenciar una vez).
+        // La cuenta se toma con fotogramas ya corriendo.
+        waitUntil { core.audioMuted.get() && core.frames.get() > 2 }
 
         // Muchos fotogramas después, sigue habiendo una sola llamada: el
         // core no se toca una vez por vuelta para repetirle lo mismo.
