@@ -31,7 +31,7 @@ Paquete: `com.moralesDev.dsForEveryone`. Nombre de la app: **DsForEveryone**.
 Estado: **las cinco fases del plan están cerradas** y el emulador funciona con
 melonDS 1.1 (JIT activado, renderizador 3D por software en hilo aparte). Sobre
 eso ya se ha añadido funcionalidad: trucos Action Replay, mandos Bluetooth/USB
-con mapeo persistente, extraer/importar/borrar el `.sav`, avance rápido
+con mapeo persistente, extraer/importar/borrar el `.sav`, copia de partidas (exportar/importar), avance rápido
 (1x / 1,5x / 2x), pausa al dejar de verse la app, cerrar la tapa y respeto de
 las barras del sistema. Lo pendiente está en la sección «Después» de
 [`docs/plan-de-trabajo.md`](docs/plan-de-trabajo.md); lo que se rompió y se
@@ -223,4 +223,5 @@ Ampliar aquí antes de escribir código nuevo en esas áreas:
 - [`docs/pantallas.md`](docs/pantallas.md) — las dos pantallas, el renderizador GL y las disposiciones.
 - [`docs/entrada.md`](docs/entrada.md) — lápiz con el dedo, los doce botones, el editor de disposición y el micrófono.
 - [`docs/reutilizacion.md`](docs/reutilizacion.md) — qué se trae de `app-emulador`, qué se adapta y qué es nuevo.
+- [`docs/copia-de-partidas.md`](docs/copia-de-partidas.md) — exportar e importar partidas: formato, qué se rechaza y cómo se recupera un reemplazo interrumpido.
 - [`docs/plan-de-trabajo.md`](docs/plan-de-trabajo.md) — las cinco fases, los diecinueve entregables y el prompt de cada uno.

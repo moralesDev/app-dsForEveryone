@@ -24,6 +24,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
@@ -163,6 +165,20 @@ fun RomLibraryScreen(
             }
         },
     )
+    val archiveExportPicker = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.CreateDocument("application/zip"),
+        onResult = { uri ->
+            uiState.romOptions?.rom?.let { rom -> viewModel.exportArchive(rom, contentResolver, uri) }
+        },
+    )
+    val archiveImportPicker = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument(),
+        onResult = { uri ->
+            uiState.romOptions?.rom?.id?.let { romId ->
+                viewModel.onArchiveImportPicked(romId, contentResolver, uri)
+            }
+        },
+    )
 
     Column(
         modifier = Modifier
@@ -236,8 +252,10 @@ fun RomLibraryScreen(
         RomOptionsSheet(
             rom = options.rom,
             hasBatterySave = options.hasBatterySave,
+            hasSaveData = options.hasSaveData,
             pendingSavImport = uiState.pendingSavImport,
             pendingSavDelete = uiState.pendingSavDelete,
+            pendingArchiveImport = uiState.pendingArchiveImport != null,
             onExtractSav = {
                 savExportPicker.launch(suggestedSavFileName(options.rom.fileName))
             },
@@ -247,6 +265,13 @@ fun RomLibraryScreen(
             onDeleteSav = viewModel::requestSavDeletion,
             onConfirmSavDelete = viewModel::confirmSavDelete,
             onCancelSavDelete = viewModel::cancelSavDelete,
+            onExportArchive = {
+                archiveExportPicker.launch(suggestedArchiveFileName(options.rom.fileName))
+            },
+            // Cualquier tipo: los proveedores no siempre etiquetan un .zip como tal.
+            onImportArchive = { archiveImportPicker.launch(arrayOf("*/*")) },
+            onConfirmArchiveImport = viewModel::confirmArchiveImport,
+            onCancelArchiveImport = viewModel::cancelArchiveImport,
             onKeep = { viewModel.remove(options.rom.id, deleteSaves = false) },
             onDeleteAll = { viewModel.remove(options.rom.id, deleteSaves = true) },
             onDismiss = viewModel::dismissRomOptions,
@@ -257,6 +282,10 @@ fun RomLibraryScreen(
 /** `<nombre original sin extensión>.sav`, para que otros emuladores lo reconozcan. */
 private fun suggestedSavFileName(originalFileName: String): String =
     originalFileName.substringBeforeLast('.', originalFileName) + ".sav"
+
+/** `<nombre original sin extensión>.saves.zip`: una copia de partidas de ese juego. */
+private fun suggestedArchiveFileName(originalFileName: String): String =
+    originalFileName.substringBeforeLast('.', originalFileName) + ".saves.zip"
 
 @Composable
 private fun LibraryHeader(
@@ -799,8 +828,10 @@ private fun LibraryToast(text: String, onDismiss: () -> Unit) {
 private fun RomOptionsSheet(
     rom: RomInfo,
     hasBatterySave: Boolean,
+    hasSaveData: Boolean,
     pendingSavImport: PendingSavImport?,
     pendingSavDelete: Boolean,
+    pendingArchiveImport: Boolean,
     onExtractSav: () -> Unit,
     onImportSav: () -> Unit,
     onConfirmSavImport: () -> Unit,
@@ -808,12 +839,20 @@ private fun RomOptionsSheet(
     onDeleteSav: () -> Unit,
     onConfirmSavDelete: () -> Unit,
     onCancelSavDelete: () -> Unit,
+    onExportArchive: () -> Unit,
+    onImportArchive: () -> Unit,
+    onConfirmArchiveImport: () -> Unit,
+    onCancelArchiveImport: () -> Unit,
     onKeep: () -> Unit,
     onDeleteAll: () -> Unit,
     onDismiss: () -> Unit,
 ) {
-    val confirming = pendingSavImport != null || pendingSavDelete
-    val onCancelConfirmation = if (pendingSavImport != null) onCancelSavImport else onCancelSavDelete
+    val confirming = pendingSavImport != null || pendingSavDelete || pendingArchiveImport
+    val onCancelConfirmation = when {
+        pendingArchiveImport -> onCancelArchiveImport
+        pendingSavImport != null -> onCancelSavImport
+        else -> onCancelSavDelete
+    }
 
     Box(
         modifier = Modifier
@@ -839,14 +878,21 @@ private fun RomOptionsSheet(
                     indication = null,
                     onClick = {},
                 )
+                // Ocho acciones no caben en horizontal en todos los móviles.
+                .verticalScroll(rememberScrollState())
                 .padding(22.dp),
         ) {
-            if (pendingSavImport != null || pendingSavDelete) {
+            if (confirming) {
                 val title: String
                 val body: String
                 val confirmLabel: String
                 val onConfirm: () -> Unit
-                if (pendingSavImport != null) {
+                if (pendingArchiveImport) {
+                    title = stringResource(R.string.lib_archive_replace_title, rom.displayName)
+                    body = stringResource(R.string.lib_archive_replace_body)
+                    confirmLabel = stringResource(R.string.st_replace)
+                    onConfirm = onConfirmArchiveImport
+                } else if (pendingSavImport != null) {
                     title = stringResource(R.string.lib_sav_replace_title, rom.displayName)
                     body = stringResource(R.string.lib_sav_replace_body)
                     confirmLabel = stringResource(R.string.st_replace)
@@ -916,6 +962,12 @@ private fun RomOptionsSheet(
                     contentColor = Danger,
                     enabled = hasBatterySave,
                 )
+                SheetAction(
+                    text = stringResource(R.string.lib_archive_export),
+                    onClick = onExportArchive,
+                    enabled = hasSaveData,
+                )
+                SheetAction(text = stringResource(R.string.lib_archive_import), onClick = onImportArchive)
                 SheetAction(text = stringResource(R.string.st_cancel), onClick = onDismiss)
             }
         }

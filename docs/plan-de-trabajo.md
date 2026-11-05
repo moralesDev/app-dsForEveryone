@@ -923,7 +923,9 @@ funcionalidad, y conviene hacerlo de una en una, como en el proyecto hermano:
   `CheatsCoordinator`
 - Mandos físicos por Bluetooth y USB, con el cursor virtual como forma de usar
   la pantalla táctil
-- Exportar e importar partidas
+- ~~Exportar e importar partidas~~ — hecho: por juego desde la biblioteca y
+  todas desde Configuración, como un `.zip` que replica `saves/`. Ver
+  `copia-de-partidas.md`
 - ~~Fast-forward~~ — hecho: 1x / 1,5x / 2x en el menú de pausa. El audio se
   silencia mientras corre rápido. Ver `integracion-core.md`, «Avance rápido»
 - Wi-Fi local entre dos instancias, que en DS es mucho más jugosa que el cable

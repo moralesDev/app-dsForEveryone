@@ -109,6 +109,14 @@
     <string name="se_gamepad">Mando físico</string>
     <string name="se_gamepad_hint">Qué botón del mando hace qué en el juego.</string>
     <string name="se_about_hint">Licencia, versión y el core que emula la consola.</string>
+    <string name="se_section_saves">Partidas</string>
+    <string name="se_archive_export">Exportar todas las partidas</string>
+    <string name="se_archive_export_hint">Un .zip con las partidas, save states y trucos de todos los juegos. Para cambiar de móvil o reinstalar.</string>
+    <string name="se_archive_import">Importar copia</string>
+    <string name="se_archive_import_hint">Reemplaza las partidas de los juegos que traiga la copia. Los demás no se tocan.</string>
+    <string name="se_archive_replace_title">¿Importar la copia?</string>
+    <string name="se_archive_replace_body">Juegos en la copia: %1$d. Con datos en este móvil, que se sustituirán por completo (partida, save states y trucos): %2$d. No se puede deshacer.</string>
+    <string name="se_archive_replace">Importar y reemplazar</string>
 
     <!-- Filtro de imagen -->
     <string name="se_filter">Filtro de imagen</string>
@@ -150,6 +158,10 @@
     <string name="lib_sav_delete">Eliminar .sav</string>
     <string name="lib_sav_delete_title">¿Borrar la partida de «%1$s»?</string>
     <string name="lib_sav_delete_body">El juego empezará desde cero la próxima vez que lo abras. No se puede deshacer, y no afecta a los save states guardados aparte.</string>
+    <string name="lib_archive_export">Exportar partidas</string>
+    <string name="lib_archive_import">Importar partidas</string>
+    <string name="lib_archive_replace_title">¿Reemplazar las partidas de «%1$s»?</string>
+    <string name="lib_archive_replace_body">La partida del juego, los save states y los trucos de este juego se sustituyen por los de la copia. No se puede deshacer.</string>
     <string name="lib_page_indicator">%1$d de %2$d</string>
     <string name="cd_settings">Ajustes</string>
     <string name="cd_page_previous">Página anterior</string>
@@ -177,6 +189,18 @@
     <string name="msg_sav_too_large">Ese archivo es demasiado grande para ser una partida de Nintendo DS</string>
     <string name="msg_sav_deleted">Partida eliminada</string>
     <string name="msg_sav_delete_failed">No se pudo eliminar la partida</string>
+    <string name="msg_archive_exported">Copia de partidas guardada</string>
+    <string name="msg_archive_exported_skipped">Copia guardada. Archivos dañados que se quedaron fuera: %1$d</string>
+    <string name="msg_archive_nothing">No hay partidas que exportar</string>
+    <string name="msg_archive_export_failed">No se pudo guardar la copia</string>
+    <string name="msg_archive_imported">Partidas importadas</string>
+    <string name="msg_archive_import_partial">Importados: %1$d. No se pudieron reemplazar: %2$d</string>
+    <string name="msg_archive_not_backup">Ese archivo no es una copia de partidas de DsForEveryone</string>
+    <string name="msg_archive_newer">Esa copia es de una versión más nueva de la aplicación</string>
+    <string name="msg_archive_corrupt">La copia está dañada. No se ha importado nada</string>
+    <string name="msg_archive_too_large">La copia es demasiado grande</string>
+    <string name="msg_archive_unreadable">No se pudo leer la copia</string>
+    <string name="msg_archive_not_this_game">Esa copia no trae partidas de este juego</string>
 
     <!-- Biblioteca vacía -->
     <string name="em_title">Añade tu primer juego</string>

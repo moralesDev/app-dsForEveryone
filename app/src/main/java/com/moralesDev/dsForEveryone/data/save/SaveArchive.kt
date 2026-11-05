@@ -303,10 +303,16 @@ class SaveArchive(
             CommitOutcome(imported, failed)
         }
 
-    /** Abandona una copia preparada sin tocar nada. */
-    suspend fun discard(prepared: PreparedImport) = withContext(ioDispatcher) {
+    /**
+     * Abandona una copia preparada sin tocar nada.
+     *
+     * No es `suspend` a propósito: también se llama desde `onCleared` de un
+     * ViewModel, cuando su ámbito ya está cancelado. Borrar la preparación son
+     * unos pocos `unlink`; si aun así no llega a ocurrir, la limpia
+     * [recoverInterrupted] en el siguiente arranque.
+     */
+    fun discard(prepared: PreparedImport) {
         prepared.directory.deleteRecursively()
-        Unit
     }
 
     private fun replaceGame(savesRoot: File, incoming: File, id: String): Boolean {

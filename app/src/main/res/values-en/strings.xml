@@ -103,6 +103,14 @@
     <string name="se_gamepad">Gamepad</string>
     <string name="se_gamepad_hint">Which gamepad button does what in the game.</string>
     <string name="se_about_hint">Licence, version and the core that emulates the console.</string>
+    <string name="se_section_saves">Saves</string>
+    <string name="se_archive_export">Export all saves</string>
+    <string name="se_archive_export_hint">A .zip with the saves, save states and cheats of every game. For moving to a new phone or reinstalling.</string>
+    <string name="se_archive_import">Import backup</string>
+    <string name="se_archive_import_hint">Replaces the saves of the games in the backup. Other games are left alone.</string>
+    <string name="se_archive_replace_title">Import the backup?</string>
+    <string name="se_archive_replace_body">Games in the backup: %1$d. Games with data on this phone, which will be replaced entirely (save, save states and cheats): %2$d. It can\'t be undone.</string>
+    <string name="se_archive_replace">Import and replace</string>
 
     <!-- Image filter -->
     <string name="se_filter">Image filter</string>
@@ -144,6 +152,10 @@
     <string name="lib_sav_delete">Delete .sav</string>
     <string name="lib_sav_delete_title">Delete the save for \"%1$s\"?</string>
     <string name="lib_sav_delete_body">The game will start from scratch next time you open it. It can\'t be undone, and it doesn\'t affect save states saved separately.</string>
+    <string name="lib_archive_export">Export saves</string>
+    <string name="lib_archive_import">Import saves</string>
+    <string name="lib_archive_replace_title">Replace the saves of \"%1$s\"?</string>
+    <string name="lib_archive_replace_body">This game\'s save, save states and cheats are replaced with the ones in the backup. It can\'t be undone.</string>
     <string name="lib_page_indicator">%1$d of %2$d</string>
     <string name="cd_settings">Settings</string>
     <string name="cd_page_previous">Previous page</string>
@@ -171,6 +183,18 @@
     <string name="msg_sav_too_large">That file is too large to be a Nintendo DS save</string>
     <string name="msg_sav_deleted">Save deleted</string>
     <string name="msg_sav_delete_failed">Couldn\'t delete the save</string>
+    <string name="msg_archive_exported">Backup saved</string>
+    <string name="msg_archive_exported_skipped">Backup saved. Damaged files left out: %1$d</string>
+    <string name="msg_archive_nothing">There are no saves to export</string>
+    <string name="msg_archive_export_failed">Couldn\'t save the backup</string>
+    <string name="msg_archive_imported">Saves imported</string>
+    <string name="msg_archive_import_partial">Imported: %1$d. Couldn\'t be replaced: %2$d</string>
+    <string name="msg_archive_not_backup">That file isn\'t a DsForEveryone saves backup</string>
+    <string name="msg_archive_newer">That backup is from a newer version of the app</string>
+    <string name="msg_archive_corrupt">The backup is damaged. Nothing was imported</string>
+    <string name="msg_archive_too_large">The backup is too large</string>
+    <string name="msg_archive_unreadable">Couldn\'t read the backup</string>
+    <string name="msg_archive_not_this_game">That backup has no saves for this game</string>
 
     <!-- Empty library -->
     <string name="em_title">Add your first game</string>

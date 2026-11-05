@@ -1,15 +1,25 @@
 package com.moralesDev.dsForEveryone.ui.settings
 
+import android.content.ContentResolver
+import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.moralesDev.dsForEveryone.data.rom.RomRepository
+import com.moralesDev.dsForEveryone.data.save.SaveArchive
 import com.moralesDev.dsForEveryone.data.settings.AppLanguage
 import com.moralesDev.dsForEveryone.data.settings.EmulatorSettings
 import com.moralesDev.dsForEveryone.data.settings.ImageFilter
 import com.moralesDev.dsForEveryone.data.settings.SettingsRepository
 import com.moralesDev.dsForEveryone.data.settings.TouchMode
+import com.moralesDev.dsForEveryone.ui.UiMessage
+import com.moralesDev.dsForEveryone.ui.archive.PendingArchiveImport
+import com.moralesDev.dsForEveryone.ui.archive.SaveArchiveCoordinator
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -26,7 +36,21 @@ import javax.inject.Inject
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
     private val settingsRepository: SettingsRepository,
+    private val romRepository: RomRepository,
+    saveArchive: SaveArchive,
 ) : ViewModel() {
+
+    private val _message = MutableStateFlow<UiMessage?>(null)
+
+    /** Resultado de la última exportación o importación de partidas. */
+    val message: StateFlow<UiMessage?> = _message.asStateFlow()
+
+    private val archive = SaveArchiveCoordinator(saveArchive, viewModelScope) { _message.value = it }
+
+    /** Una copia validada que reemplazaría partidas existentes, esperando confirmación. */
+    val pendingArchiveImport: StateFlow<PendingArchiveImport?> = archive.pending
+
+    val archiveBusy: StateFlow<Boolean> = archive.busy
 
     val settings: StateFlow<EmulatorSettings> = settingsRepository.settings.stateIn(
         scope = viewModelScope,
@@ -63,6 +87,34 @@ class SettingsViewModel @Inject constructor(
 
     fun setTouchOffsetDp(offsetDp: Float) {
         viewModelScope.launch { settingsRepository.setTouchOffsetDp(offsetDp) }
+    }
+
+    // --------------------------------------------------- copia de partidas
+
+    /**
+     * Exporta las partidas de todos los juegos, también los que ya no están
+     * en la biblioteca: siguen siendo del usuario. Ver `docs/copia-de-partidas.md`.
+     */
+    fun exportAllSaves(contentResolver: ContentResolver, uri: Uri?) {
+        if (uri == null) return
+        _message.value = null
+        viewModelScope.launch {
+            val titles = romRepository.observeLibrary().first().associate { it.id to it.displayName }
+            archive.export(open = { contentResolver.openOutputStream(uri) }, titles = titles)
+        }
+    }
+
+    fun onArchiveImportPicked(contentResolver: ContentResolver, uri: Uri?) {
+        _message.value = null
+        archive.onPicked(open = uri?.let { { contentResolver.openInputStream(it) } })
+    }
+
+    fun confirmArchiveImport() = archive.confirm()
+
+    fun cancelArchiveImport() = archive.cancel()
+
+    override fun onCleared() {
+        archive.clear()
     }
 
     private companion object {

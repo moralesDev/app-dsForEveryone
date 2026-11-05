@@ -61,7 +61,7 @@ en este repositorio.
 Funcional sobre **melonDS 1.1**. Las cinco fases del plan
 ([`docs/plan-de-trabajo.md`](docs/plan-de-trabajo.md)) están cerradas, y
 después se han añadido trucos Action Replay, mandos Bluetooth/USB, gestión del
-`.sav`, avance rápido y cerrar la tapa. Lo pendiente está en la sección
+`.sav`, copia de partidas, avance rápido y cerrar la tapa. Lo pendiente está en la sección
 «Después» del plan.
 
 ## Compilar
