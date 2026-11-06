@@ -438,23 +438,31 @@ class ControlLayoutTest {
     }
 
     @Test
-    fun `el boton de apartar va debajo de R, a la altura de soplar, sin pisar nada`() {
+    fun `el boton de apartar va abajo a la derecha, a la altura de Start, sin pisar nada`() {
         for (area in portraitAreas) {
             for (minTouchTarget in minTouchTargets + 126f) {
-                val profile = ControlLayout.overlayProfile(area, minTouchTarget)
-                val toggle = ControlLayout.hideToggleBounds(profile, minTouchTarget)
-                val r = profile.groups.getValue(ControlGroup.R).bounds
-                val blow = profile.groups.getValue(ControlGroup.BLOW).bounds
-
-                assertEquals(r.right, toggle.right, 0.01f)
-                assertEquals(blow.centerY, toggle.centerY, 0.01f)
-                assertTrue(toggle.top >= r.bottom - 0.01f)
-                assertTrue(LayoutEngine.isWithin(toggle, area))
-                profile.groups.forEach { (group, placement) ->
-                    assertFalse(
-                        "el botón de apartar pisa $group en $area (objetivo $minTouchTarget)",
-                        LayoutEngine.overlaps(toggle, placement.bounds),
+                for (systemTop in listOf(null, area.bottom - minTouchTarget * 1.5f)) {
+                    val profile = ControlLayout.overlayProfile(
+                        area,
+                        minTouchTarget,
+                        ceiling = area.centerY,
+                        inwardShift = 40f,
+                        systemTop = systemTop,
                     )
+                    val toggle = ControlLayout.hideToggleBounds(profile, minTouchTarget, area)
+                    val r = profile.groups.getValue(ControlGroup.R).bounds
+                    val start = profile.groups.getValue(ControlGroup.START).bounds
+                    val label = "$area, objetivo $minTouchTarget, systemTop $systemTop"
+
+                    assertEquals(label, r.right, toggle.right, 0.01f)
+                    assertTrue(label, LayoutEngine.isWithin(toggle, area))
+                    profile.groups.forEach { (group, placement) ->
+                        assertFalse("pisa $group: $label", LayoutEngine.overlaps(toggle, placement.bounds))
+                    }
+                    // Con un hueco realista va justo a la altura de Start.
+                    if (minTouchTarget == 126f && area.height > 1000f) {
+                        assertEquals(label, start.centerY, toggle.centerY, 0.01f)
+                    }
                 }
             }
         }

@@ -331,12 +331,12 @@ fun GameScreen(onExit: () -> Unit) {
             }
         }
 
-        // Apartar los mandos: debajo de R, a la altura de soplar (ver
+        // Apartar los mandos: abajo a la derecha, a la altura de Start (ver
         // ControlLayout.hideToggleBounds). No se aparta con ellos —es lo que
         // los devuelve— y por eso no es uno más de ControlGroups.
         if (canHideControls && controlProfile != null && !(isGamepadConnected && !isPortrait)) {
             HideControlsToggle(
-                bounds = ControlLayout.hideToggleBounds(controlProfile, minTouchTargetPx),
+                bounds = ControlLayout.hideToggleBounds(controlProfile, minTouchTargetPx, usableArea),
                 hidden = controlsHidden,
                 onToggle = { controlsHidden = !controlsHidden },
                 density = density,

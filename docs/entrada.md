@@ -252,9 +252,9 @@ la sustituye en vertical:
 
 ```
 [ L ]                          [ R ]
-(soplar)                         (>)
+(soplar)
 ( DIRECCIÓN )             ( A·B·X·Y )
-         [select] [start]
+         [select] [start]           (>)
 ```
 
 - Las dos pantallas van **centradas** a lo alto; lo que sobra se reparte
@@ -288,7 +288,7 @@ la sustituye en vertical:
 - La táctil sigue **debajo**: todo lo que no cae en un mando le llega al
   juego. Los botones redondos recortan su forma, así que las esquinas de su
   caja no roban toques.
-- El botón **«>»**, debajo de R a la altura de soplar
+- El botón **«>»**, abajo a la derecha a la altura de Start
   (`ControlLayout.hideToggleBounds`), aparta los mandos —la izquierda sale
   por la izquierda, la derecha por la derecha— y deja la pantalla inferior
   entera para el lápiz; **«<»** los devuelve. Del todo apartados, los mandos

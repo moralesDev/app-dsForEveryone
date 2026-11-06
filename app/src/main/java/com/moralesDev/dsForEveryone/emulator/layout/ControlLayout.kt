@@ -384,9 +384,9 @@ object ControlLayout {
      *
      * ```
      * [ L ]                          [ R ]
-     * (soplar)                         (>)
+     * (soplar)
      * ( DIRECCIÓN )             ( A·B·X·Y )
-     *          [select] [start]
+     *          [select] [start]           (>)
      * ```
      *
      * Por qué así:
@@ -394,8 +394,8 @@ object ControlLayout {
      * - Es la forma de la consola: L arriba a la izquierda y R arriba a la
      *   derecha, encima de la mano que ya está en la dirección o en el rombo.
      *   Soplar va justo debajo de L porque también es de la mano izquierda y
-     *   se usa poco; en la misma fila, a la derecha, queda el botón de
-     *   apartar los mandos ([hideToggleBounds]).
+     *   se usa poco. El botón de apartar los mandos va abajo a la derecha,
+     *   a la altura de Start ([hideToggleBounds]).
      * - Select y Start quedan abajo, a cada lado del centro. Si el teléfono
      *   es tan estrecho que la dirección o el rombo llegarían a pisarlos, los
      *   dos racimos suben una fila en vez de encoger.
@@ -576,19 +576,35 @@ object ControlLayout {
     }
 
     /**
-     * Dónde va el botón de apartar los mandos: en la fila de soplar, pegado
-     * al borde derecho de R —debajo de R, a la altura de soplar—. Se deriva
-     * del perfil y no se guarda: no es un mando de la DS, no se arrastra en
-     * el editor, y así sigue a R y a soplar los mueva quien los mueva.
+     * Dónde va el botón de apartar los mandos: abajo a la derecha, pegado al
+     * borde derecho de los mandos (el de R) y a la altura de Start y Select.
+     * Se deriva del perfil y no se guarda: no es un mando de la DS, no se
+     * arrastra en el editor, y así sigue a R y a Start los mueva quien los
+     * mueva.
+     *
+     * Si ahí pisara algún grupo —en un teléfono ancho, Start y Select
+     * comparten fila con el rombo, que llega hasta el borde derecho—, baja
+     * justo por debajo de lo que pisa. Nunca sale de [area].
      *
      * Del tamaño de soplar escalado a [HIDE_TOGGLE_SCALE], pero nunca mayor
      * que [minTouchTarget].
      */
-    fun hideToggleBounds(profile: ControlLayoutProfile, minTouchTarget: Float): LayoutRect {
+    fun hideToggleBounds(profile: ControlLayoutProfile, minTouchTarget: Float, area: LayoutRect): LayoutRect {
         val r = profile.groups.getValue(ControlGroup.R).bounds
+        val start = profile.groups.getValue(ControlGroup.START).bounds
         val blow = profile.groups.getValue(ControlGroup.BLOW).bounds
         val side = (blow.height * HIDE_TOGGLE_SCALE / OVERLAY_BLOW_SCALE).coerceAtMost(minTouchTarget)
-        return LayoutRect(r.right - side, blow.centerY - side / 2f, r.right, blow.centerY + side / 2f)
+        val right = r.right.coerceAtMost(area.right)
+
+        fun at(top: Float): LayoutRect {
+            val clampedTop = top.coerceIn(area.top, (area.bottom - side).coerceAtLeast(area.top))
+            return LayoutRect(right - side, clampedTop, right, clampedTop + side)
+        }
+
+        val aligned = at(start.centerY - side / 2f)
+        val blocking = profile.groups.values.map { it.bounds }.filter { LayoutEngine.overlaps(aligned, it) }
+        if (blocking.isEmpty()) return aligned
+        return at(blocking.maxOf { it.bottom } + side * OVERLAY_GAP_SCALE / HIDE_TOGGLE_SCALE)
     }
 
     /**
