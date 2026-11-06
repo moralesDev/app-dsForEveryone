@@ -375,13 +375,88 @@ class ControlLayoutTest {
     }
 
     @Test
-    fun `superpuesto, con sitio de sobra nada baja del minimo tactil`() {
+    fun `superpuesto, con sitio de sobra cada grupo tiene su tamano`() {
         val area = portraitAreas.first()
-        val minTouchTarget = 126f
+        val m = 126f
+        val groups = ControlLayout.overlayProfile(area, m).groups.mapValues { it.value.bounds }
 
-        ControlLayout.overlayProfile(area, minTouchTarget).groups.values.forEach { placement ->
-            assertTrue(placement.bounds.width >= minTouchTarget - 0.01f)
-            assertTrue(placement.bounds.height >= minTouchTarget - 0.01f)
+        fun assertSize(group: ControlGroup, width: Float, height: Float) {
+            val bounds = groups.getValue(group)
+            assertEquals("$group ancho", width, bounds.width, 0.01f)
+            assertEquals("$group alto", height, bounds.height, 0.01f)
+        }
+        assertSize(ControlGroup.DIRECTIONAL_PAD, 3f * m, 3f * m)
+        // El rombo, un 20 % menor que la dirección.
+        assertSize(ControlGroup.ACTION_BUTTONS, 2.4f * m, 2.4f * m)
+        // L y R: la mitad de alto y un 25 % menos de largo que en la banda (2,4 × 1,3).
+        assertSize(ControlGroup.L, 1.8f * m, 0.65f * m)
+        assertSize(ControlGroup.R, 1.8f * m, 0.65f * m)
+        // Soplar, la mitad del mínimo táctil.
+        assertSize(ControlGroup.BLOW, 0.5f * m, 0.5f * m)
+        assertSize(ControlGroup.SELECT, 0.9f * m, 0.6f * m)
+        assertSize(ControlGroup.START, 0.9f * m, 0.6f * m)
+    }
+
+    @Test
+    fun `superpuesto, ningun grupo sube del techo`() {
+        for (area in portraitAreas) {
+            val ceiling = area.top + area.height * 0.55f
+            for (minTouchTarget in minTouchTargets + 126f) {
+                val profile = ControlLayout.overlayProfile(area, minTouchTarget, ceiling = ceiling)
+                profile.groups.forEach { (group, placement) ->
+                    assertTrue(
+                        "$group en $area (objetivo $minTouchTarget) sube de $ceiling: ${placement.bounds}",
+                        placement.bounds.top >= ceiling - 0.01f,
+                    )
+                }
+                assertFalse(ControlLayout.hasOverlap(profile, touchScreen = null))
+            }
+        }
+    }
+
+    @Test
+    fun `el techo es el borde de abajo de la pantalla de arriba, sea cual sea`() {
+        val size = LayoutSize(1080f, 2400f)
+        val insets = LayoutInsets(top = 66f, bottom = 48f)
+        val area = size.asArea().inset(insets)
+
+        val normal = ScreenLayout.resolve(LayoutMode.STACKED, size, gap = 0.02f, insets = insets)
+        assertEquals(normal.topScreen.bottom, ControlLayout.overlayCeiling(normal, area), 0.01f)
+
+        val swapped = ScreenLayout.resolve(LayoutMode.STACKED, size, gap = 0.02f, swapped = true, insets = insets)
+        assertEquals(swapped.touchScreen.bottom, ControlLayout.overlayCeiling(swapped, area), 0.01f)
+    }
+
+    @Test
+    fun `sin pantallas apiladas no hay techo`() {
+        val size = LayoutSize(1080f, 2400f)
+        val area = size.asArea()
+        for (mode in listOf(LayoutMode.TOP_ONLY, LayoutMode.BOTTOM_ONLY, LayoutMode.MAIN_AND_SECONDARY, LayoutMode.SIDE_BY_SIDE)) {
+            val placement = ScreenLayout.resolve(mode, size)
+            assertEquals("$mode", area.top, ControlLayout.overlayCeiling(placement, area), 0.01f)
+        }
+    }
+
+    @Test
+    fun `el boton de apartar va debajo de R, a la altura de soplar, sin pisar nada`() {
+        for (area in portraitAreas) {
+            for (minTouchTarget in minTouchTargets + 126f) {
+                val profile = ControlLayout.overlayProfile(area, minTouchTarget)
+                val toggle = ControlLayout.hideToggleBounds(profile, minTouchTarget)
+                val r = profile.groups.getValue(ControlGroup.R).bounds
+                val blow = profile.groups.getValue(ControlGroup.BLOW).bounds
+
+                assertEquals(r.right, toggle.right, 0.01f)
+                assertEquals(blow.centerY, toggle.centerY, 0.01f)
+                assertTrue(toggle.top >= r.bottom - 0.01f)
+                assertTrue(LayoutEngine.isWithin(toggle, area))
+                profile.groups.forEach { (group, placement) ->
+                    assertFalse(
+                        "el botón de apartar pisa $group en $area (objetivo $minTouchTarget)",
+                        LayoutEngine.overlaps(toggle, placement.bounds),
+                    )
+                }
+            }
         }
     }
 

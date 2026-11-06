@@ -73,8 +73,8 @@ exactamente lo mismo, uno o dos `DsButton` adyacentes. Cambia la geometría
 (`JoystickGeometry`): ocho sectores iguales de 45° en vez de diagonales
 estrechas, porque con un stick se apunta con un ángulo, y una zona muerta
 mayor (30 % del radio), porque el pulgar descansa encima de la bola. La bola
-sigue al dedo y vuelve al centro en el mismo `finally` que suelta las
-direcciones.
+—un círculo transparente dentro de un aro fino, nada más— sigue al dedo y
+vuelve al centro en el mismo `finally` que suelta las direcciones.
 
 ### El problema real: un dedo no es un lápiz
 
@@ -251,24 +251,36 @@ rombo en otra— no se parecía a una consola. `ControlLayout.overlayProfile`
 la sustituye en vertical:
 
 ```
-[  L  ]                           [  R  ]
-[Soplar]
-[ DIRECCIÓN ]               [ A·B·X·Y ]
-          [SELECT] [START]
+[ L ]                          [ R ]
+(soplar)                         (>)
+( DIRECCIÓN )             ( A·B·X·Y )
+         [select] [start]
 ```
 
+- Las dos pantallas van **centradas** a lo alto; lo que sobra se reparte
+  arriba y abajo.
 - Cada grupo va del lado de su mano: L, soplar, dirección y Select a la
   izquierda; R, rombo y Start a la derecha. Select y Start, abajo y pegados
-  al centro.
+  al centro, como pastillas con el nombre debajo.
 - Los dos racimos se anclan **abajo** y suben por encima de la pantalla
-  inferior todo lo que necesiten: el pulgar llega desde el borde inferior.
+  inferior, pero **nunca por encima de la de arriba**
+  (`ControlLayout.overlayCeiling`); si no caben, todo encoge por igual. El
+  editor tampoco deja arrastrar un mando por encima de ese techo.
+- Todo es **transparente con borde y letras claras** (`GhostSurface`): el
+  juego se ve a través. Los tamaños son pequeños a propósito salvo la
+  dirección: el rombo un 20 % menor que ella y con sus cuatro botones sin
+  tocarse; L y R finos (la mitad de alto y un 25 % menos de largo que en la
+  banda horizontal); soplar, la mitad del mínimo táctil; Start y Select, la
+  mitad que antes.
 - La táctil sigue **debajo**: todo lo que no cae en un mando le llega al
-  juego.
-- Un botón **«>»** junto al menú aparta los mandos —la izquierda sale por la
-  izquierda, la derecha por la derecha— y deja la pantalla inferior entera
-  para el lápiz; **«<»** los devuelve. Del todo apartados, los mandos dejan de
-  componerse, así que no queda ningún botón pegado. Sólo existe en vertical:
-  en horizontal los mandos no tapan la táctil.
+  juego. Los botones redondos recortan su forma, así que las esquinas de su
+  caja no roban toques.
+- El botón **«>»**, debajo de R a la altura de soplar
+  (`ControlLayout.hideToggleBounds`), aparta los mandos —la izquierda sale
+  por la izquierda, la derecha por la derecha— y deja la pantalla inferior
+  entera para el lápiz; **«<»** los devuelve. Del todo apartados, los mandos
+  dejan de componerse, así que no queda ningún botón pegado. Sólo existe en
+  vertical: en horizontal los mandos no tapan la táctil.
 
 El perfil vertical guardado cambió de clave (`portrait_controls_overlay`): uno
 hecho con la regla anterior de no tocar la táctil no se trae, se cae al perfil

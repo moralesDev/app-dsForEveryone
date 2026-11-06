@@ -128,6 +128,31 @@ object ControlLayout {
     private const val OVERLAY_GAP_SCALE = 0.25f
 
     /**
+     * Tamaños de [overlayProfile], como múltiplo de `minTouchTarget`. Más
+     * pequeños que los de la banda de [defaultProfile] porque aquí van
+     * encima del juego:
+     *
+     * - La dirección conserva el tamaño grande: es la que más precisión pide.
+     * - El rombo, un 20 % menor que la dirección.
+     * - L y R, la mitad de alto y un 25 % menos de largo que en la banda.
+     * - Soplar, la mitad del mínimo táctil.
+     * - Start y Select, pastillas con el nombre debajo, la mitad que antes.
+     */
+    private const val OVERLAY_DIRECTIONAL_SCALE = PRIMARY_SCALE
+    private const val OVERLAY_ACTION_SCALE = PRIMARY_SCALE * 0.8f
+    private const val OVERLAY_SHOULDER_WIDTH_SCALE = SHOULDER_WIDTH_SCALE * 0.75f
+    private const val OVERLAY_SHOULDER_HEIGHT_SCALE = SHOULDER_HEIGHT_SCALE * 0.5f
+    private const val OVERLAY_BLOW_SCALE = SECONDARY_SCALE * 0.5f
+    private const val OVERLAY_SYSTEM_WIDTH_SCALE = 0.9f
+    private const val OVERLAY_SYSTEM_HEIGHT_SCALE = 0.6f
+
+    /** El botón de apartar los mandos, algo mayor que soplar con el que comparte fila. */
+    private const val HIDE_TOGGLE_SCALE = 0.6f
+
+    /** Alto de la fila de soplar y del botón de apartar: el mayor de los dos. */
+    private const val OVERLAY_MIDDLE_ROW_SCALE = HIDE_TOGGLE_SCALE
+
+    /**
      * El perfil que hay que pintar: el guardado por el usuario en
      * [custom] si es válido y completo, o si no [defaultProfile]. La pantalla
      * de juego y el editor de disposición llaman a esta misma función con los
@@ -148,10 +173,11 @@ object ControlLayout {
         minTouchTarget: Float,
         opacity: Float = DEFAULT_OPACITY,
         overlay: Boolean = false,
+        ceiling: Float = area.top,
     ): ControlLayoutProfile {
         val fromCustom = custom?.let { fromFractions(it, area) }
         return fromCustom ?: if (overlay) {
-            overlayProfile(area, minTouchTarget, opacity)
+            overlayProfile(area, minTouchTarget, opacity, ceiling)
         } else {
             defaultProfile(area, touchScreen, minTouchTarget, opacity)
         }
@@ -351,13 +377,13 @@ object ControlLayout {
     /**
      * Perfil por defecto en vertical: dos racimos, uno por mano, pegados a
      * los bordes y anclados abajo, que suben **por encima** de la pantalla
-     * inferior todo lo que haga falta.
+     * inferior todo lo que haga falta, pero nunca por encima de [ceiling].
      *
      * ```
-     * [  L  ]                           [  R  ]
-     * [Soplar]
-     * [ DIRECCIÓN ]               [ A·B·X·Y ]
-     *           [SELECT] [START]
+     * [ L ]                          [ R ]
+     * (soplar)                         (>)
+     * ( DIRECCIÓN )             ( A·B·X·Y )
+     *          [select] [start]
      * ```
      *
      * Por qué así:
@@ -365,54 +391,76 @@ object ControlLayout {
      * - Es la forma de la consola: L arriba a la izquierda y R arriba a la
      *   derecha, encima de la mano que ya está en la dirección o en el rombo.
      *   Soplar va justo debajo de L porque también es de la mano izquierda y
-     *   se usa poco.
-     * - Select y Start quedan abajo, a cada lado del centro, cada uno del lado
-     *   de su mano. Si el teléfono es tan estrecho que la dirección o el
-     *   rombo llegarían a pisarlos, los dos racimos suben una fila en vez de
-     *   encoger.
+     *   se usa poco; en la misma fila, a la derecha, queda el botón de
+     *   apartar los mandos ([hideToggleBounds]).
+     * - Select y Start quedan abajo, a cada lado del centro. Si el teléfono
+     *   es tan estrecho que la dirección o el rombo llegarían a pisarlos, los
+     *   dos racimos suben una fila en vez de encoger.
      * - Anclado abajo y no repartido por toda la pantalla inferior: el pulgar
-     *   llega desde el borde de abajo, y L a media pantalla de distancia no
-     *   se alcanza sin soltar el teléfono.
+     *   llega desde el borde de abajo.
+     * - Todo menos la dirección es pequeño a propósito —L y R finos, soplar,
+     *   Start y Select diminutos—: van encima del juego, y cada milímetro de
+     *   botón es un milímetro de pantalla inferior que no se ve bien.
      *
-     * Si ni así cabe —un hueco minúsculo, o un objetivo táctil enorme—, todo
-     * se escala por igual hasta caber: los grupos nunca se solapan ni se
-     * salen de [area], por pequeño que sea.
+     * Si no cabe entre [ceiling] y el borde de abajo —un hueco minúsculo, o
+     * un objetivo táctil enorme—, todo se escala por igual hasta caber: los
+     * grupos nunca se solapan, ni salen de [area], ni suben de [ceiling].
+     *
+     * @param ceiling el borde de arriba que ningún grupo puede pasar: el de
+     *   abajo de la pantalla superior, ver [overlayCeiling]. Por defecto,
+     *   el de [area].
      */
     fun overlayProfile(
         area: LayoutRect,
         minTouchTarget: Float,
         opacity: Float = DEFAULT_OPACITY,
+        ceiling: Float = area.top,
     ): ControlLayoutProfile {
-        val requestedWidth = minTouchTarget * (2f * PRIMARY_SCALE + 3f * OVERLAY_GAP_SCALE)
+        val top = ceiling.coerceIn(area.top, area.bottom)
+        val usable = LayoutRect(area.left, top, area.right, area.bottom)
+
+        // Cada racimo cabe en su mitad: cuenta el más ancho de los dos, dos veces.
+        val requestedWidth = minTouchTarget * (
+            2f * maxOf(OVERLAY_DIRECTIONAL_SCALE, OVERLAY_ACTION_SCALE) + 3f * OVERLAY_GAP_SCALE
+            )
         // Peor caso a lo alto: Select/Start en su propia fila, debajo.
         val requestedHeight = minTouchTarget * (
-            5f * OVERLAY_GAP_SCALE + 2f * SECONDARY_SCALE + PRIMARY_SCALE + SHOULDER_HEIGHT_SCALE
+            5f * OVERLAY_GAP_SCALE + OVERLAY_SYSTEM_HEIGHT_SCALE + OVERLAY_DIRECTIONAL_SCALE +
+                OVERLAY_MIDDLE_ROW_SCALE + OVERLAY_SHOULDER_HEIGHT_SCALE
             )
         val fit = minOf(
             1f,
-            if (requestedWidth > 0f) area.width.coerceAtLeast(0f) / requestedWidth else 0f,
-            if (requestedHeight > 0f) area.height.coerceAtLeast(0f) / requestedHeight else 0f,
+            if (requestedWidth > 0f) usable.width.coerceAtLeast(0f) / requestedWidth else 0f,
+            if (requestedHeight > 0f) usable.height.coerceAtLeast(0f) / requestedHeight else 0f,
         )
         val unit = minTouchTarget * fit
         val gap = unit * OVERLAY_GAP_SCALE
-        val primary = unit * PRIMARY_SCALE
-        val secondary = unit * SECONDARY_SCALE
-        val shoulderWidth = unit * SHOULDER_WIDTH_SCALE
-        val shoulderHeight = unit * SHOULDER_HEIGHT_SCALE
+        val directional = unit * OVERLAY_DIRECTIONAL_SCALE
+        val action = unit * OVERLAY_ACTION_SCALE
+        val systemWidth = unit * OVERLAY_SYSTEM_WIDTH_SCALE
+        val systemHeight = unit * OVERLAY_SYSTEM_HEIGHT_SCALE
+        val blowSide = unit * OVERLAY_BLOW_SCALE
+        val middleRow = unit * OVERLAY_MIDDLE_ROW_SCALE
+        val shoulderWidth = unit * OVERLAY_SHOULDER_WIDTH_SCALE
+        val shoulderHeight = unit * OVERLAY_SHOULDER_HEIGHT_SCALE
 
-        val bottom = area.bottom - gap
-        val select = LayoutRect(area.centerX - gap / 2f - secondary, bottom - secondary, area.centerX - gap / 2f, bottom)
-        val start = LayoutRect(area.centerX + gap / 2f, bottom - secondary, area.centerX + gap / 2f + secondary, bottom)
+        val bottom = usable.bottom - gap
+        val centerX = usable.centerX
+        val select = LayoutRect(centerX - gap / 2f - systemWidth, bottom - systemHeight, centerX - gap / 2f, bottom)
+        val start = LayoutRect(centerX + gap / 2f, bottom - systemHeight, centerX + gap / 2f + systemWidth, bottom)
 
-        val leftEdge = area.left + gap
-        val rightEdge = area.right - gap
-        val primaryReachesCenter = leftEdge + primary + gap > select.left
-        val primaryBottom = if (primaryReachesCenter) select.top - gap else bottom
+        val leftEdge = usable.left + gap
+        val rightEdge = usable.right - gap
+        val reachesCenter = leftEdge + directional + gap > select.left || rightEdge - action - gap < start.right
+        val primaryBottom = if (reachesCenter) select.top - gap else bottom
 
-        val dpad = LayoutRect(leftEdge, primaryBottom - primary, leftEdge + primary, primaryBottom)
-        val action = LayoutRect(rightEdge - primary, primaryBottom - primary, rightEdge, primaryBottom)
-        val blow = LayoutRect(leftEdge, dpad.top - gap - secondary, leftEdge + secondary, dpad.top - gap)
-        val l = LayoutRect(leftEdge, blow.top - gap - shoulderHeight, leftEdge + shoulderWidth, blow.top - gap)
+        val dpad = LayoutRect(leftEdge, primaryBottom - directional, leftEdge + directional, primaryBottom)
+        val actionRect = LayoutRect(rightEdge - action, primaryBottom - action, rightEdge, primaryBottom)
+        val rowBottom = minOf(dpad.top, actionRect.top) - gap
+        val rowCenterY = rowBottom - middleRow / 2f
+        val blow = LayoutRect(leftEdge, rowCenterY - blowSide / 2f, leftEdge + blowSide, rowCenterY + blowSide / 2f)
+        val shoulderBottom = rowBottom - middleRow - gap
+        val l = LayoutRect(leftEdge, shoulderBottom - shoulderHeight, leftEdge + shoulderWidth, shoulderBottom)
         val r = LayoutRect(rightEdge - shoulderWidth, l.top, rightEdge, l.bottom)
 
         val groups = mapOf(
@@ -421,10 +469,43 @@ object ControlLayout {
             ControlGroup.DIRECTIONAL_PAD to dpad,
             ControlGroup.SELECT to select,
             ControlGroup.R to r,
-            ControlGroup.ACTION_BUTTONS to action,
+            ControlGroup.ACTION_BUTTONS to actionRect,
             ControlGroup.START to start,
         ).mapValues { (_, bounds) -> ControlGroupPlacement(bounds, opacity) }
         return ControlLayoutProfile(groups)
+    }
+
+    /**
+     * El techo de [overlayProfile]: el borde de abajo de la pantalla que
+     * queda físicamente arriba, cuando las dos están una encima de la otra.
+     * Los mandos van encima de la pantalla inferior, nunca de la superior.
+     *
+     * Si no están apiladas —lado a lado, una sola, o la secundaria metida
+     * dentro de la principal— no hay «pantalla de arriba» que respetar, y el
+     * techo es el del hueco.
+     */
+    fun overlayCeiling(placement: ScreenPlacement, area: LayoutRect): Float {
+        val a = placement.topScreen
+        val b = placement.touchScreen
+        if (a.width <= 0f || a.height <= 0f || b.width <= 0f || b.height <= 0f) return area.top
+        val (upper, lower) = if (a.top <= b.top) a to b else b to a
+        return if (upper.bottom <= lower.top) upper.bottom.coerceIn(area.top, area.bottom) else area.top
+    }
+
+    /**
+     * Dónde va el botón de apartar los mandos: en la fila de soplar, pegado
+     * al borde derecho de R —debajo de R, a la altura de soplar—. Se deriva
+     * del perfil y no se guarda: no es un mando de la DS, no se arrastra en
+     * el editor, y así sigue a R y a soplar los mueva quien los mueva.
+     *
+     * Del tamaño de soplar escalado a [HIDE_TOGGLE_SCALE], pero nunca mayor
+     * que [minTouchTarget].
+     */
+    fun hideToggleBounds(profile: ControlLayoutProfile, minTouchTarget: Float): LayoutRect {
+        val r = profile.groups.getValue(ControlGroup.R).bounds
+        val blow = profile.groups.getValue(ControlGroup.BLOW).bounds
+        val side = (blow.height * HIDE_TOGGLE_SCALE / OVERLAY_BLOW_SCALE).coerceAtMost(minTouchTarget)
+        return LayoutRect(r.right - side, blow.centerY - side / 2f, r.right, blow.centerY + side / 2f)
     }
 
     /**

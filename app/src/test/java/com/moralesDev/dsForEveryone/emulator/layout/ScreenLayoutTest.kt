@@ -291,4 +291,17 @@ class ScreenLayoutTest {
             assertTrue(placement.touchScreen.width >= 0f && placement.touchScreen.height >= 0f)
         }
     }
+
+    @Test
+    fun `apiladas, las dos pantallas quedan centradas a lo alto en el hueco`() {
+        val insets = LayoutInsets(top = 66f, bottom = 48f)
+        val area = LayoutRect(0f, 0f, 1080f, 2400f).inset(insets)
+
+        val placement = ScreenLayout.resolve(LayoutMode.STACKED, LayoutSize(1080f, 2400f), gap = 0.02f, insets = insets)
+
+        val above = placement.topScreen.top - area.top
+        val below = area.bottom - placement.touchScreen.bottom
+        assertTrue(above > 0f)
+        assertEquals(above, below, 0.01f)
+    }
 }

@@ -104,7 +104,12 @@ object ScreenLayout {
             SCREEN_ASPECT_RATIO,
         )
         val left = area.left + (area.width - size.width) / 2f
-        val first = LayoutRect.ofSize(left, area.top, size)
+        // Centradas también a lo alto: lo que sobra se reparte arriba y
+        // abajo. Pegadas arriba dejaban un hueco vacío bajo la táctil y
+        // obligaban a los mandos (que van encima de la pantalla inferior,
+        // ver ControlLayout.overlayProfile) a taparla más de la cuenta.
+        val top = area.top + (area.height - (size.height * 2f + gapPx)).coerceAtLeast(0f) / 2f
+        val first = LayoutRect.ofSize(left, top, size)
         val second = LayoutRect.ofSize(left, first.bottom + gapPx, size)
         return first to second
     }

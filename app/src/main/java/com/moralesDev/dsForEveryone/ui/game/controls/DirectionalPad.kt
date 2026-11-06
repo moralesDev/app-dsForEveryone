@@ -1,5 +1,6 @@
 package com.moralesDev.dsForEveryone.ui.game.controls
 
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -16,7 +17,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -34,10 +37,9 @@ import com.moralesDev.dsForEveryone.emulator.DsButton
  * otra —diagonales incluidas— sin levantarse: cada movimiento sustituye el
  * conjunto entero, así que la anterior se suelta sola.
  *
- * Visualmente es un disco de caucho —[RubberSurface] en reposo, nunca
- * pulsado como conjunto— con cuatro flechas independientes en relieve
- * encima, cada una redondeada por el lado de fuera y recta por el que mira
- * al centro, y el nudo de [RubberHub] en medio. Sigue siendo la misma
+ * Visualmente es un aro fino con cuatro flechas transparentes de borde
+ * claro ([GhostSurface]), cada una redondeada por el lado de fuera y recta
+ * por el que mira al centro: se ve el juego a través. Sigue siendo la misma
  * rejilla de 3×3 con pesos iguales de siempre: el tamaño no es una constante
  * de diseño, lo decide `ControlLayout`.
  */
@@ -66,7 +68,11 @@ fun DirectionalPad(
             },
         contentAlignment = Alignment.Center,
     ) {
-        RubberSurface(shape = CircleShape, pressed = false, opacity = opacity, modifier = Modifier.fillMaxSize())
+        Box(
+            Modifier
+                .fillMaxSize()
+                .border(1.dp, Color.White.copy(alpha = RING_ALPHA * opacity), CircleShape),
+        )
 
         Column(Modifier.fillMaxSize(INNER_FRACTION)) {
             Row(Modifier.weight(1f).fillMaxWidth()) {
@@ -76,9 +82,7 @@ fun DirectionalPad(
             }
             Row(Modifier.weight(1f).fillMaxWidth()) {
                 Arm(DsButton.LEFT, rotation = -90f, pressedMask, opacity, Modifier.weight(1f).fillMaxHeight())
-                Box(Modifier.weight(1f).fillMaxHeight(), contentAlignment = Alignment.Center) {
-                    RubberHub(opacity, Modifier.fillMaxSize(HUB_FRACTION))
-                }
+                Spacer(Modifier.weight(1f))
                 Arm(DsButton.RIGHT, rotation = 90f, pressedMask, opacity, Modifier.weight(1f).fillMaxHeight())
             }
             Row(Modifier.weight(1f).fillMaxWidth()) {
@@ -99,7 +103,7 @@ private fun Arm(
     modifier: Modifier,
 ) {
     val pressed = pressedMask and direction.mask != 0
-    RubberSurface(
+    GhostSurface(
         shape = armShape(direction),
         pressed = pressed,
         opacity = opacity,
@@ -108,7 +112,7 @@ private fun Arm(
         Icon(
             imageVector = Icons.Filled.ArrowDropUp,
             contentDescription = null,
-            tint = RubberNeutral.text,
+            tint = ghostContentColor(opacity),
             modifier = Modifier
                 .fillMaxSize(ARROW_FRACTION)
                 .rotate(rotation),
@@ -132,6 +136,6 @@ private fun armShape(direction: DsButton): Shape = when (direction) {
 /** Fracción del cuadrado que ocupa la rejilla de flechas, dejando ver el aro del disco base alrededor. */
 private const val INNER_FRACTION = 0.84f
 private const val ARROW_FRACTION = 0.55f
-private const val HUB_FRACTION = 0.42f
+private const val RING_ALPHA = 0.35f
 private const val OUTER_PERCENT = 45
 private const val INNER_PERCENT = 15

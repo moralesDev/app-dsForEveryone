@@ -1,7 +1,11 @@
 package com.moralesDev.dsForEveryone.ui.game.controls
 
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -11,17 +15,17 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.moralesDev.dsForEveryone.emulator.DsButton
 import com.moralesDev.dsForEveryone.ui.theme.Accent100
-import com.moralesDev.dsForEveryone.ui.theme.textAlpha
 
-/** L y R: gatillos rectangulares, llenan el hueco que les da `ControlLayout`. */
+/** L y R: gatillos finos y apaisados, llenan el hueco que les da `ControlLayout`. */
 @Composable
 fun ShoulderButton(
     button: DsButton,
@@ -32,23 +36,30 @@ fun ShoulderButton(
     onPress: (DsButton, Boolean) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    RubberLabelSurface(
+    GhostSurface(
+        shape = RoundedCornerShape(50),
         pressed = pressedMask and button.mask != 0,
-        label = label,
         opacity = opacity,
-        haptic = haptic,
-        shape = RoundedCornerShape(14.dp),
-        onPress = { isPressed -> onPress(button, isPressed) },
-        modifier = modifier,
-    )
+        modifier = modifier
+            .fillMaxSize()
+            .semantics { contentDescription = label }
+            .pressable(haptic = haptic) { isPressed -> onPress(button, isPressed) },
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium),
+            color = ghostContentColor(opacity),
+        )
+    }
 }
 
 /**
- * Start y Select: cápsulas discretas. Son el grupo más pequeño que coloca
- * `ControlLayout` (exactamente el mínimo táctil), así que su etiqueta va en
- * [MaterialTheme.typography.labelSmall], no en el `titleSmall` de L/R: con
- * una sola letra `titleSmall` cabe de sobra, pero «SELECT» en un círculo de
- * 48dp con ese tamaño se parte en dos líneas.
+ * Start y Select: una pastilla pequeña con el nombre **debajo**, como están
+ * serigrafiados en la consola, en vez de dentro —«SELECT» no cabe legible
+ * dentro de una pastilla de este tamaño—.
+ *
+ * Toda la caja, nombre incluido, es el botón: el nombre es parte de lo que
+ * se puede pulsar, así el objetivo no es sólo la pastilla.
  */
 @Composable
 fun SystemButton(
@@ -60,16 +71,29 @@ fun SystemButton(
     onPress: (DsButton, Boolean) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    RubberLabelSurface(
-        pressed = pressedMask and button.mask != 0,
-        label = label,
-        opacity = opacity,
-        haptic = haptic,
-        shape = RoundedCornerShape(50),
-        textStyle = MaterialTheme.typography.labelSmall,
-        onPress = { isPressed -> onPress(button, isPressed) },
-        modifier = modifier,
-    )
+    Column(
+        modifier = modifier
+            .fillMaxSize()
+            .semantics { contentDescription = label }
+            .pressable(haptic = haptic) { isPressed -> onPress(button, isPressed) },
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(2.dp, Alignment.CenterVertically),
+    ) {
+        GhostSurface(
+            shape = RoundedCornerShape(50),
+            pressed = pressedMask and button.mask != 0,
+            opacity = opacity,
+            modifier = Modifier
+                .fillMaxWidth(PILL_WIDTH_FRACTION)
+                .fillMaxHeight(PILL_HEIGHT_FRACTION),
+        )
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelSmall.copy(fontSize = 8.sp, letterSpacing = 0.6.sp),
+            color = ghostContentColor(opacity),
+            maxLines = 1,
+        )
+    }
 }
 
 /**
@@ -88,11 +112,11 @@ fun BlowButton(
     modifier: Modifier = Modifier,
 ) {
     val iconTint by animateColorAsState(
-        if (active) Accent100 else textAlpha(0.65f * opacity),
+        if (active) Accent100 else ghostContentColor(opacity),
         label = "blow-icon-tint",
     )
 
-    RubberSurface(
+    GhostSurface(
         shape = CircleShape,
         pressed = active,
         opacity = opacity,
@@ -105,31 +129,10 @@ fun BlowButton(
             imageVector = Icons.Filled.Air,
             contentDescription = null,
             tint = iconTint,
-            modifier = Modifier.fillMaxSize(0.5f),
+            modifier = Modifier.fillMaxSize(0.6f),
         )
     }
 }
 
-@Composable
-private fun RubberLabelSurface(
-    pressed: Boolean,
-    label: String,
-    opacity: Float,
-    haptic: Boolean,
-    shape: Shape,
-    onPress: (Boolean) -> Unit,
-    modifier: Modifier = Modifier,
-    textStyle: TextStyle = MaterialTheme.typography.titleSmall,
-) {
-    RubberSurface(
-        shape = shape,
-        pressed = pressed,
-        opacity = opacity,
-        modifier = modifier
-            .fillMaxSize()
-            .semantics { contentDescription = label }
-            .pressable(haptic = haptic, onPressChange = onPress),
-    ) {
-        Text(text = label, style = textStyle, color = RubberNeutral.text)
-    }
-}
+private const val PILL_WIDTH_FRACTION = 0.8f
+private const val PILL_HEIGHT_FRACTION = 0.42f

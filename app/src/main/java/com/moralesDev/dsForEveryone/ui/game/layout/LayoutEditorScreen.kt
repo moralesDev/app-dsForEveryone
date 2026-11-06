@@ -155,6 +155,7 @@ fun LayoutEditorScreen(onBack: () -> Unit) {
             minTouchTarget = minTouchTargetPx,
             opacity = ControlLayout.DEFAULT_OPACITY,
             overlay = isPortrait,
+            ceiling = ControlLayout.overlayCeiling(current, usableArea),
         )
     }
 
@@ -214,10 +215,17 @@ fun LayoutEditorScreen(onBack: () -> Unit) {
             // En vertical los mandos van encima de la táctil a propósito (ver
             // ControlLayout.overlayProfile): ahí la táctil no bloquea nada.
             val touchBlocker = placement?.touchScreen?.takeUnless { isPortrait }
+            // Y en vertical, nunca por encima de la pantalla de arriba: todo
+            // lo que queda sobre el techo de overlayCeiling es zona vedada.
+            val ceilingBlocker = placement?.takeIf { isPortrait }?.let { current ->
+                val ceiling = ControlLayout.overlayCeiling(current, usableArea)
+                LayoutRect(usableArea.left, usableArea.top, usableArea.right, ceiling)
+                    .takeIf { it.height > 0f }
+            }
 
             profile.groups.forEach { (group, groupPlacement) ->
                 key(group) {
-                    val blockers = (profile.groups - group).values.map { it.bounds } + listOfNotNull(touchBlocker)
+                    val blockers = (profile.groups - group).values.map { it.bounds } + listOfNotNull(touchBlocker, ceilingBlocker)
                     EditableGroupBox(
                         group = group,
                         placement = groupPlacement,

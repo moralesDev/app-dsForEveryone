@@ -14,12 +14,11 @@ import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -82,6 +81,8 @@ import com.moralesDev.dsForEveryone.ui.components.GlassIconButton
 import com.moralesDev.dsForEveryone.ui.game.controls.ActionButtons
 import com.moralesDev.dsForEveryone.ui.game.controls.BlowButton
 import com.moralesDev.dsForEveryone.ui.game.controls.DirectionalPad
+import com.moralesDev.dsForEveryone.ui.game.controls.GhostSurface
+import com.moralesDev.dsForEveryone.ui.game.controls.ghostContentColor
 import com.moralesDev.dsForEveryone.ui.game.controls.Joystick
 import com.moralesDev.dsForEveryone.ui.game.controls.ShoulderButton
 import com.moralesDev.dsForEveryone.ui.game.controls.SystemButton
@@ -223,6 +224,9 @@ fun GameScreen(onExit: () -> Unit) {
             minTouchTarget = minTouchTargetPx,
             opacity = ControlLayout.DEFAULT_OPACITY,
             overlay = isPortrait,
+            // Nunca por encima de la pantalla de arriba: los mandos van
+            // encima de la inferior, no de las dos.
+            ceiling = ControlLayout.overlayCeiling(current, usableArea),
         )
     }
 
@@ -289,43 +293,38 @@ fun GameScreen(onExit: () -> Unit) {
             )
         }
 
-        // Un solo botón encima del juego, y por eso está: el de menú. El
-        // avance rápido vivió aquí al lado y tapaba demasiado —dos pastillas
-        // sobre la esquina de la pantalla superior—, así que se cambia sólo
-        // desde el menú de pausa, que es donde ya estaba el mismo ajuste.
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        // Apartar los mandos: debajo de R, a la altura de soplar (ver
+        // ControlLayout.hideToggleBounds). No se aparta con ellos —es lo que
+        // los devuelve— y por eso no es uno más de ControlGroups.
+        if (canHideControls && controlProfile != null && !(isGamepadConnected && !isPortrait)) {
+            HideControlsToggle(
+                bounds = ControlLayout.hideToggleBounds(controlProfile, minTouchTargetPx),
+                hidden = controlsHidden,
+                onToggle = { controlsHidden = !controlsHidden },
+                density = density,
+            )
+        }
+
+        // Un solo botón arriba, encima del juego: el de menú. El avance rápido
+        // vivió aquí al lado y tapaba demasiado —dos pastillas sobre la
+        // esquina de la pantalla superior—, así que se cambia sólo desde el
+        // menú de pausa, que es donde ya estaba el mismo ajuste.
+        GlassIconButton(
+            icon = Icons.Filled.Menu,
+            contentDescription = stringResource(R.string.cd_menu),
+            onClick = {
+                isMenuOpen = true
+                viewModel.pause()
+            },
+            // Debajo está el juego, no el fondo de la aplicación: con el
+            // vidrio claro de siempre, un juego de fondo blanco borra el
+            // botón. Ver GlassOverVideo.
+            overVideo = true,
             modifier = Modifier
                 .align(Alignment.TopEnd)
                 .windowInsetsPadding(WindowInsets.systemBars)
                 .padding(12.dp),
-        ) {
-            // «>» aparta los mandos —la izquierda hacia la izquierda, la
-            // derecha hacia la derecha— y deja la pantalla inferior entera
-            // para la táctil; «<» los devuelve.
-            if (canHideControls && controlProfile != null) {
-                GlassIconButton(
-                    icon = if (controlsHidden) Icons.Filled.ChevronLeft else Icons.Filled.ChevronRight,
-                    contentDescription = stringResource(
-                        if (controlsHidden) R.string.cd_show_controls else R.string.cd_hide_controls,
-                    ),
-                    onClick = { controlsHidden = !controlsHidden },
-                    overVideo = true,
-                )
-            }
-            GlassIconButton(
-                icon = Icons.Filled.Menu,
-                contentDescription = stringResource(R.string.cd_menu),
-                onClick = {
-                    isMenuOpen = true
-                    viewModel.pause()
-                },
-                // Debajo está el juego, no el fondo de la aplicación: con el
-                // vidrio claro de siempre, un juego de fondo blanco borra el
-                // botón. Ver GlassOverVideo.
-                overVideo = true,
-            )
-        }
+        )
 
         if (isMenuOpen) {
             PauseMenu(
@@ -541,6 +540,42 @@ private fun reportTouch(
 
     val point = TouchRouter.map(globalX, globalY, placement)
     if (point != null) onTouch(point.x, point.y, true) else onTouch(0, 0, false)
+}
+
+/**
+ * El botón «>» / «<» que aparta los mandos o los devuelve. Con el mismo
+ * aspecto que ellos —transparente, borde claro—, pero es un botón de la
+ * aplicación, no de la DS: un clic, sin pulsación mantenida.
+ */
+@Composable
+private fun HideControlsToggle(
+    bounds: LayoutRect,
+    hidden: Boolean,
+    onToggle: () -> Unit,
+    density: Density,
+) {
+    if (bounds.width <= 0f || bounds.height <= 0f) return
+    val (offsetX, offsetY, boxWidth, boxHeight) = with(density) {
+        listOf(bounds.left.toDp(), bounds.top.toDp(), bounds.width.toDp(), bounds.height.toDp())
+    }
+    GhostSurface(
+        shape = CircleShape,
+        pressed = false,
+        opacity = ControlLayout.DEFAULT_OPACITY,
+        modifier = Modifier
+            .offset(offsetX, offsetY)
+            .size(boxWidth, boxHeight)
+            .clickable(onClick = onToggle),
+    ) {
+        Icon(
+            imageVector = if (hidden) Icons.Filled.ChevronLeft else Icons.Filled.ChevronRight,
+            contentDescription = stringResource(
+                if (hidden) R.string.cd_show_controls else R.string.cd_hide_controls,
+            ),
+            tint = ghostContentColor(ControlLayout.DEFAULT_OPACITY),
+            modifier = Modifier.fillMaxSize(0.8f),
+        )
+    }
 }
 
 /**
