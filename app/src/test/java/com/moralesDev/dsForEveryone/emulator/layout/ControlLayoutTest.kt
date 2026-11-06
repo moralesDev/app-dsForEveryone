@@ -482,4 +482,56 @@ class ControlLayoutTest {
 
         assertEquals(ControlLayout.overlayProfile(area, 126f), resolved)
     }
+
+    @Test
+    fun `la direccion y el rombo se acercan al centro lo pedido, y nada mas se mueve`() {
+        val area = portraitAreas.first()
+        val base = ControlLayout.overlayProfile(area, 126f).groups.mapValues { it.value.bounds }
+        val shifted = ControlLayout.overlayProfile(area, 126f, inwardShift = 50f).groups.mapValues { it.value.bounds }
+
+        assertEquals(base.getValue(ControlGroup.DIRECTIONAL_PAD).left + 50f, shifted.getValue(ControlGroup.DIRECTIONAL_PAD).left, 0.01f)
+        assertEquals(base.getValue(ControlGroup.ACTION_BUTTONS).right - 50f, shifted.getValue(ControlGroup.ACTION_BUTTONS).right, 0.01f)
+        listOf(ControlGroup.L, ControlGroup.R, ControlGroup.BLOW).forEach {
+            assertEquals("$it", base.getValue(it).left, shifted.getValue(it).left, 0.01f)
+        }
+    }
+
+    @Test
+    fun `por mucho que se pida acercarlos, nunca pasan su mitad ni se solapan`() {
+        for (area in portraitAreas) {
+            val profile = ControlLayout.overlayProfile(area, 126f, inwardShift = 10_000f)
+            val groups = profile.groups.mapValues { it.value.bounds }
+            assertTrue("$area", groups.getValue(ControlGroup.DIRECTIONAL_PAD).right <= area.centerX + 0.01f)
+            assertTrue("$area", groups.getValue(ControlGroup.ACTION_BUTTONS).left >= area.centerX - 0.01f)
+            assertFalse("$area", ControlLayout.hasOverlap(profile, touchScreen = null))
+            groups.values.forEach { assertTrue("$area: $it", LayoutEngine.isWithin(it, area)) }
+        }
+    }
+
+    @Test
+    fun `el techo bajo el centro manda cuando queda mas abajo que la pantalla de arriba`() {
+        val size = LayoutSize(1080f, 2400f)
+        val area = size.asArea()
+        val placement = ScreenLayout.resolve(LayoutMode.STACKED, size, gap = 0.05f)
+
+        assertEquals(area.centerY + 300f, ControlLayout.overlayCeiling(placement, area, belowCenter = 300f), 0.01f)
+        // Sin margen bajo el centro, vuelve a mandar la pantalla de arriba.
+        assertEquals(placement.topScreen.bottom, ControlLayout.overlayCeiling(placement, area), 0.01f)
+        // Y nunca por debajo del hueco.
+        assertEquals(area.bottom, ControlLayout.overlayCeiling(placement, area, belowCenter = 99_999f), 0.01f)
+    }
+
+    @Test
+    fun `el hueco entre pantallas apiladas, y ninguno si no lo estan`() {
+        val size = LayoutSize(1080f, 2400f)
+        val stacked = ScreenLayout.resolve(LayoutMode.STACKED, size, gap = 0.05f)
+        assertEquals(stacked.topScreen.bottom to stacked.touchScreen.top, ControlLayout.stackedGap(stacked))
+
+        val swapped = ScreenLayout.resolve(LayoutMode.STACKED, size, gap = 0.05f, swapped = true)
+        assertEquals(swapped.touchScreen.bottom to swapped.topScreen.top, ControlLayout.stackedGap(swapped))
+
+        for (mode in listOf(LayoutMode.SIDE_BY_SIDE, LayoutMode.TOP_ONLY, LayoutMode.MAIN_AND_SECONDARY)) {
+            assertNull("$mode", ControlLayout.stackedGap(ScreenLayout.resolve(mode, size)))
+        }
+    }
 }

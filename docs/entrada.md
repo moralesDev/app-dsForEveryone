@@ -263,9 +263,17 @@ la sustituye en vertical:
   izquierda; R, rombo y Start a la derecha. Select y Start, abajo y pegados
   al centro, como pastillas con el nombre debajo.
 - Los dos racimos se anclan **abajo** y suben por encima de la pantalla
-  inferior, pero **nunca por encima de la de arriba**
-  (`ControlLayout.overlayCeiling`); si no caben, todo encoge por igual. El
-  editor tampoco deja arrastrar un mando por encima de ese techo.
+  inferior, pero **nunca más arriba de 2 cm por debajo del centro** del
+  hueco, ni de la pantalla de arriba (`ControlLayout.overlayCeiling`); si
+  no caben, todo encoge por igual. El editor tampoco deja arrastrar un mando
+  por encima de ese techo.
+- La dirección y el rombo se separan **3 mm** de su borde hacia el centro.
+- Estas dos medidas son **físicas**, no dp: se convierten con
+  `xdpi`/`ydpi` (`rememberPxPerMm`), porque lo que se pidió es lo que mide
+  una regla sobre el cristal.
+- Entre las dos pantallas, que ahora se separan un 5 % por defecto, van los
+  botones de **velocidad** 1x (por defecto), 1,5x y 2x. El menú de pausa
+  conserva el mismo ajuste.
 - Todo es **transparente con borde y letras claras** (`GhostSurface`): el
   juego se ve a través. Los tamaños son pequeños a propósito salvo la
   dirección: el rombo un 20 % menor que ella y con sus cuatro botones sin

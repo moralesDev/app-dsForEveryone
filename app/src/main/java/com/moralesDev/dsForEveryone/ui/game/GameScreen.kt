@@ -14,8 +14,10 @@ import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.shape.CircleShape
@@ -64,6 +66,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.moralesDev.dsForEveryone.R
 import com.moralesDev.dsForEveryone.data.cheats.CheatsManager
 import com.moralesDev.dsForEveryone.data.settings.DirectionalControl
+import com.moralesDev.dsForEveryone.data.settings.EmulationSpeed
 import com.moralesDev.dsForEveryone.data.settings.TouchMode
 import com.moralesDev.dsForEveryone.emulator.DsButton
 import com.moralesDev.dsForEveryone.emulator.layout.ControlGroup
@@ -215,7 +218,18 @@ fun GameScreen(onExit: () -> Unit) {
     val activeControlLayout = if (isPortrait) settings.portraitControlLayout else settings.landscapeControlLayout
     // En vertical los mandos van encima de la pantalla inferior (ver
     // ControlLayout.overlayProfile); en horizontal, en una banda aparte.
-    val controlProfile = remember(placement, usableArea, activeControlLayout, minTouchTargetPx, isPortrait) {
+    val pxPerMm = rememberPxPerMm()
+    val ceilingBelowCenterPx = CONTROLS_CEILING_BELOW_CENTER_MM * pxPerMm.y
+    val inwardShiftPx = CONTROLS_INWARD_SHIFT_MM * pxPerMm.x
+    val controlProfile = remember(
+        placement,
+        usableArea,
+        activeControlLayout,
+        minTouchTargetPx,
+        isPortrait,
+        ceilingBelowCenterPx,
+        inwardShiftPx,
+    ) {
         val current = placement ?: return@remember null
         ControlLayout.resolveProfile(
             custom = activeControlLayout,
@@ -226,7 +240,8 @@ fun GameScreen(onExit: () -> Unit) {
             overlay = isPortrait,
             // Nunca por encima de la pantalla de arriba: los mandos van
             // encima de la inferior, no de las dos.
-            ceiling = ControlLayout.overlayCeiling(current, usableArea),
+            ceiling = ControlLayout.overlayCeiling(current, usableArea, belowCenter = ceilingBelowCenterPx),
+            inwardShift = inwardShiftPx,
         )
     }
 
@@ -291,6 +306,21 @@ fun GameScreen(onExit: () -> Unit) {
                 onBlow = viewModel::onMicNoise,
                 density = density,
             )
+        }
+
+        // La velocidad, entre las dos pantallas cuando están apiladas en
+        // vertical: a mano sin abrir el menú y sin tapar nada del juego. El
+        // menú de pausa conserva el mismo ajuste para el resto de casos.
+        if (isPortrait) {
+            placement?.let(ControlLayout::stackedGap)?.let { (gapTop, gapBottom) ->
+                SpeedBar(
+                    centerY = (gapTop + gapBottom) / 2f,
+                    centerX = usableArea.centerX,
+                    selected = settings.speed,
+                    onSelect = viewModel::setSpeed,
+                    density = density,
+                )
+            }
         }
 
         // Apartar los mandos: debajo de R, a la altura de soplar (ver
@@ -541,6 +571,49 @@ private fun reportTouch(
     val point = TouchRouter.map(globalX, globalY, placement)
     if (point != null) onTouch(point.x, point.y, true) else onTouch(0, 0, false)
 }
+
+/**
+ * Los tres botones de velocidad —1x, 1,5x y 2x— en una fila centrada en
+ * ([centerX], [centerY]), con el mismo aspecto transparente que los mandos.
+ * El elegido se ve relleno. 1x es el valor por defecto de
+ * [EmulationSpeed]; lo que se elija se guarda como cualquier otro ajuste.
+ */
+@Composable
+private fun SpeedBar(
+    centerY: Float,
+    centerX: Float,
+    selected: EmulationSpeed,
+    onSelect: (EmulationSpeed) -> Unit,
+    density: Density,
+) {
+    val (x, y) = with(density) { centerX.toDp() to centerY.toDp() }
+    val totalWidth = SPEED_CHIP_WIDTH * EmulationSpeed.entries.size + SPEED_CHIP_SPACING * (EmulationSpeed.entries.size - 1)
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(SPEED_CHIP_SPACING),
+        modifier = Modifier.offset(x - totalWidth / 2, y - SPEED_CHIP_HEIGHT / 2),
+    ) {
+        EmulationSpeed.entries.forEach { speed ->
+            GhostSurface(
+                shape = RoundedCornerShape(50),
+                pressed = speed == selected,
+                opacity = ControlLayout.DEFAULT_OPACITY,
+                modifier = Modifier
+                    .size(SPEED_CHIP_WIDTH, SPEED_CHIP_HEIGHT)
+                    .clickable { onSelect(speed) },
+            ) {
+                Text(
+                    text = stringResource(speed.labelRes()),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = ghostContentColor(ControlLayout.DEFAULT_OPACITY),
+                )
+            }
+        }
+    }
+}
+
+private val SPEED_CHIP_WIDTH = 46.dp
+private val SPEED_CHIP_HEIGHT = 26.dp
+private val SPEED_CHIP_SPACING = 8.dp
 
 /**
  * El botón «>» / «<» que aparta los mandos o los devuelve. Con el mismo

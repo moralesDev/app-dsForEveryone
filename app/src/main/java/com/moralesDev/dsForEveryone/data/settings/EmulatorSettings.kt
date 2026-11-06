@@ -117,8 +117,11 @@ data class EmulatorSettings(
     val portraitLayoutMode: LayoutMode = LayoutMode.STACKED,
     /** Disposición de pantallas cuando el teléfono está en horizontal. */
     val landscapeLayoutMode: LayoutMode = LayoutMode.SIDE_BY_SIDE,
-    /** Separación entre pantallas, 0..1 relativo al hueco disponible. */
-    val screenGap: Float = 0.02f,
+    /**
+     * Separación entre pantallas, 0..1 relativo al hueco disponible. Un 5 %
+     * y no menos: en vertical ahí van los botones de velocidad.
+     */
+    val screenGap: Float = 0.05f,
     /** Escala de la pantalla secundaria en el modo [LayoutMode.MAIN_AND_SECONDARY]. */
     val secondaryScale: Float = 0.35f,
     /**

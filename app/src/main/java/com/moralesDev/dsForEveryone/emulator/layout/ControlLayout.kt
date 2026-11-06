@@ -174,10 +174,11 @@ object ControlLayout {
         opacity: Float = DEFAULT_OPACITY,
         overlay: Boolean = false,
         ceiling: Float = area.top,
+        inwardShift: Float = 0f,
     ): ControlLayoutProfile {
         val fromCustom = custom?.let { fromFractions(it, area) }
         return fromCustom ?: if (overlay) {
-            overlayProfile(area, minTouchTarget, opacity, ceiling)
+            overlayProfile(area, minTouchTarget, opacity, ceiling, inwardShift)
         } else {
             defaultProfile(area, touchScreen, minTouchTarget, opacity)
         }
@@ -406,15 +407,19 @@ object ControlLayout {
      * un objetivo táctil enorme—, todo se escala por igual hasta caber: los
      * grupos nunca se solapan, ni salen de [area], ni suben de [ceiling].
      *
-     * @param ceiling el borde de arriba que ningún grupo puede pasar: el de
-     *   abajo de la pantalla superior, ver [overlayCeiling]. Por defecto,
-     *   el de [area].
+     * @param ceiling el borde de arriba que ningún grupo puede pasar, ver
+     *   [overlayCeiling]. Por defecto, el de [area].
+     * @param inwardShift cuánto se acercan al centro la dirección y el rombo,
+     *   cada uno desde su borde, en las mismas unidades que [area]. Quien
+     *   llama lo convierte de milímetros reales. Nunca los deja pasar su
+     *   mitad: como mucho quedan a medio hueco del centro.
      */
     fun overlayProfile(
         area: LayoutRect,
         minTouchTarget: Float,
         opacity: Float = DEFAULT_OPACITY,
         ceiling: Float = area.top,
+        inwardShift: Float = 0f,
     ): ControlLayoutProfile {
         val top = ceiling.coerceIn(area.top, area.bottom)
         val usable = LayoutRect(area.left, top, area.right, area.bottom)
@@ -451,11 +456,14 @@ object ControlLayout {
 
         val leftEdge = usable.left + gap
         val rightEdge = usable.right - gap
-        val reachesCenter = leftEdge + directional + gap > select.left || rightEdge - action - gap < start.right
+        val shift = inwardShift.coerceAtLeast(0f)
+        val dpadLeft = (leftEdge + shift).coerceAtMost((centerX - gap / 2f - directional).coerceAtLeast(leftEdge))
+        val actionRight = (rightEdge - shift).coerceAtLeast((centerX + gap / 2f + action).coerceAtMost(rightEdge))
+        val reachesCenter = dpadLeft + directional + gap > select.left || actionRight - action - gap < start.right
         val primaryBottom = if (reachesCenter) select.top - gap else bottom
 
-        val dpad = LayoutRect(leftEdge, primaryBottom - directional, leftEdge + directional, primaryBottom)
-        val actionRect = LayoutRect(rightEdge - action, primaryBottom - action, rightEdge, primaryBottom)
+        val dpad = LayoutRect(dpadLeft, primaryBottom - directional, dpadLeft + directional, primaryBottom)
+        val actionRect = LayoutRect(actionRight - action, primaryBottom - action, actionRight, primaryBottom)
         val rowBottom = minOf(dpad.top, actionRect.top) - gap
         val rowCenterY = rowBottom - middleRow / 2f
         val blow = LayoutRect(leftEdge, rowCenterY - blowSide / 2f, leftEdge + blowSide, rowCenterY + blowSide / 2f)
@@ -476,20 +484,34 @@ object ControlLayout {
     }
 
     /**
-     * El techo de [overlayProfile]: el borde de abajo de la pantalla que
-     * queda físicamente arriba, cuando las dos están una encima de la otra.
-     * Los mandos van encima de la pantalla inferior, nunca de la superior.
+     * El techo de [overlayProfile]: lo más bajo de dos límites.
      *
-     * Si no están apiladas —lado a lado, una sola, o la secundaria metida
-     * dentro de la principal— no hay «pantalla de arriba» que respetar, y el
-     * techo es el del hueco.
+     * - El borde de abajo de la pantalla que queda físicamente arriba, cuando
+     *   las dos están una encima de la otra: los mandos van encima de la
+     *   pantalla inferior, nunca de la superior. Si no están apiladas —lado a
+     *   lado, una sola, o la secundaria dentro de la principal— este límite
+     *   no existe.
+     * - [belowCenter] por debajo del centro de [area]: así se deja visible
+     *   más de la pantalla inferior que la que ocuparían los mandos subiendo
+     *   hasta el borde. Quien llama lo convierte de centímetros reales.
      */
-    fun overlayCeiling(placement: ScreenPlacement, area: LayoutRect): Float {
+    fun overlayCeiling(placement: ScreenPlacement, area: LayoutRect, belowCenter: Float = 0f): Float {
+        val fromCenter = if (belowCenter > 0f) area.centerY + belowCenter else area.top
+        val fromScreens = stackedGap(placement)?.let { (upperBottom, _) -> upperBottom } ?: area.top
+        return maxOf(fromCenter, fromScreens).coerceIn(area.top, area.bottom)
+    }
+
+    /**
+     * El hueco entre las dos pantallas cuando están una encima de la otra,
+     * como (borde de abajo de la de arriba, borde de arriba de la de abajo);
+     * `null` si no están apiladas. Ahí va la barra de velocidad.
+     */
+    fun stackedGap(placement: ScreenPlacement): Pair<Float, Float>? {
         val a = placement.topScreen
         val b = placement.touchScreen
-        if (a.width <= 0f || a.height <= 0f || b.width <= 0f || b.height <= 0f) return area.top
+        if (a.width <= 0f || a.height <= 0f || b.width <= 0f || b.height <= 0f) return null
         val (upper, lower) = if (a.top <= b.top) a to b else b to a
-        return if (upper.bottom <= lower.top) upper.bottom.coerceIn(area.top, area.bottom) else area.top
+        return if (upper.bottom <= lower.top) upper.bottom to lower.top else null
     }
 
     /**
