@@ -262,7 +262,7 @@ la sustituye en vertical:
 - Cada grupo va del lado de su mano: L, soplar, dirección y Select a la
   izquierda; R, rombo y Start a la derecha. Select y Start, abajo y pegados
   al centro, como pastillas con el nombre debajo.
-- Los dos racimos **cuelgan del techo**: L y R empiezan justo 2 cm por
+- Los dos racimos **cuelgan del techo**: L y R empiezan justo 0,5 cm por
   debajo del centro del hueco (nunca por encima de la pantalla de arriba,
   `ControlLayout.overlayCeiling`) y el resto baja desde ahí; lo que sobra
   queda libre abajo, sin llevar Start y Select al filo. Si no caben entre el

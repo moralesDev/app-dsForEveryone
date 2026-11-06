@@ -9,7 +9,7 @@ import androidx.compose.ui.platform.LocalContext
  *
  * Los dp no sirven para esto: son 1/160 de pulgada sólo en teoría, y cada
  * fabricante los redondea a su cubo de densidad. Cuando lo que se pide es
- * «3 mm hacia el centro» o «2 cm por debajo del centro», lo que cuenta es
+ * «3 mm hacia el centro» o «medio centímetro por debajo del centro», lo que cuenta es
  * lo que mide una regla sobre el cristal, y eso lo dicen `xdpi`/`ydpi`.
  *
  * Algunos teléfonos informan `xdpi`/`ydpi` disparatados; si se alejan más de
@@ -31,6 +31,6 @@ fun rememberPxPerMm(): PxPerMm {
 const val CONTROLS_INWARD_SHIFT_MM = 3f
 
 /** A cuánto por debajo del centro empieza el techo de los mandos en vertical. */
-const val CONTROLS_CEILING_BELOW_CENTER_MM = 20f
+const val CONTROLS_CEILING_BELOW_CENTER_MM = 5f
 
 private const val MM_PER_INCH = 25.4f
