@@ -1,6 +1,5 @@
 package com.moralesDev.dsForEveryone.ui.game.controls
 
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -8,18 +7,14 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowDropUp
-import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.rotate
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
-import androidx.compose.ui.unit.dp
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -71,7 +66,7 @@ fun DirectionalPad(
         Box(
             Modifier
                 .fillMaxSize()
-                .border(1.dp, Color.White.copy(alpha = RING_ALPHA * opacity), CircleShape),
+                .ghostRing(opacity),
         )
 
         Column(Modifier.fillMaxSize(INNER_FRACTION)) {
@@ -109,10 +104,10 @@ private fun Arm(
         opacity = opacity,
         modifier = modifier,
     ) {
-        Icon(
+        GhostIcon(
             imageVector = Icons.Filled.ArrowDropUp,
-            contentDescription = null,
             tint = ghostContentColor(opacity),
+            opacity = opacity,
             modifier = Modifier
                 .fillMaxSize(ARROW_FRACTION)
                 .rotate(rotation),
@@ -136,6 +131,5 @@ private fun armShape(direction: DsButton): Shape = when (direction) {
 /** Fracción del cuadrado que ocupa la rejilla de flechas, dejando ver el aro del disco base alrededor. */
 private const val INNER_FRACTION = 0.84f
 private const val ARROW_FRACTION = 0.55f
-private const val RING_ALPHA = 0.35f
 private const val OUTER_PERCENT = 45
 private const val INNER_PERCENT = 15

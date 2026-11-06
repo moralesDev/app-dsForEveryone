@@ -10,7 +10,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Air
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -47,7 +46,7 @@ fun ShoulderButton(
     ) {
         Text(
             text = label,
-            style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium),
+            style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium, shadow = ghostShadow(opacity)),
             color = ghostContentColor(opacity),
         )
     }
@@ -89,7 +88,11 @@ fun SystemButton(
         )
         Text(
             text = label,
-            style = MaterialTheme.typography.labelSmall.copy(fontSize = 8.sp, letterSpacing = 0.6.sp),
+            style = MaterialTheme.typography.labelSmall.copy(
+                fontSize = 8.sp,
+                letterSpacing = 0.6.sp,
+                shadow = ghostShadow(opacity),
+            ),
             color = ghostContentColor(opacity),
             maxLines = 1,
         )
@@ -125,10 +128,10 @@ fun BlowButton(
             .semantics { this.contentDescription = contentDescription }
             .pressable(haptic = haptic, onPressChange = onBlow),
     ) {
-        Icon(
+        GhostIcon(
             imageVector = Icons.Filled.Air,
-            contentDescription = null,
             tint = iconTint,
+            opacity = opacity,
             modifier = Modifier.fillMaxSize(0.6f),
         )
     }

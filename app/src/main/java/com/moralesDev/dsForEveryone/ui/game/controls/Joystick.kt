@@ -1,6 +1,5 @@
 package com.moralesDev.dsForEveryone.ui.game.controls
 
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.offset
@@ -13,12 +12,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.IntOffset
-import androidx.compose.ui.unit.dp
 import com.moralesDev.dsForEveryone.R
 import com.moralesDev.dsForEveryone.emulator.DsButton
 import com.moralesDev.dsForEveryone.emulator.JoystickGeometry
@@ -75,7 +72,7 @@ fun Joystick(
         Box(
             Modifier
                 .fillMaxSize()
-                .border(1.dp, Color.White.copy(alpha = RING_ALPHA * opacity), CircleShape),
+                .ghostRing(opacity),
         )
         GhostSurface(
             shape = CircleShape,
@@ -89,8 +86,6 @@ fun Joystick(
 }
 
 private val DIRECTION_MASK = DsButton.UP.mask or DsButton.DOWN.mask or DsButton.LEFT.mask or DsButton.RIGHT.mask
-
-private const val RING_ALPHA = 0.35f
 
 /** El círculo que se mueve: algo menos de la mitad del joystick. */
 private const val KNOB_FRACTION = 0.46f

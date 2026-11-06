@@ -84,7 +84,9 @@ import com.moralesDev.dsForEveryone.ui.components.GlassIconButton
 import com.moralesDev.dsForEveryone.ui.game.controls.ActionButtons
 import com.moralesDev.dsForEveryone.ui.game.controls.BlowButton
 import com.moralesDev.dsForEveryone.ui.game.controls.DirectionalPad
+import com.moralesDev.dsForEveryone.ui.game.controls.GhostIcon
 import com.moralesDev.dsForEveryone.ui.game.controls.GhostSurface
+import com.moralesDev.dsForEveryone.ui.game.controls.ghostShadow
 import com.moralesDev.dsForEveryone.ui.game.controls.ghostContentColor
 import com.moralesDev.dsForEveryone.ui.game.controls.Joystick
 import com.moralesDev.dsForEveryone.ui.game.controls.ShoulderButton
@@ -603,7 +605,9 @@ private fun SpeedBar(
             ) {
                 Text(
                     text = stringResource(speed.labelRes()),
-                    style = MaterialTheme.typography.labelMedium,
+                    style = MaterialTheme.typography.labelMedium.copy(
+                        shadow = ghostShadow(ControlLayout.DEFAULT_OPACITY),
+                    ),
                     color = ghostContentColor(ControlLayout.DEFAULT_OPACITY),
                 )
             }
@@ -640,8 +644,9 @@ private fun HideControlsToggle(
             .size(boxWidth, boxHeight)
             .clickable(onClick = onToggle),
     ) {
-        Icon(
+        GhostIcon(
             imageVector = if (hidden) Icons.Filled.ChevronLeft else Icons.Filled.ChevronRight,
+            opacity = ControlLayout.DEFAULT_OPACITY,
             contentDescription = stringResource(
                 if (hidden) R.string.cd_show_controls else R.string.cd_hide_controls,
             ),

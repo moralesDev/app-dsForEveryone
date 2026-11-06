@@ -74,7 +74,7 @@ private fun ActionButton(
         Text(
             text = label,
             color = ghostContentColor(opacity),
-            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Medium),
+            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Medium, shadow = ghostShadow(opacity)),
         )
     }
 }
