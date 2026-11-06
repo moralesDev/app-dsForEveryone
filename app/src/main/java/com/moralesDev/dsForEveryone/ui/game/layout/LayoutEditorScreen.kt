@@ -133,7 +133,7 @@ fun LayoutEditorScreen(onBack: () -> Unit) {
     // medida y no con la del contenedor entero.
     val screensAvailable = usableArea.size
 
-    val placement = remember(activeMode, availableSize, insets, gapState, scaleState, settings.screensSwapped) {
+    val placement = remember(activeMode, availableSize, insets, gapState, scaleState, settings.screensSwapped, isPortrait) {
         if (availableSize.width > 0f && availableSize.height > 0f) {
             ScreenLayout.resolve(
                 mode = activeMode,
@@ -142,6 +142,8 @@ fun LayoutEditorScreen(onBack: () -> Unit) {
                 secondaryScale = scaleState,
                 swapped = settings.screensSwapped,
                 insets = insets,
+                // En vertical los mandos ocupan del centro hacia abajo.
+                upperHalf = isPortrait,
             )
         } else {
             null

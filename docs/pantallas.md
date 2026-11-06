@@ -133,6 +133,14 @@ El mínimo razonable, con perfiles independientes por orientación:
    los anteriores. La táctil sigue siendo la de abajo *lógicamente*, aunque se
    pinte arriba.
 
+**En vertical, todos menos «Apiladas» ocupan la mitad de arriba**: el bloque
+de pantallas apoya su borde de abajo en el centro del hueco y crece hacia
+arriba (`ScreenLayout.resolve(upperHalf = true)`). Del centro hacia abajo van
+los mandos (ver [`entrada.md`](entrada.md)), y una pantalla centrada quedaría
+debajo de ellos. En un móvil alargado no encoge nada: a lo ancho, una pantalla
+4:3 ya cabía de sobra en esa mitad. «Apiladas» no cambia: reparte el hueco
+entero, centrada, con la táctil abajo y los mandos encima a propósito.
+
 Y dos parámetros transversales:
 
 - **Separación** entre pantallas, de cero a un hueco generoso. Cero pegadas

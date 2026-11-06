@@ -202,6 +202,7 @@ fun GameScreen(onExit: () -> Unit) {
         settings.screenGap,
         settings.secondaryScale,
         settings.screensSwapped,
+        isPortrait,
     ) {
         if (availableSize.width > 0f && availableSize.height > 0f) {
             ScreenLayout.resolve(
@@ -211,6 +212,8 @@ fun GameScreen(onExit: () -> Unit) {
                 secondaryScale = settings.secondaryScale,
                 swapped = settings.screensSwapped,
                 insets = insets,
+                // En vertical los mandos ocupan del centro hacia abajo.
+                upperHalf = isPortrait,
             )
         } else {
             null

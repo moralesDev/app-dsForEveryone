@@ -64,6 +64,12 @@ object ScreenLayout {
      *   son del sistema y una opción del juego dibujada en esa franja sería
      *   imposible de pulsar. Las proporciones se calculan ya sobre el hueco
      *   recortado, así que las dos pantallas siguen siendo 4:3.
+     * @param upperHalf en todos los modos menos [LayoutMode.STACKED], las
+     *   pantallas se colocan en la mitad de arriba del hueco, con su borde
+     *   de abajo justo en el centro: de ahí hacia abajo van los mandos en
+     *   vertical (ver `ControlLayout.overlayProfile`), y una pantalla
+     *   centrada quedaría debajo de ellos. Apiladas ya reparten el hueco
+     *   entero entre las dos, con la táctil abajo a propósito, y no cambian.
      */
     fun resolve(
         mode: LayoutMode,
@@ -72,21 +78,35 @@ object ScreenLayout {
         secondaryScale: Float = 0.35f,
         swapped: Boolean = false,
         insets: LayoutInsets = LayoutInsets.NONE,
+        upperHalf: Boolean = false,
     ): ScreenPlacement {
         val clampedGap = gap.coerceIn(0f, 1f)
         val clampedScale = secondaryScale.coerceIn(0.05f, 0.95f)
-        val area = LayoutRect(0f, 0f, available.width, available.height).inset(insets)
+        val fullArea = LayoutRect(0f, 0f, available.width, available.height).inset(insets)
+        val toUpperHalf = upperHalf && mode != LayoutMode.STACKED
+        val area = if (toUpperHalf) LayoutRect(fullArea.left, fullArea.top, fullArea.right, fullArea.centerY) else fullArea
 
         // "first"/"second" son las posiciones físicas ANTES de aplicar el
         // intercambio: first es la que ocuparía la pantalla superior, second
         // la que ocuparía la táctil. `swapped` sólo decide, al final, cuál de
         // las dos etiquetas de ScreenPlacement apunta a cuál.
-        val (first, second) = when (mode) {
+        val (centeredFirst, centeredSecond) = when (mode) {
             LayoutMode.STACKED -> stackedSlots(area, clampedGap)
             LayoutMode.SIDE_BY_SIDE -> sideBySideSlots(area, clampedGap)
             LayoutMode.TOP_ONLY -> soloSlots(area, showFirst = true)
             LayoutMode.BOTTOM_ONLY -> soloSlots(area, showFirst = false)
             LayoutMode.MAIN_AND_SECONDARY -> mainAndSecondarySlots(area, clampedScale)
+        }
+        // En la mitad de arriba, el bloque no se centra: se apoya en el
+        // centro del hueco y crece hacia arriba.
+        val (first, second) = if (toUpperHalf) {
+            val blockBottom = listOf(centeredFirst, centeredSecond)
+                .filter { it.width > 0f && it.height > 0f }
+                .maxOfOrNull { it.bottom } ?: area.bottom
+            val dy = area.bottom - blockBottom
+            centeredFirst.shiftedDown(dy) to centeredSecond.shiftedDown(dy)
+        } else {
+            centeredFirst to centeredSecond
         }
 
         return if (!swapped) {
@@ -95,6 +115,8 @@ object ScreenLayout {
             ScreenPlacement(topScreen = second, touchScreen = first)
         }
     }
+
+    private fun LayoutRect.shiftedDown(dy: Float) = LayoutRect(left, top + dy, right, bottom + dy)
 
     private fun stackedSlots(area: LayoutRect, gap: Float): Pair<LayoutRect, LayoutRect> {
         val gapPx = gap * area.height
