@@ -46,6 +46,8 @@ class SettingsRepository(private val context: Context) {
             imageFilter = ImageFilter.fromName(preferences[Keys.IMAGE_FILTER])
                 ?: DEFAULT.imageFilter,
             speed = EmulationSpeed.fromName(preferences[Keys.SPEED]) ?: DEFAULT.speed,
+            directionalControl = DirectionalControl.fromName(preferences[Keys.DIRECTIONAL_CONTROL])
+                ?: DEFAULT.directionalControl,
             touchMode = TouchMode.fromName(preferences[Keys.TOUCH_MODE]) ?: DEFAULT.touchMode,
             touchOffsetDp = preferences[Keys.TOUCH_OFFSET_DP] ?: DEFAULT.touchOffsetDp,
             portraitControlLayout = preferences[Keys.PORTRAIT_CONTROLS]?.let(ControlLayout::decode),
@@ -78,6 +80,10 @@ class SettingsRepository(private val context: Context) {
     suspend fun setImageFilter(filter: ImageFilter) = edit { it[Keys.IMAGE_FILTER] = filter.name }
 
     suspend fun setSpeed(speed: EmulationSpeed) = edit { it[Keys.SPEED] = speed.name }
+
+    suspend fun setDirectionalControl(control: DirectionalControl) = edit {
+        it[Keys.DIRECTIONAL_CONTROL] = control.name
+    }
 
     suspend fun setTouchMode(mode: TouchMode) = edit { it[Keys.TOUCH_MODE] = mode.name }
 
@@ -131,7 +137,16 @@ class SettingsRepository(private val context: Context) {
         val SPEED = stringPreferencesKey("speed")
         val TOUCH_MODE = stringPreferencesKey("touch_mode")
         val TOUCH_OFFSET_DP = floatPreferencesKey("touch_offset_dp")
-        val PORTRAIT_CONTROLS = stringPreferencesKey("portrait_controls")
+        val DIRECTIONAL_CONTROL = stringPreferencesKey("directional_control")
+
+        /**
+         * Clave nueva para el perfil vertical desde que los mandos van encima
+         * de la pantalla inferior. Un perfil guardado con la clave anterior
+         * («portrait_controls») estaba hecho con la regla de no tocar la
+         * táctil, y traído tal cual dejaría los mandos en la banda de antes:
+         * se ignora y se cae al perfil superpuesto nuevo.
+         */
+        val PORTRAIT_CONTROLS = stringPreferencesKey("portrait_controls_overlay")
         val LANDSCAPE_CONTROLS = stringPreferencesKey("landscape_controls")
         val GAMEPAD_MAPPINGS = stringPreferencesKey("gamepad_mappings")
     }

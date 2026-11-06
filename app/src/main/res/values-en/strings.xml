@@ -44,6 +44,9 @@
     <string name="cd_back">Back</string>
     <string name="cd_menu">Open menu</string>
     <string name="cd_dpad">D-pad</string>
+    <string name="cd_joystick">Joystick</string>
+    <string name="cd_hide_controls">Move controls aside</string>
+    <string name="cd_show_controls">Show controls</string>
     <string name="cd_blow">Blow</string>
 
     <!-- Pause menu -->
@@ -94,6 +97,10 @@
     <string name="se_filter_hint">Sharp keeps square pixels; Smooth interpolates them.</string>
     <string name="se_screens">Screen and control layout</string>
     <string name="se_screens_hint">Where each screen and each control goes, per orientation.</string>
+    <string name="se_directional">Direction control</string>
+    <string name="se_directional_hint">Joystick or classic D-pad. Both give the DS\'s eight directions.</string>
+    <string name="directional_joystick">Joystick</string>
+    <string name="directional_dpad">D-pad</string>
     <string name="se_touch_hint">Direct puts the stylus under your finger; Offset, above it.</string>
     <string name="se_touch_distance">Stylus distance</string>
     <string name="se_touch_distance_hint">How far the contact point sits from your fingertip.</string>
@@ -118,7 +125,7 @@
     <string name="le_swap">Swap screens</string>
     <string name="le_screen_top">Top</string>
     <string name="le_screen_touch">Touch</string>
-    <string name="le_group_dpad">D-pad</string>
+    <string name="le_group_dpad">Direction</string>
     <string name="le_group_action">A · B · X · Y</string>
     <string name="le_group_l">L</string>
     <string name="le_group_r">R</string>

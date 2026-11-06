@@ -298,4 +298,113 @@ class ControlLayoutTest {
         assertEquals(0.1f, suelta.top, 0.001f)
         assertEquals(suelta, ControlLayout.toFractions(profile, area).getValue(ControlGroup.L))
     }
+
+    // ------------------------------------------------ Perfil superpuesto (vertical)
+
+    /** Teléfonos en vertical: alto 20:9, 16:9, uno pequeño y un hueco absurdo. */
+    private val portraitAreas = listOf(
+        LayoutRect(0f, 66f, 1080f, 2352f),
+        LayoutRect(0f, 60f, 1080f, 1872f),
+        LayoutRect(0f, 40f, 720f, 1232f),
+        LayoutRect(0f, 0f, 300f, 300f),
+    )
+
+    @Test
+    fun `superpuesto, ningun grupo se solapa con otro ni se sale del hueco, con cualquier tamano`() {
+        for (area in portraitAreas) {
+            for (minTouchTarget in minTouchTargets + 126f) {
+                val profile = ControlLayout.overlayProfile(area, minTouchTarget)
+                assertFalse(
+                    "$area con objetivo $minTouchTarget solapa",
+                    ControlLayout.hasOverlap(profile, touchScreen = null),
+                )
+                profile.groups.forEach { (group, placement) ->
+                    assertTrue(
+                        "$group en $area (objetivo $minTouchTarget) se sale: ${placement.bounds}",
+                        LayoutEngine.isWithin(placement.bounds, area),
+                    )
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `superpuesto, cada grupo va del lado de su mano`() {
+        for (area in portraitAreas) {
+            val groups = ControlLayout.overlayProfile(area, 126f).groups.mapValues { it.value.bounds }
+            listOf(ControlGroup.L, ControlGroup.BLOW, ControlGroup.DIRECTIONAL_PAD, ControlGroup.SELECT).forEach {
+                assertTrue("$it en $area", groups.getValue(it).right <= area.centerX)
+            }
+            listOf(ControlGroup.R, ControlGroup.ACTION_BUTTONS, ControlGroup.START).forEach {
+                assertTrue("$it en $area", groups.getValue(it).left >= area.centerX)
+            }
+        }
+    }
+
+    @Test
+    fun `superpuesto, L arriba, soplar debajo de L y la direccion debajo de soplar`() {
+        for (area in portraitAreas) {
+            val groups = ControlLayout.overlayProfile(area, 126f).groups.mapValues { it.value.bounds }
+            val l = groups.getValue(ControlGroup.L)
+            val blow = groups.getValue(ControlGroup.BLOW)
+            val dpad = groups.getValue(ControlGroup.DIRECTIONAL_PAD)
+            val r = groups.getValue(ControlGroup.R)
+            val action = groups.getValue(ControlGroup.ACTION_BUTTONS)
+
+            assertTrue("$area", l.bottom <= blow.top && blow.bottom <= dpad.top)
+            assertTrue("$area", r.bottom <= action.top)
+            assertEquals(l.top, r.top, 0.01f)
+            assertEquals(dpad.bottom, action.bottom, 0.01f)
+        }
+    }
+
+    @Test
+    fun `superpuesto, Select y Start abajo, uno a cada lado del centro`() {
+        for (area in portraitAreas) {
+            val groups = ControlLayout.overlayProfile(area, 126f).groups.mapValues { it.value.bounds }
+            val select = groups.getValue(ControlGroup.SELECT)
+            val start = groups.getValue(ControlGroup.START)
+            val dpad = groups.getValue(ControlGroup.DIRECTIONAL_PAD)
+
+            assertTrue("$area", select.right <= area.centerX && start.left >= area.centerX)
+            assertEquals(select.bottom, start.bottom, 0.01f)
+            assertTrue("$area", select.bottom >= dpad.bottom)
+            // Pegados al centro: ningún otro grupo entre ellos y el centro.
+            assertTrue("$area", area.centerX - select.right < select.width)
+        }
+    }
+
+    @Test
+    fun `superpuesto, con sitio de sobra nada baja del minimo tactil`() {
+        val area = portraitAreas.first()
+        val minTouchTarget = 126f
+
+        ControlLayout.overlayProfile(area, minTouchTarget).groups.values.forEach { placement ->
+            assertTrue(placement.bounds.width >= minTouchTarget - 0.01f)
+            assertTrue(placement.bounds.height >= minTouchTarget - 0.01f)
+        }
+    }
+
+    @Test
+    fun `superpuesto, en un 16 9 los mandos pisan la pantalla inferior`() {
+        val size = LayoutSize(1080f, 1920f)
+        val insets = LayoutInsets(top = 60f, bottom = 48f)
+        val area = size.asArea().inset(insets)
+        val touchScreen = ScreenLayout.resolve(LayoutMode.STACKED, size, gap = 0.02f, insets = insets).touchScreen
+
+        val profile = ControlLayout.overlayProfile(area, 126f)
+
+        assertTrue(ControlLayout.hasOverlap(profile, touchScreen))
+        assertFalse(ControlLayout.hasOverlap(profile, touchScreen = null))
+    }
+
+    @Test
+    fun `resolveProfile en modo superpuesto sin perfil guardado cae al superpuesto`() {
+        val area = portraitAreas.first()
+        val touchScreen = ScreenLayout.resolve(LayoutMode.STACKED, LayoutSize(1080f, 2400f)).touchScreen
+
+        val resolved = ControlLayout.resolveProfile(null, area, touchScreen, 126f, overlay = true)
+
+        assertEquals(ControlLayout.overlayProfile(area, 126f), resolved)
+    }
 }

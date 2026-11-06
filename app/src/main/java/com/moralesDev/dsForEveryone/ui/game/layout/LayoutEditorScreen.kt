@@ -146,7 +146,7 @@ fun LayoutEditorScreen(onBack: () -> Unit) {
 
     val minTouchTargetPx = with(density) { ControlLayout.MIN_TOUCH_TARGET_DP.dp.toPx() }
 
-    val controlProfile = remember(placement, usableArea, customControlLayout, minTouchTargetPx) {
+    val controlProfile = remember(placement, usableArea, customControlLayout, minTouchTargetPx, isPortrait) {
         val current = placement ?: return@remember null
         ControlLayout.resolveProfile(
             custom = customControlLayout,
@@ -154,6 +154,7 @@ fun LayoutEditorScreen(onBack: () -> Unit) {
             touchScreen = current.touchScreen,
             minTouchTarget = minTouchTargetPx,
             opacity = ControlLayout.DEFAULT_OPACITY,
+            overlay = isPortrait,
         )
     }
 
@@ -210,11 +211,13 @@ fun LayoutEditorScreen(onBack: () -> Unit) {
         }
 
         controlProfile?.let { profile ->
-            val touchRect = placement?.touchScreen ?: LayoutRect(0f, 0f, 0f, 0f)
+            // En vertical los mandos van encima de la táctil a propósito (ver
+            // ControlLayout.overlayProfile): ahí la táctil no bloquea nada.
+            val touchBlocker = placement?.touchScreen?.takeUnless { isPortrait }
 
             profile.groups.forEach { (group, groupPlacement) ->
                 key(group) {
-                    val blockers = (profile.groups - group).values.map { it.bounds } + touchRect
+                    val blockers = (profile.groups - group).values.map { it.bounds } + listOfNotNull(touchBlocker)
                     EditableGroupBox(
                         group = group,
                         placement = groupPlacement,
@@ -474,9 +477,10 @@ private fun SecondaryScaleHandle(
 
 /**
  * Un grupo de mandos arrastrable y redimensionable. [blockers] son los
- * rectángulos con los que no puede solaparse: los otros seis grupos y la
- * pantalla táctil. La pantalla superior no entra: solaparla está permitido
- * porque no es interactiva (ver [ControlLayout]).
+ * rectángulos con los que no puede solaparse: los otros seis grupos y, en
+ * horizontal, la pantalla táctil. En vertical los mandos van encima de la
+ * táctil por diseño, y la pantalla superior no entra nunca: solaparla está
+ * permitido porque no es interactiva (ver [ControlLayout]).
  */
 @Composable
 private fun EditableGroupBox(

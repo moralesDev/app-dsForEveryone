@@ -83,6 +83,24 @@ enum class TouchMode {
 }
 
 /**
+ * Con qué se manejan las cuatro direcciones en pantalla. Los dos producen lo
+ * mismo —la cruceta de la DS, ocho direcciones—; cambia sólo cómo se pulsa.
+ * Ver docs/entrada.md.
+ */
+enum class DirectionalControl {
+    /** Un stick: se apunta con el pulgar, sin acertar en un brazo. Por defecto. */
+    JOYSTICK,
+
+    /** La cruz de siempre, con flechas en relieve. */
+    DPAD,
+    ;
+
+    companion object {
+        fun fromName(name: String?): DirectionalControl? = entries.firstOrNull { it.name == name }
+    }
+}
+
+/**
  * Preferencias del emulador. Valores por defecto pensados para jugar de pie,
  * sin haber entrado todavía al editor de disposición ni a los ajustes de
  * imagen: son los que usa alguien que abre la aplicación por primera vez.
@@ -116,6 +134,8 @@ data class EmulatorSettings(
      * que es el único sitio desde el que se toca.
      */
     val speed: EmulationSpeed = EmulationSpeed.NORMAL,
+
+    val directionalControl: DirectionalControl = DirectionalControl.JOYSTICK,
 
     val touchMode: TouchMode = TouchMode.DIRECT,
     /** Desplazamiento en dp del punto de contacto sobre el dedo, en [TouchMode.OFFSET]. */

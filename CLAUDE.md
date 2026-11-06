@@ -131,7 +131,9 @@ Estas se importan tal cual y romperlas produce los mismos fallos allí que aquí
 - **La pantalla táctil es un puntero más, no un caso especial.** Un dedo en la
   cruceta y otro en la pantalla de abajo tienen que convivir. Eso lo da
   `awaitEachGesture` siguiendo el id del puntero; no añadas lógica de
-  exclusividad.
+  exclusividad. En vertical los mandos van **encima** de la pantalla
+  inferior (`ControlLayout.overlayProfile`) y la táctil sigue debajo: lo que
+  no cae en un mando es del lápiz, y «>» aparta los mandos a los lados.
 - **El editor de disposición de controles no es opcional.** Con doce entradas
   (cruceta, A B X Y, L, R, Start, Select) y dos pantallas comiéndose el área, no
   hay una colocación fija que sirva para todos los juegos y las dos

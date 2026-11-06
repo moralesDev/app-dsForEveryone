@@ -50,6 +50,9 @@
     <string name="cd_back">Volver</string>
     <string name="cd_menu">Abrir menú</string>
     <string name="cd_dpad">Cruceta</string>
+    <string name="cd_joystick">Joystick</string>
+    <string name="cd_hide_controls">Apartar los mandos</string>
+    <string name="cd_show_controls">Mostrar los mandos</string>
     <string name="cd_blow">Soplar</string>
 
     <!-- Menú de pausa -->
@@ -100,6 +103,10 @@
     <string name="se_filter_hint">Nítido deja los píxeles cuadrados; Suavizado los interpola.</string>
     <string name="se_screens">Disposición de pantallas y controles</string>
     <string name="se_screens_hint">Dónde va cada pantalla y cada mando, por orientación.</string>
+    <string name="se_directional">Control de dirección</string>
+    <string name="se_directional_hint">Joystick o cruceta clásica. Los dos dan las ocho direcciones de la DS.</string>
+    <string name="directional_joystick">Joystick</string>
+    <string name="directional_dpad">Cruceta</string>
     <string name="se_touch_hint">Directo pone el lápiz bajo el dedo; Desplazamiento, por encima.</string>
     <string name="se_touch_distance">Distancia del lápiz</string>
     <string name="se_touch_distance_hint">Cuánto se separa el punto de contacto de la yema.</string>
@@ -124,7 +131,7 @@
     <string name="le_swap">Intercambiar pantallas</string>
     <string name="le_screen_top">Superior</string>
     <string name="le_screen_touch">Táctil</string>
-    <string name="le_group_dpad">Cruceta</string>
+    <string name="le_group_dpad">Dirección</string>
     <string name="le_group_action">A · B · X · Y</string>
     <string name="le_group_l">L</string>
     <string name="le_group_r">R</string>

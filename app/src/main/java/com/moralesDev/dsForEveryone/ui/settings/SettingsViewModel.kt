@@ -6,6 +6,7 @@ import com.moralesDev.dsForEveryone.data.settings.AppLanguage
 import com.moralesDev.dsForEveryone.data.settings.EmulatorSettings
 import com.moralesDev.dsForEveryone.data.settings.ImageFilter
 import com.moralesDev.dsForEveryone.data.settings.SettingsRepository
+import com.moralesDev.dsForEveryone.data.settings.DirectionalControl
 import com.moralesDev.dsForEveryone.data.settings.TouchMode
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
@@ -55,6 +56,10 @@ class SettingsViewModel @Inject constructor(
 
     fun setImageFilter(filter: ImageFilter) {
         viewModelScope.launch { settingsRepository.setImageFilter(filter) }
+    }
+
+    fun setDirectionalControl(control: DirectionalControl) {
+        viewModelScope.launch { settingsRepository.setDirectionalControl(control) }
     }
 
     fun setTouchMode(mode: TouchMode) {

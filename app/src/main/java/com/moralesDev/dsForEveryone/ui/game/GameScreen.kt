@@ -13,8 +13,11 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.offset
@@ -25,6 +28,8 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Bedtime
+import androidx.compose.material.icons.filled.ChevronLeft
+import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -35,6 +40,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -48,6 +54,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.Density
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
@@ -57,6 +64,7 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.moralesDev.dsForEveryone.R
 import com.moralesDev.dsForEveryone.data.cheats.CheatsManager
+import com.moralesDev.dsForEveryone.data.settings.DirectionalControl
 import com.moralesDev.dsForEveryone.data.settings.TouchMode
 import com.moralesDev.dsForEveryone.emulator.DsButton
 import com.moralesDev.dsForEveryone.emulator.layout.ControlGroup
@@ -74,6 +82,7 @@ import com.moralesDev.dsForEveryone.ui.components.GlassIconButton
 import com.moralesDev.dsForEveryone.ui.game.controls.ActionButtons
 import com.moralesDev.dsForEveryone.ui.game.controls.BlowButton
 import com.moralesDev.dsForEveryone.ui.game.controls.DirectionalPad
+import com.moralesDev.dsForEveryone.ui.game.controls.Joystick
 import com.moralesDev.dsForEveryone.ui.game.controls.ShoulderButton
 import com.moralesDev.dsForEveryone.ui.game.controls.SystemButton
 import com.moralesDev.dsForEveryone.ui.resolve
@@ -83,6 +92,7 @@ import com.moralesDev.dsForEveryone.ui.theme.ScreenBezel
 import com.moralesDev.dsForEveryone.ui.theme.GlassOverVideo
 import com.moralesDev.dsForEveryone.ui.theme.Surface
 import com.moralesDev.dsForEveryone.ui.theme.textAlpha
+import kotlin.math.roundToInt
 
 /**
  * Pantalla de juego (entregable 2.6): las dos pantallas con [DsGLRenderer],
@@ -125,6 +135,9 @@ fun GameScreen(onExit: () -> Unit) {
     val hasAnySaveState by viewModel.hasAnySaveState.collectAsStateWithLifecycle()
     val lidClosed by viewModel.lidClosed.collectAsStateWithLifecycle()
     var isMenuOpen by remember { mutableStateOf(false) }
+    // Sobrevive a rotar y a que el sistema recree la pantalla: quien aparta
+    // los mandos para jugar con la táctil no quiere que vuelvan solos.
+    var controlsHidden by rememberSaveable { mutableStateOf(false) }
 
     FreeOrientationWhileGamepadConnected(isGamepadConnected)
     PauseWhileHidden(onHidden = viewModel::onScreenHidden, onShown = viewModel::onScreenShown)
@@ -199,7 +212,9 @@ fun GameScreen(onExit: () -> Unit) {
     }
 
     val activeControlLayout = if (isPortrait) settings.portraitControlLayout else settings.landscapeControlLayout
-    val controlProfile = remember(placement, usableArea, activeControlLayout, minTouchTargetPx) {
+    // En vertical los mandos van encima de la pantalla inferior (ver
+    // ControlLayout.overlayProfile); en horizontal, en una banda aparte.
+    val controlProfile = remember(placement, usableArea, activeControlLayout, minTouchTargetPx, isPortrait) {
         val current = placement ?: return@remember null
         ControlLayout.resolveProfile(
             custom = activeControlLayout,
@@ -207,8 +222,17 @@ fun GameScreen(onExit: () -> Unit) {
             touchScreen = current.touchScreen,
             minTouchTarget = minTouchTargetPx,
             opacity = ControlLayout.DEFAULT_OPACITY,
+            overlay = isPortrait,
         )
     }
+
+    // Apartar los mandos sólo existe en vertical, que es donde tapan la
+    // táctil. En horizontal no la tapan, así que no hay nada que apartar.
+    val canHideControls = isPortrait
+    val hideProgress by animateFloatAsState(
+        targetValue = if (canHideControls && controlsHidden) 1f else 0f,
+        label = "controls-hide",
+    )
 
     val renderer = remember { DsGLRenderer(frameProvider = { viewModel.currentFrame }) }
     LaunchedEffect(placement) { placement?.let(renderer::setPlacement) }
@@ -253,6 +277,9 @@ fun GameScreen(onExit: () -> Unit) {
         if (controlProfile != null && !(isGamepadConnected && !isPortrait)) {
             ControlGroups(
                 profile = controlProfile,
+                directionalControl = settings.directionalControl,
+                hideProgress = hideProgress,
+                windowWidth = availableSize.width,
                 pressedMask = pressedMask,
                 micActive = micActive,
                 onButton = viewModel::onButton,
@@ -266,22 +293,39 @@ fun GameScreen(onExit: () -> Unit) {
         // avance rápido vivió aquí al lado y tapaba demasiado —dos pastillas
         // sobre la esquina de la pantalla superior—, así que se cambia sólo
         // desde el menú de pausa, que es donde ya estaba el mismo ajuste.
-        GlassIconButton(
-            icon = Icons.Filled.Menu,
-            contentDescription = stringResource(R.string.cd_menu),
-            onClick = {
-                isMenuOpen = true
-                viewModel.pause()
-            },
-            // Debajo está el juego, no el fondo de la aplicación: con el
-            // vidrio claro de siempre, un juego de fondo blanco borra el
-            // botón. Ver GlassOverVideo.
-            overVideo = true,
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
             modifier = Modifier
                 .align(Alignment.TopEnd)
                 .windowInsetsPadding(WindowInsets.systemBars)
                 .padding(12.dp),
-        )
+        ) {
+            // «>» aparta los mandos —la izquierda hacia la izquierda, la
+            // derecha hacia la derecha— y deja la pantalla inferior entera
+            // para la táctil; «<» los devuelve.
+            if (canHideControls && controlProfile != null) {
+                GlassIconButton(
+                    icon = if (controlsHidden) Icons.Filled.ChevronLeft else Icons.Filled.ChevronRight,
+                    contentDescription = stringResource(
+                        if (controlsHidden) R.string.cd_show_controls else R.string.cd_hide_controls,
+                    ),
+                    onClick = { controlsHidden = !controlsHidden },
+                    overVideo = true,
+                )
+            }
+            GlassIconButton(
+                icon = Icons.Filled.Menu,
+                contentDescription = stringResource(R.string.cd_menu),
+                onClick = {
+                    isMenuOpen = true
+                    viewModel.pause()
+                },
+                // Debajo está el juego, no el fondo de la aplicación: con el
+                // vidrio claro de siempre, un juego de fondo blanco borra el
+                // botón. Ver GlassOverVideo.
+                overVideo = true,
+            )
+        }
 
         if (isMenuOpen) {
             PauseMenu(
@@ -499,9 +543,29 @@ private fun reportTouch(
     if (point != null) onTouch(point.x, point.y, true) else onTouch(0, 0, false)
 }
 
+/**
+ * Los grupos de la mano izquierda. Al apartar los mandos salen por el borde
+ * izquierdo; el resto, por el derecho.
+ */
+private val LEFT_HAND_GROUPS = setOf(
+    ControlGroup.L,
+    ControlGroup.BLOW,
+    ControlGroup.DIRECTIONAL_PAD,
+    ControlGroup.SELECT,
+)
+
+/**
+ * @param hideProgress 0 con los mandos en su sitio, 1 del todo fuera. Del
+ *   todo fuera, los grupos dejan de componerse: así el `finally` de cada
+ *   mando suelta lo que estuviera pulsado y la pantalla inferior entera
+ *   vuelve a ser de la táctil.
+ */
 @Composable
 private fun ControlGroups(
     profile: ControlLayoutProfile,
+    directionalControl: DirectionalControl,
+    hideProgress: Float,
+    windowWidth: Float,
     pressedMask: Int,
     micActive: Boolean,
     onButton: (DsButton, Boolean) -> Unit,
@@ -516,18 +580,32 @@ private fun ControlGroups(
         val (offsetX, offsetY, boxWidth, boxHeight) = with(density) {
             listOf(bounds.left.toDp(), bounds.top.toDp(), bounds.width.toDp(), bounds.height.toDp())
         }
+        if (hideProgress >= 1f) return@forEach
+        // Lo justo para que el grupo quede entero fuera de la ventana por su lado.
+        val slide = if (group in LEFT_HAND_GROUPS) -bounds.right else windowWidth - bounds.left
         val groupModifier = Modifier
+            .offset { IntOffset((slide * hideProgress).roundToInt(), 0) }
             .offset(offsetX, offsetY)
             .size(boxWidth, boxHeight)
 
         when (group) {
-            ControlGroup.DIRECTIONAL_PAD -> DirectionalPad(
-                pressedMask = pressedMask,
-                opacity = placement.opacity,
-                haptic = true,
-                onDirections = onDirections,
-                modifier = groupModifier,
-            )
+            ControlGroup.DIRECTIONAL_PAD -> when (directionalControl) {
+                DirectionalControl.JOYSTICK -> Joystick(
+                    pressedMask = pressedMask,
+                    opacity = placement.opacity,
+                    haptic = true,
+                    onDirections = onDirections,
+                    modifier = groupModifier,
+                )
+
+                DirectionalControl.DPAD -> DirectionalPad(
+                    pressedMask = pressedMask,
+                    opacity = placement.opacity,
+                    haptic = true,
+                    onDirections = onDirections,
+                    modifier = groupModifier,
+                )
+            }
 
             ControlGroup.ACTION_BUTTONS -> ActionButtons(
                 pressedMask = pressedMask,
