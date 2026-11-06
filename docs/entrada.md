@@ -289,9 +289,12 @@ la sustituye en vertical:
   juego. Los botones redondos recortan su forma, así que las esquinas de su
   caja no roban toques.
 - El botón **«>»**, abajo a la derecha a la altura de Start
-  (`ControlLayout.hideToggleBounds`), aparta los mandos —la izquierda sale
-  por la izquierda, la derecha por la derecha— y deja la pantalla inferior
-  entera para el lápiz; **«<»** los devuelve. Del todo apartados, los mandos
+  (`ControlLayout.hideToggleBounds`), aparta los mandos que tapan alguna
+  pantalla —la izquierda sale por la izquierda, la derecha por la derecha—
+  y deja la pantalla inferior entera para el lápiz; **«<»** los devuelve.
+  Los que no tapan nada, como Select y Start bajo la pantalla inferior, se
+  quedan (`ControlLayout.groupsCoveringScreens`); si ninguno tapa nada, el
+  botón no aparece. Del todo apartados, los mandos
   dejan de componerse, así que no queda ningún botón pegado. Sólo existe en
   vertical: en horizontal los mandos no tapan la táctil.
 

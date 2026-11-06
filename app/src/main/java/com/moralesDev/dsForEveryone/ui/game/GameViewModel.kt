@@ -310,6 +310,11 @@ class GameViewModel @Inject constructor(
         viewModelScope.launch { settingsRepository.setTouchMode(mode) }
     }
 
+    /** Invierte qué pantalla va arriba y cuál abajo. La táctil sigue siendo la misma, sólo se mueve. */
+    fun setScreensSwapped(swapped: Boolean) {
+        viewModelScope.launch { settingsRepository.setScreensSwapped(swapped) }
+    }
+
     fun setSpeed(speed: EmulationSpeed) {
         viewModelScope.launch { settingsRepository.setSpeed(speed) }
     }

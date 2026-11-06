@@ -131,7 +131,8 @@ El mínimo razonable, con perfiles independientes por orientación:
    área.
 5. **Intercambiar** — un modificador, no un modo: se aplica sobre cualquiera de
    los anteriores. La táctil sigue siendo la de abajo *lógicamente*, aunque se
-   pinte arriba.
+   pinte arriba. Se cambia en el editor y con el chip «Invertir pantallas» del
+   menú de pausa, debajo de los modos.
 
 **En vertical, todos menos «Apiladas» ocupan la mitad de arriba**: el bloque
 de pantallas apoya su borde de abajo en el centro del hueco y crece hacia

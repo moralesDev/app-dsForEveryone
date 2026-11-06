@@ -596,4 +596,41 @@ class ControlLayoutTest {
         assertEquals(swapped.topScreen.bottom, ControlLayout.lowerScreenBottom(swapped))
         assertNull(ControlLayout.lowerScreenBottom(ScreenLayout.resolve(LayoutMode.SIDE_BY_SIDE, size)))
     }
+
+    /** El perfil vertical tal como lo pide GameScreen en un teléfono 20:9. */
+    private fun portraitScene(mode: LayoutMode, swapped: Boolean = false): Pair<ControlLayoutProfile, ScreenPlacement> {
+        val size = LayoutSize(1080f, 2400f)
+        val insets = LayoutInsets(top = 66f, bottom = 48f)
+        val area = size.asArea().inset(insets)
+        val placement = ScreenLayout.resolve(mode, size, gap = 0.05f, swapped = swapped, insets = insets, upperHalf = true)
+        val profile = ControlLayout.overlayProfile(
+            area,
+            126f,
+            ceiling = ControlLayout.overlayCeiling(placement, area, belowCenter = 31f),
+            inwardShift = 19f,
+            systemTop = ControlLayout.lowerScreenBottom(placement)?.plus(31f),
+        )
+        return profile to placement
+    }
+
+    @Test
+    fun `apiladas, se apartan los que tapan la pantalla de abajo y Select y Start se quedan`() {
+        for (swapped in listOf(false, true)) {
+            val (profile, placement) = portraitScene(LayoutMode.STACKED, swapped)
+            val hideable = ControlLayout.groupsCoveringScreens(profile, placement)
+
+            assertFalse("$swapped", ControlGroup.SELECT in hideable)
+            assertFalse("$swapped", ControlGroup.START in hideable)
+            assertTrue("$swapped", ControlGroup.DIRECTIONAL_PAD in hideable)
+            assertTrue("$swapped", ControlGroup.ACTION_BUTTONS in hideable)
+        }
+    }
+
+    @Test
+    fun `con las pantallas en la mitad de arriba no hay nada que apartar`() {
+        for (mode in listOf(LayoutMode.TOP_ONLY, LayoutMode.BOTTOM_ONLY, LayoutMode.SIDE_BY_SIDE, LayoutMode.MAIN_AND_SECONDARY)) {
+            val (profile, placement) = portraitScene(mode)
+            assertEquals("$mode", emptySet<ControlGroup>(), ControlLayout.groupsCoveringScreens(profile, placement))
+        }
+    }
 }

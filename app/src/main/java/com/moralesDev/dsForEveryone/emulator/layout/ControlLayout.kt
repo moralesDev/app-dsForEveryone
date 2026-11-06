@@ -553,6 +553,19 @@ object ControlLayout {
     }
 
     /**
+     * Los grupos que tapan alguna de las dos pantallas: los que el botón de
+     * apartar los mandos se lleva a los lados. Los que no tapan nada —Select
+     * y Start bajo la pantalla inferior, o todos cuando las pantallas van en
+     * la mitad de arriba— se quedan donde están: apartarlos no destaparía
+     * nada y sólo obligaría a devolverlos para pulsarlos.
+     */
+    fun groupsCoveringScreens(profile: ControlLayoutProfile, placement: ScreenPlacement): Set<ControlGroup> =
+        profile.groups.filterValues { group ->
+            LayoutEngine.overlaps(group.bounds, placement.topScreen) ||
+                LayoutEngine.overlaps(group.bounds, placement.touchScreen)
+        }.keys
+
+    /**
      * El borde de abajo de la pantalla que queda físicamente abajo, cuando
      * están una encima de la otra; `null` si no lo están. Debajo van Select
      * y Start, ver [overlayProfile].

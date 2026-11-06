@@ -53,6 +53,7 @@
     <string name="pa_title">Game paused</string>
     <string name="pa_resume">Resume</string>
     <string name="pa_exit">Exit</string>
+    <string name="pa_swap_screens">Swap screens</string>
     <string name="pa_layout">Screen layout</string>
     <string name="pa_touch_mode">Touch mode</string>
     <string name="pa_speed">Speed</string>

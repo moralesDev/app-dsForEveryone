@@ -60,6 +60,7 @@
     <string name="pa_resume">Continuar</string>
     <string name="pa_exit">Salir</string>
     <string name="pa_layout">Disposición de pantallas</string>
+    <string name="pa_swap_screens">Invertir pantallas</string>
     <string name="pa_touch_mode">Modo de toque</string>
     <string name="pa_speed">Velocidad</string>
     <string name="pa_save">Guardar partida</string>

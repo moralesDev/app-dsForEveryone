@@ -253,9 +253,16 @@ fun GameScreen(onExit: () -> Unit) {
         )
     }
 
-    // Apartar los mandos sólo existe en vertical, que es donde tapan la
-    // táctil. En horizontal no la tapan, así que no hay nada que apartar.
-    val canHideControls = isPortrait
+    // Apartar los mandos sólo existe en vertical, que es donde tapan las
+    // pantallas, y sólo se llevan los que tapan alguna: Select y Start bajo
+    // la pantalla inferior se quedan. Si ninguno tapa nada —las pantallas en
+    // la mitad de arriba—, no hay botón de apartar.
+    val hideableGroups = remember(controlProfile, placement) {
+        val profile = controlProfile ?: return@remember emptySet()
+        val current = placement ?: return@remember emptySet()
+        ControlLayout.groupsCoveringScreens(profile, current)
+    }
+    val canHideControls = isPortrait && hideableGroups.isNotEmpty()
     val hideProgress by animateFloatAsState(
         targetValue = if (canHideControls && controlsHidden) 1f else 0f,
         label = "controls-hide",
@@ -306,6 +313,7 @@ fun GameScreen(onExit: () -> Unit) {
                 profile = controlProfile,
                 directionalControl = settings.directionalControl,
                 hideProgress = hideProgress,
+                hideableGroups = hideableGroups,
                 windowWidth = availableSize.width,
                 pressedMask = pressedMask,
                 micActive = micActive,
@@ -370,6 +378,8 @@ fun GameScreen(onExit: () -> Unit) {
                 onLayoutModeChange = { mode -> viewModel.setLayoutMode(mode, isPortrait) },
                 speed = settings.speed,
                 onSpeedChange = viewModel::setSpeed,
+                screensSwapped = settings.screensSwapped,
+                onScreensSwappedChange = viewModel::setScreensSwapped,
                 touchMode = settings.touchMode,
                 onTouchModeChange = viewModel::setTouchMode,
                 imageFilter = settings.imageFilter,
@@ -678,12 +688,14 @@ private val LEFT_HAND_GROUPS = setOf(
  *   todo fuera, los grupos dejan de componerse: así el `finally` de cada
  *   mando suelta lo que estuviera pulsado y la pantalla inferior entera
  *   vuelve a ser de la táctil.
+ * @param hideableGroups los únicos que se apartan; el resto no se mueve.
  */
 @Composable
 private fun ControlGroups(
     profile: ControlLayoutProfile,
     directionalControl: DirectionalControl,
     hideProgress: Float,
+    hideableGroups: Set<ControlGroup>,
     windowWidth: Float,
     pressedMask: Int,
     micActive: Boolean,
@@ -699,11 +711,12 @@ private fun ControlGroups(
         val (offsetX, offsetY, boxWidth, boxHeight) = with(density) {
             listOf(bounds.left.toDp(), bounds.top.toDp(), bounds.width.toDp(), bounds.height.toDp())
         }
-        if (hideProgress >= 1f) return@forEach
+        val progress = if (group in hideableGroups) hideProgress else 0f
+        if (progress >= 1f) return@forEach
         // Lo justo para que el grupo quede entero fuera de la ventana por su lado.
         val slide = if (group in LEFT_HAND_GROUPS) -bounds.right else windowWidth - bounds.left
         val groupModifier = Modifier
-            .offset { IntOffset((slide * hideProgress).roundToInt(), 0) }
+            .offset { IntOffset((slide * progress).roundToInt(), 0) }
             .offset(offsetX, offsetY)
             .size(boxWidth, boxHeight)
 
