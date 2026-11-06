@@ -223,6 +223,7 @@ fun GameScreen(onExit: () -> Unit) {
     val pxPerMm = rememberPxPerMm()
     val ceilingBelowCenterPx = CONTROLS_CEILING_BELOW_CENTER_MM * pxPerMm.y
     val inwardShiftPx = CONTROLS_INWARD_SHIFT_MM * pxPerMm.x
+    val systemBelowScreenPx = SYSTEM_BUTTONS_BELOW_SCREEN_MM * pxPerMm.y
     val controlProfile = remember(
         placement,
         usableArea,
@@ -231,6 +232,7 @@ fun GameScreen(onExit: () -> Unit) {
         isPortrait,
         ceilingBelowCenterPx,
         inwardShiftPx,
+        systemBelowScreenPx,
     ) {
         val current = placement ?: return@remember null
         ControlLayout.resolveProfile(
@@ -244,6 +246,7 @@ fun GameScreen(onExit: () -> Unit) {
             // encima de la inferior, no de las dos.
             ceiling = ControlLayout.overlayCeiling(current, usableArea, belowCenter = ceilingBelowCenterPx),
             inwardShift = inwardShiftPx,
+            systemTop = ControlLayout.lowerScreenBottom(current)?.plus(systemBelowScreenPx),
         )
     }
 

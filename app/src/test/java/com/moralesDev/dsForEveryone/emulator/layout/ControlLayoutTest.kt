@@ -547,4 +547,45 @@ class ControlLayoutTest {
         val lowest = groups.values.maxOf { it.bottom }
         assertTrue("el bloque llega hasta $lowest, pegado al borde ${area.bottom}", area.bottom - lowest > 126f)
     }
+
+    @Test
+    fun `Select y Start bajan a la altura pedida y el resto no se mueve`() {
+        val area = portraitAreas.first()
+        val ceiling = area.centerY + 30f
+        val base = ControlLayout.overlayProfile(area, 126f, ceiling = ceiling, inwardShift = 40f)
+            .groups.mapValues { it.value.bounds }
+        val systemTop = area.bottom - 300f
+        val moved = ControlLayout.overlayProfile(area, 126f, ceiling = ceiling, inwardShift = 40f, systemTop = systemTop)
+        val groups = moved.groups.mapValues { it.value.bounds }
+
+        assertEquals(systemTop, groups.getValue(ControlGroup.SELECT).top, 0.01f)
+        assertEquals(systemTop, groups.getValue(ControlGroup.START).top, 0.01f)
+        (ControlGroup.entries - ControlGroup.SELECT - ControlGroup.START).forEach {
+            assertEquals("$it", base.getValue(it), groups.getValue(it))
+        }
+        assertFalse(ControlLayout.hasOverlap(moved, touchScreen = null))
+    }
+
+    @Test
+    fun `Select y Start nunca pisan la direccion ni se salen por abajo`() {
+        for (area in portraitAreas) {
+            for (systemTop in listOf(area.top, area.centerY, area.bottom - 1f, area.bottom + 500f)) {
+                val profile = ControlLayout.overlayProfile(area, 126f, inwardShift = 40f, systemTop = systemTop)
+                assertFalse("$area, $systemTop", ControlLayout.hasOverlap(profile, touchScreen = null))
+                profile.groups.values.forEach {
+                    assertTrue("$area, $systemTop: ${it.bounds}", LayoutEngine.isWithin(it.bounds, area))
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `el borde de abajo de la pantalla inferior, sea cual sea`() {
+        val size = LayoutSize(1080f, 2400f)
+        val normal = ScreenLayout.resolve(LayoutMode.STACKED, size, gap = 0.05f)
+        assertEquals(normal.touchScreen.bottom, ControlLayout.lowerScreenBottom(normal))
+        val swapped = ScreenLayout.resolve(LayoutMode.STACKED, size, gap = 0.05f, swapped = true)
+        assertEquals(swapped.topScreen.bottom, ControlLayout.lowerScreenBottom(swapped))
+        assertNull(ControlLayout.lowerScreenBottom(ScreenLayout.resolve(LayoutMode.SIDE_BY_SIDE, size)))
+    }
 }

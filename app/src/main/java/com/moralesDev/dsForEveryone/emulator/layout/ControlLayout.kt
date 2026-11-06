@@ -175,10 +175,11 @@ object ControlLayout {
         overlay: Boolean = false,
         ceiling: Float = area.top,
         inwardShift: Float = 0f,
+        systemTop: Float? = null,
     ): ControlLayoutProfile {
         val fromCustom = custom?.let { fromFractions(it, area) }
         return fromCustom ?: if (overlay) {
-            overlayProfile(area, minTouchTarget, opacity, ceiling, inwardShift)
+            overlayProfile(area, minTouchTarget, opacity, ceiling, inwardShift, systemTop)
         } else {
             defaultProfile(area, touchScreen, minTouchTarget, opacity)
         }
@@ -415,6 +416,11 @@ object ControlLayout {
      *   cada uno desde su borde, en las mismas unidades que [area]. Quien
      *   llama lo convierte de milímetros reales. Nunca los deja pasar su
      *   mitad: como mucho quedan a medio hueco del centro.
+     * @param systemTop si no es `null`, a qué altura empiezan Select y Start
+     *   en lugar de ir en el bloque: debajo de la pantalla inferior, ver
+     *   [lowerScreenBottom]. Nunca pisan la dirección ni el rombo —si les
+     *   quedan debajo, bajan hasta librarlos— ni se salen por abajo; si no
+     *   hay sitio para eso, se quedan donde iban en el bloque.
      */
     fun overlayProfile(
         area: LayoutRect,
@@ -422,6 +428,7 @@ object ControlLayout {
         opacity: Float = DEFAULT_OPACITY,
         ceiling: Float = area.top,
         inwardShift: Float = 0f,
+        systemTop: Float? = null,
     ): ControlLayoutProfile {
         val top = ceiling.coerceIn(area.top, area.bottom)
         val usable = LayoutRect(area.left, top, area.right, area.bottom)
@@ -487,9 +494,44 @@ object ControlLayout {
             ControlGroup.ACTION_BUTTONS to actionRect,
             ControlGroup.START to start,
         ).mapValues { (_, bounds) ->
-            ControlGroupPlacement(LayoutRect(bounds.left, bounds.top - lift, bounds.right, bounds.bottom - lift), opacity)
+            LayoutRect(bounds.left, bounds.top - lift, bounds.right, bounds.bottom - lift)
         }
-        return ControlLayoutProfile(groups)
+        val placed = if (systemTop != null) withSystemButtonsAt(groups, systemTop, usable, gap) else groups
+        return ControlLayoutProfile(placed.mapValues { (_, bounds) -> ControlGroupPlacement(bounds, opacity) })
+    }
+
+    /**
+     * Baja Select y Start a [systemTop], ver [overlayProfile]. Devuelve
+     * [groups] sin tocar si en ese sitio no caben sin pisar nada.
+     */
+    private fun withSystemButtonsAt(
+        groups: Map<ControlGroup, LayoutRect>,
+        systemTop: Float,
+        usable: LayoutRect,
+        gap: Float,
+    ): Map<ControlGroup, LayoutRect> {
+        val select = groups.getValue(ControlGroup.SELECT)
+        val start = groups.getValue(ControlGroup.START)
+        val height = select.height
+        val others = (groups - ControlGroup.SELECT - ControlGroup.START).values
+        // Si algún grupo queda encima en vertical de Select o Start (mismas
+        // columnas), tienen que pasar por debajo de él.
+        val clearance = others
+            .filter { other -> other.left < start.right && other.right > select.left }
+            .maxOfOrNull { it.bottom + gap }
+            ?: usable.top
+        val newTop = maxOf(systemTop, clearance)
+        if (newTop + height > usable.bottom - gap) return groups
+
+        val dy = newTop - select.top
+        val moved = groups + mapOf(
+            ControlGroup.SELECT to LayoutRect(select.left, select.top + dy, select.right, select.bottom + dy),
+            ControlGroup.START to LayoutRect(start.left, start.top + dy, start.right, start.bottom + dy),
+        )
+        val overlaps = moved.entries.any { (group, rect) ->
+            moved.any { (other, otherRect) -> other != group && LayoutEngine.overlaps(rect, otherRect) }
+        }
+        return if (overlaps) groups else moved
     }
 
     /**
@@ -508,6 +550,16 @@ object ControlLayout {
         val fromCenter = if (belowCenter > 0f) area.centerY + belowCenter else area.top
         val fromScreens = stackedGap(placement)?.let { (upperBottom, _) -> upperBottom } ?: area.top
         return maxOf(fromCenter, fromScreens).coerceIn(area.top, area.bottom)
+    }
+
+    /**
+     * El borde de abajo de la pantalla que queda físicamente abajo, cuando
+     * están una encima de la otra; `null` si no lo están. Debajo van Select
+     * y Start, ver [overlayProfile].
+     */
+    fun lowerScreenBottom(placement: ScreenPlacement): Float? {
+        if (stackedGap(placement) == null) return null
+        return maxOf(placement.topScreen.bottom, placement.touchScreen.bottom)
     }
 
     /**

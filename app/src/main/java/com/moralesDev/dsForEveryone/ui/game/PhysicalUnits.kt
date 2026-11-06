@@ -33,4 +33,7 @@ const val CONTROLS_INWARD_SHIFT_MM = 3f
 /** A cuánto por debajo del centro empieza el techo de los mandos en vertical. */
 const val CONTROLS_CEILING_BELOW_CENTER_MM = 5f
 
+/** A cuánto por debajo de la pantalla inferior van Select y Start en vertical. */
+const val SYSTEM_BUTTONS_BELOW_SCREEN_MM = 5f
+
 private const val MM_PER_INCH = 25.4f

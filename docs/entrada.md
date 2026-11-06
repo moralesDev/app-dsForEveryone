@@ -269,7 +269,11 @@ la sustituye en vertical:
   techo y el borde, todo encoge por igual. El editor tampoco deja arrastrar un mando
   por encima de ese techo.
 - La dirección y el rombo se separan **3 mm** de su borde hacia el centro.
-- Estas dos medidas son **físicas**, no dp: se convierten con
+- Select y Start no van en el bloque: van **0,5 cm por debajo de la
+  pantalla inferior** (`ControlLayout.lowerScreenBottom`), centrados. Si ahí
+  pisaran la dirección o el rombo, bajan hasta librarlos; si no caben antes
+  del borde, se quedan en el bloque.
+- Estas tres medidas son **físicas**, no dp: se convierten con
   `xdpi`/`ydpi` (`rememberPxPerMm`), porque lo que se pidió es lo que mide
   una regla sobre el cristal.
 - Entre las dos pantallas, que ahora se separan un 5 % por defecto, van los

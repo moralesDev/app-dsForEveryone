@@ -65,6 +65,7 @@ import com.moralesDev.dsForEveryone.ui.components.GlassIconButton
 import com.moralesDev.dsForEveryone.ui.game.CONTROLS_CEILING_BELOW_CENTER_MM
 import com.moralesDev.dsForEveryone.ui.game.CONTROLS_INWARD_SHIFT_MM
 import com.moralesDev.dsForEveryone.ui.game.LayoutModeChips
+import com.moralesDev.dsForEveryone.ui.game.SYSTEM_BUTTONS_BELOW_SCREEN_MM
 import com.moralesDev.dsForEveryone.ui.game.rememberPxPerMm
 import com.moralesDev.dsForEveryone.ui.theme.Accent
 import com.moralesDev.dsForEveryone.ui.theme.Background
@@ -154,6 +155,7 @@ fun LayoutEditorScreen(onBack: () -> Unit) {
     val pxPerMm = rememberPxPerMm()
     val ceilingBelowCenterPx = CONTROLS_CEILING_BELOW_CENTER_MM * pxPerMm.y
     val inwardShiftPx = CONTROLS_INWARD_SHIFT_MM * pxPerMm.x
+    val systemBelowScreenPx = SYSTEM_BUTTONS_BELOW_SCREEN_MM * pxPerMm.y
     val controlProfile = remember(
         placement,
         usableArea,
@@ -162,6 +164,7 @@ fun LayoutEditorScreen(onBack: () -> Unit) {
         isPortrait,
         ceilingBelowCenterPx,
         inwardShiftPx,
+        systemBelowScreenPx,
     ) {
         val current = placement ?: return@remember null
         ControlLayout.resolveProfile(
@@ -173,6 +176,7 @@ fun LayoutEditorScreen(onBack: () -> Unit) {
             overlay = isPortrait,
             ceiling = ControlLayout.overlayCeiling(current, usableArea, belowCenter = ceilingBelowCenterPx),
             inwardShift = inwardShiftPx,
+            systemTop = ControlLayout.lowerScreenBottom(current)?.plus(systemBelowScreenPx),
         )
     }
 
