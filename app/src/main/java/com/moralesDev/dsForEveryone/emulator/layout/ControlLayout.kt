@@ -377,8 +377,9 @@ object ControlLayout {
 
     /**
      * Perfil por defecto en vertical: dos racimos, uno por mano, pegados a
-     * los bordes y anclados abajo, que suben **por encima** de la pantalla
-     * inferior todo lo que haga falta, pero nunca por encima de [ceiling].
+     * los bordes y **colgados de [ceiling]**: L y R empiezan justo en el
+     * techo y el resto baja desde ahí, por encima de la pantalla inferior. Lo
+     * que sobra queda abajo, libre.
      *
      * ```
      * [ L ]                          [ R ]
@@ -397,8 +398,9 @@ object ControlLayout {
      * - Select y Start quedan abajo, a cada lado del centro. Si el teléfono
      *   es tan estrecho que la dirección o el rombo llegarían a pisarlos, los
      *   dos racimos suben una fila en vez de encoger.
-     * - Anclado abajo y no repartido por toda la pantalla inferior: el pulgar
-     *   llega desde el borde de abajo.
+     * - Colgado del techo y no pegado al borde de abajo: así los mandos quedan
+     *   hacia el centro del teléfono, donde lo sujetan las manos, y no en el
+     *   filo inferior.
      * - Todo menos la dirección es pequeño a propósito —L y R finos, soplar,
      *   Start y Select diminutos—: van encima del juego, y cada milímetro de
      *   botón es un milímetro de pantalla inferior que no se ve bien.
@@ -471,6 +473,11 @@ object ControlLayout {
         val l = LayoutRect(leftEdge, shoulderBottom - shoulderHeight, leftEdge + shoulderWidth, shoulderBottom)
         val r = LayoutRect(rightEdge - shoulderWidth, l.top, rightEdge, l.bottom)
 
+        // Hasta aquí todo se ha apilado desde abajo; ahora el bloque entero
+        // sube hasta que L y R tocan el techo. `fit` garantiza que cabe, así
+        // que el desplazamiento sólo puede ser hacia arriba (o nulo).
+        val lift = (l.top - usable.top).coerceAtLeast(0f)
+
         val groups = mapOf(
             ControlGroup.L to l,
             ControlGroup.BLOW to blow,
@@ -479,7 +486,9 @@ object ControlLayout {
             ControlGroup.R to r,
             ControlGroup.ACTION_BUTTONS to actionRect,
             ControlGroup.START to start,
-        ).mapValues { (_, bounds) -> ControlGroupPlacement(bounds, opacity) }
+        ).mapValues { (_, bounds) ->
+            ControlGroupPlacement(LayoutRect(bounds.left, bounds.top - lift, bounds.right, bounds.bottom - lift), opacity)
+        }
         return ControlLayoutProfile(groups)
     }
 

@@ -262,10 +262,11 @@ la sustituye en vertical:
 - Cada grupo va del lado de su mano: L, soplar, dirección y Select a la
   izquierda; R, rombo y Start a la derecha. Select y Start, abajo y pegados
   al centro, como pastillas con el nombre debajo.
-- Los dos racimos se anclan **abajo** y suben por encima de la pantalla
-  inferior, pero **nunca más arriba de 2 cm por debajo del centro** del
-  hueco, ni de la pantalla de arriba (`ControlLayout.overlayCeiling`); si
-  no caben, todo encoge por igual. El editor tampoco deja arrastrar un mando
+- Los dos racimos **cuelgan del techo**: L y R empiezan justo 2 cm por
+  debajo del centro del hueco (nunca por encima de la pantalla de arriba,
+  `ControlLayout.overlayCeiling`) y el resto baja desde ahí; lo que sobra
+  queda libre abajo, sin llevar Start y Select al filo. Si no caben entre el
+  techo y el borde, todo encoge por igual. El editor tampoco deja arrastrar un mando
   por encima de ese techo.
 - La dirección y el rombo se separan **3 mm** de su borde hacia el centro.
 - Estas dos medidas son **físicas**, no dp: se convierten con

@@ -465,9 +465,10 @@ class ControlLayoutTest {
         val size = LayoutSize(1080f, 1920f)
         val insets = LayoutInsets(top = 60f, bottom = 48f)
         val area = size.asArea().inset(insets)
-        val touchScreen = ScreenLayout.resolve(LayoutMode.STACKED, size, gap = 0.02f, insets = insets).touchScreen
+        val placement = ScreenLayout.resolve(LayoutMode.STACKED, size, gap = 0.02f, insets = insets)
+        val touchScreen = placement.touchScreen
 
-        val profile = ControlLayout.overlayProfile(area, 126f)
+        val profile = ControlLayout.overlayProfile(area, 126f, ceiling = ControlLayout.overlayCeiling(placement, area))
 
         assertTrue(ControlLayout.hasOverlap(profile, touchScreen))
         assertFalse(ControlLayout.hasOverlap(profile, touchScreen = null))
@@ -533,5 +534,17 @@ class ControlLayoutTest {
         for (mode in listOf(LayoutMode.SIDE_BY_SIDE, LayoutMode.TOP_ONLY, LayoutMode.MAIN_AND_SECONDARY)) {
             assertNull("$mode", ControlLayout.stackedGap(ScreenLayout.resolve(mode, size)))
         }
+    }
+
+    @Test
+    fun `L y R empiezan justo en el techo y el sobrante queda abajo`() {
+        val area = portraitAreas.first()
+        val ceiling = area.centerY + 200f
+        val groups = ControlLayout.overlayProfile(area, 126f, ceiling = ceiling).groups.mapValues { it.value.bounds }
+
+        assertEquals(ceiling, groups.getValue(ControlGroup.L).top, 0.01f)
+        assertEquals(ceiling, groups.getValue(ControlGroup.R).top, 0.01f)
+        val lowest = groups.values.maxOf { it.bottom }
+        assertTrue("el bloque llega hasta $lowest, pegado al borde ${area.bottom}", area.bottom - lowest > 126f)
     }
 }
