@@ -291,4 +291,56 @@ class ScreenLayoutTest {
             assertTrue(placement.touchScreen.width >= 0f && placement.touchScreen.height >= 0f)
         }
     }
+
+    @Test
+    fun `apiladas, las dos pantallas quedan centradas a lo alto en el hueco`() {
+        val insets = LayoutInsets(top = 66f, bottom = 48f)
+        val area = LayoutRect(0f, 0f, 1080f, 2400f).inset(insets)
+
+        val placement = ScreenLayout.resolve(LayoutMode.STACKED, LayoutSize(1080f, 2400f), gap = 0.02f, insets = insets)
+
+        val above = placement.topScreen.top - area.top
+        val below = area.bottom - placement.touchScreen.bottom
+        assertTrue(above > 0f)
+        assertEquals(above, below, 0.01f)
+    }
+
+    @Test
+    fun `en la mitad de arriba, el bloque de pantallas se apoya en el centro y crece hacia arriba`() {
+        val size = LayoutSize(1080f, 2400f)
+        val insets = LayoutInsets(top = 66f, bottom = 48f)
+        val area = LayoutRect(0f, 0f, size.width, size.height).inset(insets)
+
+        for (mode in LayoutMode.entries - LayoutMode.STACKED) {
+            for (swapped in listOf(false, true)) {
+                val placement = ScreenLayout.resolve(mode, size, gap = 0.03f, swapped = swapped, insets = insets, upperHalf = true)
+                val visible = listOf(placement.topScreen, placement.touchScreen).filter { it.width > 0f && it.height > 0f }
+
+                assertEquals("$mode", area.centerY, visible.maxOf { it.bottom }, 0.01f)
+                visible.forEach {
+                    assertTrue("$mode: $it", it.top >= area.top - 0.01f)
+                    assertEquals("$mode: $it", ScreenLayout.SCREEN_ASPECT_RATIO, it.width / it.height, 0.01f)
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `apiladas no cambian con la mitad de arriba`() {
+        val size = LayoutSize(1080f, 2400f)
+        assertEquals(
+            ScreenLayout.resolve(LayoutMode.STACKED, size, gap = 0.05f),
+            ScreenLayout.resolve(LayoutMode.STACKED, size, gap = 0.05f, upperHalf = true),
+        )
+    }
+
+    @Test
+    fun `una sola pantalla en la mitad de arriba no encoge en un movil alargado`() {
+        val size = LayoutSize(1080f, 2400f)
+        val centered = ScreenLayout.resolve(LayoutMode.TOP_ONLY, size)
+        val upper = ScreenLayout.resolve(LayoutMode.TOP_ONLY, size, upperHalf = true)
+
+        assertEquals(centered.topScreen.width, upper.topScreen.width, 0.01f)
+        assertEquals(centered.topScreen.height, upper.topScreen.height, 0.01f)
+    }
 }

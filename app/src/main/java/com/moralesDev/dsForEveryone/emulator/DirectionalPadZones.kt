@@ -85,6 +85,27 @@ object DirectionalPadZones {
         val deadZone = minOf(width, height) * DEAD_ZONE_RATIO
         if (dx * dx + dy * dy < deadZone * deadZone) return emptySet()
 
+        return directionsForAngle(dx, dy, diagonalWidthDegrees)
+    }
+
+    /**
+     * Las ocho cuñas, sin zona muerta: la dirección del vector ([dx], [dy])
+     * —y hacia abajo positivo, como en pantalla— y nada más. La comparten la
+     * cruceta, que antes descuenta su disco central, y el joystick
+     * ([JoystickGeometry]), que descuenta el suyo, más grande.
+     *
+     * @param diagonalWidthDegrees ancho de cada cuña diagonal, entre 0 y 90.
+     */
+    fun directionsForAngle(
+        dx: Float,
+        dy: Float,
+        diagonalWidthDegrees: Float = DEFAULT_DIAGONAL_WIDTH_DEGREES,
+    ): Set<DsButton> {
+        require(diagonalWidthDegrees in 0f..90f) {
+            "El ancho de la diagonal debe estar entre 0 y 90 grados: $diagonalWidthDegrees"
+        }
+        if (dx == 0f && dy == 0f) return emptySet()
+
         val cardinalWidth = 90f - diagonalWidthDegrees
         val angleDegrees = normalizeDegrees(Math.toDegrees(atan2(dy, dx).toDouble()).toFloat())
         // Desplaza el origen medio ancho cardinal hacia atrás: así la cuña

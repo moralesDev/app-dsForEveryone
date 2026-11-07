@@ -62,7 +62,11 @@ import com.moralesDev.dsForEveryone.emulator.layout.ScreenLayout
 import com.moralesDev.dsForEveryone.emulator.layout.ScreenPlacement
 import com.moralesDev.dsForEveryone.emulator.layout.inset
 import com.moralesDev.dsForEveryone.ui.components.GlassIconButton
+import com.moralesDev.dsForEveryone.ui.game.CONTROLS_CEILING_BELOW_CENTER_MM
+import com.moralesDev.dsForEveryone.ui.game.CONTROLS_INWARD_SHIFT_MM
 import com.moralesDev.dsForEveryone.ui.game.LayoutModeChips
+import com.moralesDev.dsForEveryone.ui.game.SYSTEM_BUTTONS_BELOW_SCREEN_MM
+import com.moralesDev.dsForEveryone.ui.game.rememberPxPerMm
 import com.moralesDev.dsForEveryone.ui.theme.Accent
 import com.moralesDev.dsForEveryone.ui.theme.Background
 import com.moralesDev.dsForEveryone.ui.theme.Glass
@@ -129,7 +133,7 @@ fun LayoutEditorScreen(onBack: () -> Unit) {
     // medida y no con la del contenedor entero.
     val screensAvailable = usableArea.size
 
-    val placement = remember(activeMode, availableSize, insets, gapState, scaleState, settings.screensSwapped) {
+    val placement = remember(activeMode, availableSize, insets, gapState, scaleState, settings.screensSwapped, isPortrait) {
         if (availableSize.width > 0f && availableSize.height > 0f) {
             ScreenLayout.resolve(
                 mode = activeMode,
@@ -138,6 +142,8 @@ fun LayoutEditorScreen(onBack: () -> Unit) {
                 secondaryScale = scaleState,
                 swapped = settings.screensSwapped,
                 insets = insets,
+                // En vertical los mandos ocupan del centro hacia abajo.
+                upperHalf = isPortrait,
             )
         } else {
             null
@@ -146,7 +152,22 @@ fun LayoutEditorScreen(onBack: () -> Unit) {
 
     val minTouchTargetPx = with(density) { ControlLayout.MIN_TOUCH_TARGET_DP.dp.toPx() }
 
-    val controlProfile = remember(placement, usableArea, customControlLayout, minTouchTargetPx) {
+    // Las mismas medidas físicas que GameScreen: si no, el editor colocaría
+    // distinto que el juego.
+    val pxPerMm = rememberPxPerMm()
+    val ceilingBelowCenterPx = CONTROLS_CEILING_BELOW_CENTER_MM * pxPerMm.y
+    val inwardShiftPx = CONTROLS_INWARD_SHIFT_MM * pxPerMm.x
+    val systemBelowScreenPx = SYSTEM_BUTTONS_BELOW_SCREEN_MM * pxPerMm.y
+    val controlProfile = remember(
+        placement,
+        usableArea,
+        customControlLayout,
+        minTouchTargetPx,
+        isPortrait,
+        ceilingBelowCenterPx,
+        inwardShiftPx,
+        systemBelowScreenPx,
+    ) {
         val current = placement ?: return@remember null
         ControlLayout.resolveProfile(
             custom = customControlLayout,
@@ -154,6 +175,10 @@ fun LayoutEditorScreen(onBack: () -> Unit) {
             touchScreen = current.touchScreen,
             minTouchTarget = minTouchTargetPx,
             opacity = ControlLayout.DEFAULT_OPACITY,
+            overlay = isPortrait,
+            ceiling = ControlLayout.overlayCeiling(current, usableArea, belowCenter = ceilingBelowCenterPx),
+            inwardShift = inwardShiftPx,
+            systemTop = ControlLayout.lowerScreenBottom(current)?.plus(systemBelowScreenPx),
         )
     }
 
@@ -210,11 +235,20 @@ fun LayoutEditorScreen(onBack: () -> Unit) {
         }
 
         controlProfile?.let { profile ->
-            val touchRect = placement?.touchScreen ?: LayoutRect(0f, 0f, 0f, 0f)
+            // En vertical los mandos van encima de la táctil a propósito (ver
+            // ControlLayout.overlayProfile): ahí la táctil no bloquea nada.
+            val touchBlocker = placement?.touchScreen?.takeUnless { isPortrait }
+            // Y en vertical, nunca por encima de la pantalla de arriba: todo
+            // lo que queda sobre el techo de overlayCeiling es zona vedada.
+            val ceilingBlocker = placement?.takeIf { isPortrait }?.let { current ->
+                val ceiling = ControlLayout.overlayCeiling(current, usableArea, belowCenter = ceilingBelowCenterPx)
+                LayoutRect(usableArea.left, usableArea.top, usableArea.right, ceiling)
+                    .takeIf { it.height > 0f }
+            }
 
             profile.groups.forEach { (group, groupPlacement) ->
                 key(group) {
-                    val blockers = (profile.groups - group).values.map { it.bounds } + touchRect
+                    val blockers = (profile.groups - group).values.map { it.bounds } + listOfNotNull(touchBlocker, ceilingBlocker)
                     EditableGroupBox(
                         group = group,
                         placement = groupPlacement,
@@ -474,9 +508,10 @@ private fun SecondaryScaleHandle(
 
 /**
  * Un grupo de mandos arrastrable y redimensionable. [blockers] son los
- * rectángulos con los que no puede solaparse: los otros seis grupos y la
- * pantalla táctil. La pantalla superior no entra: solaparla está permitido
- * porque no es interactiva (ver [ControlLayout]).
+ * rectángulos con los que no puede solaparse: los otros seis grupos y, en
+ * horizontal, la pantalla táctil. En vertical los mandos van encima de la
+ * táctil por diseño, y la pantalla superior no entra nunca: solaparla está
+ * permitido porque no es interactiva (ver [ControlLayout]).
  */
 @Composable
 private fun EditableGroupBox(

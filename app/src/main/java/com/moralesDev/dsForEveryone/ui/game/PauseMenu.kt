@@ -29,6 +29,7 @@ import androidx.compose.material.icons.filled.FlashOn
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.SettingsBackupRestore
+import androidx.compose.material.icons.filled.SwapVert
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -76,6 +77,8 @@ fun PauseMenu(
     onLayoutModeChange: (LayoutMode) -> Unit,
     speed: EmulationSpeed,
     onSpeedChange: (EmulationSpeed) -> Unit,
+    screensSwapped: Boolean,
+    onScreensSwappedChange: (Boolean) -> Unit,
     touchMode: TouchMode,
     onTouchModeChange: (TouchMode) -> Unit,
     imageFilter: ImageFilter,
@@ -139,6 +142,7 @@ fun PauseMenu(
                     overflow = TextOverflow.Ellipsis,
                 )
                 LayoutModeChips(selected = activeLayoutMode, onSelect = onLayoutModeChange)
+                SwapScreensChip(swapped = screensSwapped, onToggle = { onScreensSwappedChange(!screensSwapped) })
             }
 
             Column(
@@ -343,6 +347,37 @@ internal fun LayoutModeChips(selected: LayoutMode, onSelect: (LayoutMode) -> Uni
                 )
             }
         }
+    }
+}
+
+/**
+ * Invertir las pantallas: la primera abajo y la segunda arriba. Es un
+ * interruptor, no un modo —se aplica sobre cualquiera de [LayoutModeChips]—,
+ * así que va en su propio chip, encendido mientras estén invertidas. La
+ * táctil sigue siendo la misma pantalla; sólo cambia dónde se pinta.
+ */
+@Composable
+private fun SwapScreensChip(swapped: Boolean, onToggle: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .clip(RoundedCornerShape(8.dp))
+            .background(if (swapped) Accent.copy(alpha = 0.30f) else Glass)
+            .clickable(onClick = onToggle)
+            .padding(horizontal = 10.dp, vertical = 7.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        Icon(
+            imageVector = Icons.Filled.SwapVert,
+            contentDescription = null,
+            tint = if (swapped) Accent200 else textAlpha(0.6f),
+            modifier = Modifier.size(14.dp),
+        )
+        Text(
+            text = stringResource(R.string.pa_swap_screens),
+            style = MaterialTheme.typography.labelSmall,
+            color = if (swapped) Accent200 else textAlpha(0.6f),
+        )
     }
 }
 

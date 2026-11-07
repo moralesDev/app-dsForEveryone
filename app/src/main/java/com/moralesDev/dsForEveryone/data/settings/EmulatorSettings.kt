@@ -83,6 +83,24 @@ enum class TouchMode {
 }
 
 /**
+ * Con qué se manejan las cuatro direcciones en pantalla. Los dos producen lo
+ * mismo —la cruceta de la DS, ocho direcciones—; cambia sólo cómo se pulsa.
+ * Ver docs/entrada.md.
+ */
+enum class DirectionalControl {
+    /** Un stick: se apunta con el pulgar, sin acertar en un brazo. Por defecto. */
+    JOYSTICK,
+
+    /** La cruz de siempre, con flechas en relieve. */
+    DPAD,
+    ;
+
+    companion object {
+        fun fromName(name: String?): DirectionalControl? = entries.firstOrNull { it.name == name }
+    }
+}
+
+/**
  * Preferencias del emulador. Valores por defecto pensados para jugar de pie,
  * sin haber entrado todavía al editor de disposición ni a los ajustes de
  * imagen: son los que usa alguien que abre la aplicación por primera vez.
@@ -99,8 +117,11 @@ data class EmulatorSettings(
     val portraitLayoutMode: LayoutMode = LayoutMode.STACKED,
     /** Disposición de pantallas cuando el teléfono está en horizontal. */
     val landscapeLayoutMode: LayoutMode = LayoutMode.SIDE_BY_SIDE,
-    /** Separación entre pantallas, 0..1 relativo al hueco disponible. */
-    val screenGap: Float = 0.02f,
+    /**
+     * Separación entre pantallas, 0..1 relativo al hueco disponible. Un 5 %
+     * y no menos: en vertical ahí van los botones de velocidad.
+     */
+    val screenGap: Float = 0.05f,
     /** Escala de la pantalla secundaria en el modo [LayoutMode.MAIN_AND_SECONDARY]. */
     val secondaryScale: Float = 0.35f,
     /**
@@ -116,6 +137,8 @@ data class EmulatorSettings(
      * que es el único sitio desde el que se toca.
      */
     val speed: EmulationSpeed = EmulationSpeed.NORMAL,
+
+    val directionalControl: DirectionalControl = DirectionalControl.JOYSTICK,
 
     val touchMode: TouchMode = TouchMode.DIRECT,
     /** Desplazamiento en dp del punto de contacto sobre el dedo, en [TouchMode.OFFSET]. */

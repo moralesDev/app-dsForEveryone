@@ -10,6 +10,7 @@ import com.moralesDev.dsForEveryone.data.settings.AppLanguage
 import com.moralesDev.dsForEveryone.data.settings.EmulatorSettings
 import com.moralesDev.dsForEveryone.data.settings.ImageFilter
 import com.moralesDev.dsForEveryone.data.settings.SettingsRepository
+import com.moralesDev.dsForEveryone.data.settings.DirectionalControl
 import com.moralesDev.dsForEveryone.data.settings.TouchMode
 import com.moralesDev.dsForEveryone.ui.UiMessage
 import com.moralesDev.dsForEveryone.ui.archive.PendingArchiveImport
@@ -79,6 +80,10 @@ class SettingsViewModel @Inject constructor(
 
     fun setImageFilter(filter: ImageFilter) {
         viewModelScope.launch { settingsRepository.setImageFilter(filter) }
+    }
+
+    fun setDirectionalControl(control: DirectionalControl) {
+        viewModelScope.launch { settingsRepository.setDirectionalControl(control) }
     }
 
     fun setTouchMode(mode: TouchMode) {

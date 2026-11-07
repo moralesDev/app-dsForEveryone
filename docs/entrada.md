@@ -58,6 +58,24 @@ su propio nodo y su propio gesto. El día que alguien intente «arbitrar» entre
 mandos y táctil es el día que se rompen los juegos que piden las dos cosas a la
 vez (*Metroid Prime Hunters*, con cruceta para moverse y lápiz para apuntar).
 
+En vertical los mandos van **encima** de la pantalla inferior (ver la sección
+4). Tampoco ahí hace falta arbitrar: los mandos se componen después que la
+superficie táctil, así que un dedo que baja sobre un mando es del mando, y uno
+que baja en cualquier otro punto de la pantalla inferior es del lápiz. Compose
+no reparte un mismo toque entre hermanos superpuestos.
+
+### Joystick o cruceta
+
+La dirección se maneja con un **joystick** por defecto, o con la cruceta de
+siempre (Configuración → Entrada → Control de dirección). La DS no tiene stick
+analógico: el joystick es otra forma de pulsar la misma cruceta, y produce
+exactamente lo mismo, uno o dos `DsButton` adyacentes. Cambia la geometría
+(`JoystickGeometry`): ocho sectores iguales de 45° en vez de diagonales
+estrechas, porque con un stick se apunta con un ángulo, y una zona muerta
+mayor (30 % del radio), porque el pulgar descansa encima de la bola. La bola
+—un círculo transparente dentro de un aro fino, nada más— sigue al dedo y
+vuelve al centro en el mismo `finally` que suelta las direcciones.
+
 ### El problema real: un dedo no es un lápiz
 
 El lápiz de la DS es un punto. Un dedo cubre unos 9 mm y **tapa lo que toca**.
@@ -205,15 +223,15 @@ motivo es aritmética de espacio:
   GBA: mucho menos alto libre para los mandos.
 - En horizontal, los mandos tienen que **superponerse** a los lados del área de
   pantallas, porque lado a lado da **8:3** y no queda banda inferior utilizable.
-- Y la pantalla táctil es a la vez zona de juego, así que los controles no
-  pueden invadirla.
+- Y la pantalla táctil es a la vez zona de juego.
 
 No existe una colocación fija que sirva para las dos orientaciones y para todos
 los juegos. Lo que hay que dar:
 
 - **Grupos móviles**: cruceta, A/B/X/Y, L, R, Start+Select, y el botón de
   soplar. Siete grupos.
-- **Que no se solapen entre sí** ni con el rectángulo de la pantalla táctil.
+- **Que no se solapen entre sí.** En horizontal tampoco con la pantalla
+  táctil; en vertical van encima de ella a propósito (ver abajo).
 - **Perfiles independientes por orientación**, vertical y horizontal.
 - **Tamaño y opacidad** por grupo, no sólo posición: en una tablet los botones
   del tamaño de un teléfono son ridículos, y es exactamente el problema que hoy
@@ -223,6 +241,66 @@ los juegos. Lo que hay que dar:
 Y lo dicho en [`pantallas.md`](pantallas.md): esto y la colocación de las
 pantallas son el **mismo problema** —rectángulos con restricciones dentro de un
 área— y se resuelven con un solo `LayoutEngine`.
+
+### En vertical, los mandos encima de la pantalla inferior
+
+La primera versión ponía los siete grupos en una banda **debajo** de la táctil,
+sin tocarla. En un teléfono 20:9 cabía; en uno 16:9 la banda quedaba tan baja
+que todo se encogía, y la colocación —L, soplar y R en una fila, cruceta y
+rombo en otra— no se parecía a una consola. `ControlLayout.overlayProfile`
+la sustituye en vertical:
+
+```
+[ L ]                          [ R ]
+(soplar)
+( DIRECCIÓN )             ( A·B·X·Y )
+         [select] [start]           (>)
+```
+
+- Las dos pantallas van **centradas** a lo alto; lo que sobra se reparte
+  arriba y abajo.
+- Cada grupo va del lado de su mano: L, soplar, dirección y Select a la
+  izquierda; R, rombo y Start a la derecha. Select y Start, abajo y pegados
+  al centro, como pastillas con el nombre debajo.
+- Los dos racimos **cuelgan del techo**: L y R empiezan justo 0,5 cm por
+  debajo del centro del hueco (nunca por encima de la pantalla de arriba,
+  `ControlLayout.overlayCeiling`) y el resto baja desde ahí; lo que sobra
+  queda libre abajo, sin llevar Start y Select al filo. Si no caben entre el
+  techo y el borde, todo encoge por igual. El editor tampoco deja arrastrar un mando
+  por encima de ese techo.
+- La dirección y el rombo se separan **3 mm** de su borde hacia el centro.
+- Select y Start no van en el bloque: van **0,5 cm por debajo de la
+  pantalla inferior** (`ControlLayout.lowerScreenBottom`), centrados. Si ahí
+  pisaran la dirección o el rombo, bajan hasta librarlos; si no caben antes
+  del borde, se quedan en el bloque.
+- Estas tres medidas son **físicas**, no dp: se convierten con
+  `xdpi`/`ydpi` (`rememberPxPerMm`), porque lo que se pidió es lo que mide
+  una regla sobre el cristal.
+- Entre las dos pantallas, que ahora se separan un 5 % por defecto, van los
+  botones de **velocidad** 1x (por defecto), 1,5x y 2x. El menú de pausa
+  conserva el mismo ajuste.
+- Todo es **transparente con borde y letras claras** (`GhostSurface`): el
+  juego se ve a través. Los tamaños son pequeños a propósito salvo la
+  dirección: el rombo un 20 % menor que ella y con sus cuatro botones sin
+  tocarse; L y R finos (la mitad de alto y un 25 % menos de largo que en la
+  banda horizontal); soplar, la mitad del mínimo táctil; Start y Select, la
+  mitad que antes.
+- La táctil sigue **debajo**: todo lo que no cae en un mando le llega al
+  juego. Los botones redondos recortan su forma, así que las esquinas de su
+  caja no roban toques.
+- El botón **«>»**, abajo a la derecha a la altura de Start
+  (`ControlLayout.hideToggleBounds`), aparta los mandos que tapan alguna
+  pantalla —la izquierda sale por la izquierda, la derecha por la derecha—
+  y deja la pantalla inferior entera para el lápiz; **«<»** los devuelve.
+  Los que no tapan nada, como Select y Start bajo la pantalla inferior, se
+  quedan (`ControlLayout.groupsCoveringScreens`); si ninguno tapa nada, el
+  botón no aparece. Del todo apartados, los mandos
+  dejan de componerse, así que no queda ningún botón pegado. Sólo existe en
+  vertical: en horizontal los mandos no tapan la táctil.
+
+El perfil vertical guardado cambió de clave (`portrait_controls_overlay`): uno
+hecho con la regla anterior de no tocar la táctil no se trae, se cae al perfil
+nuevo.
 
 ### El área es la utilizable, no la ventana
 
@@ -313,8 +391,11 @@ silencio:
   intercambiadas.
 - `DirectionalPadZones` con diagonales: que las ocho cuñas cubran el círculo sin
   solaparse y sin huecos.
-- `ControlLayout`: que ningún grupo se solape con otro ni con la pantalla
-  táctil, en las dos orientaciones y con cualquier tamaño de grupo.
+- `ControlLayout`: que ningún grupo se solape con otro con cualquier tamaño
+  de grupo; en horizontal, tampoco con la pantalla táctil; en vertical, que
+  cada grupo quede del lado de su mano y en su orden (L, soplar, dirección).
+- `JoystickGeometry`: zona muerta, los ocho sectores de 45°, que nunca dé dos
+  direcciones opuestas y que la bola no se salga de su recorrido.
 - `DsButton`: que la máscara producida por una combinación de botones sea la que
   el core espera. Con un `FakeEmulatorCore` que registre lo que recibe.
 - `GamepadMapping`: que `encode`/`decode` sean inversos, que el mapeo por

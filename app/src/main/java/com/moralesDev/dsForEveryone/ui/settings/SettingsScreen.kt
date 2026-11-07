@@ -36,6 +36,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.moralesDev.dsForEveryone.R
 import com.moralesDev.dsForEveryone.data.settings.AppLanguage
 import com.moralesDev.dsForEveryone.data.settings.ImageFilter
+import com.moralesDev.dsForEveryone.data.settings.DirectionalControl
 import com.moralesDev.dsForEveryone.data.settings.TouchMode
 import com.moralesDev.dsForEveryone.ui.components.GlassIconButton
 import com.moralesDev.dsForEveryone.ui.components.GlassSwitch
@@ -187,6 +188,22 @@ fun SettingsScreen(
             modifier = Modifier.padding(top = 8.dp),
         )
         SettingsGroup {
+            SettingsRow(
+                label = stringResource(R.string.se_directional),
+                description = stringResource(R.string.se_directional_hint),
+            ) {
+                SegmentedPair(
+                    first = stringResource(R.string.directional_joystick),
+                    second = stringResource(R.string.directional_dpad),
+                    firstSelected = settings.directionalControl == DirectionalControl.JOYSTICK,
+                    onSelect = { joystick ->
+                        viewModel.setDirectionalControl(
+                            if (joystick) DirectionalControl.JOYSTICK else DirectionalControl.DPAD,
+                        )
+                    },
+                )
+            }
+            SettingsDivider()
             SettingsRow(
                 label = stringResource(R.string.pa_touch_mode),
                 description = stringResource(R.string.se_touch_hint),

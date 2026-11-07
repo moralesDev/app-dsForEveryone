@@ -13,10 +13,14 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -25,6 +29,8 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Bedtime
+import androidx.compose.material.icons.filled.ChevronLeft
+import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -35,6 +41,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -48,6 +55,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.Density
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
@@ -57,6 +65,8 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.moralesDev.dsForEveryone.R
 import com.moralesDev.dsForEveryone.data.cheats.CheatsManager
+import com.moralesDev.dsForEveryone.data.settings.DirectionalControl
+import com.moralesDev.dsForEveryone.data.settings.EmulationSpeed
 import com.moralesDev.dsForEveryone.data.settings.TouchMode
 import com.moralesDev.dsForEveryone.emulator.DsButton
 import com.moralesDev.dsForEveryone.emulator.layout.ControlGroup
@@ -74,6 +84,11 @@ import com.moralesDev.dsForEveryone.ui.components.GlassIconButton
 import com.moralesDev.dsForEveryone.ui.game.controls.ActionButtons
 import com.moralesDev.dsForEveryone.ui.game.controls.BlowButton
 import com.moralesDev.dsForEveryone.ui.game.controls.DirectionalPad
+import com.moralesDev.dsForEveryone.ui.game.controls.GhostIcon
+import com.moralesDev.dsForEveryone.ui.game.controls.GhostSurface
+import com.moralesDev.dsForEveryone.ui.game.controls.ghostShadow
+import com.moralesDev.dsForEveryone.ui.game.controls.ghostContentColor
+import com.moralesDev.dsForEveryone.ui.game.controls.Joystick
 import com.moralesDev.dsForEveryone.ui.game.controls.ShoulderButton
 import com.moralesDev.dsForEveryone.ui.game.controls.SystemButton
 import com.moralesDev.dsForEveryone.ui.resolve
@@ -83,6 +98,7 @@ import com.moralesDev.dsForEveryone.ui.theme.ScreenBezel
 import com.moralesDev.dsForEveryone.ui.theme.GlassOverVideo
 import com.moralesDev.dsForEveryone.ui.theme.Surface
 import com.moralesDev.dsForEveryone.ui.theme.textAlpha
+import kotlin.math.roundToInt
 
 /**
  * Pantalla de juego (entregable 2.6): las dos pantallas con [DsGLRenderer],
@@ -125,6 +141,9 @@ fun GameScreen(onExit: () -> Unit) {
     val hasAnySaveState by viewModel.hasAnySaveState.collectAsStateWithLifecycle()
     val lidClosed by viewModel.lidClosed.collectAsStateWithLifecycle()
     var isMenuOpen by remember { mutableStateOf(false) }
+    // Sobrevive a rotar y a que el sistema recree la pantalla: quien aparta
+    // los mandos para jugar con la táctil no quiere que vuelvan solos.
+    var controlsHidden by rememberSaveable { mutableStateOf(false) }
 
     FreeOrientationWhileGamepadConnected(isGamepadConnected)
     PauseWhileHidden(onHidden = viewModel::onScreenHidden, onShown = viewModel::onScreenShown)
@@ -183,6 +202,7 @@ fun GameScreen(onExit: () -> Unit) {
         settings.screenGap,
         settings.secondaryScale,
         settings.screensSwapped,
+        isPortrait,
     ) {
         if (availableSize.width > 0f && availableSize.height > 0f) {
             ScreenLayout.resolve(
@@ -192,6 +212,8 @@ fun GameScreen(onExit: () -> Unit) {
                 secondaryScale = settings.secondaryScale,
                 swapped = settings.screensSwapped,
                 insets = insets,
+                // En vertical los mandos ocupan del centro hacia abajo.
+                upperHalf = isPortrait,
             )
         } else {
             null
@@ -199,7 +221,22 @@ fun GameScreen(onExit: () -> Unit) {
     }
 
     val activeControlLayout = if (isPortrait) settings.portraitControlLayout else settings.landscapeControlLayout
-    val controlProfile = remember(placement, usableArea, activeControlLayout, minTouchTargetPx) {
+    // En vertical los mandos van encima de la pantalla inferior (ver
+    // ControlLayout.overlayProfile); en horizontal, en una banda aparte.
+    val pxPerMm = rememberPxPerMm()
+    val ceilingBelowCenterPx = CONTROLS_CEILING_BELOW_CENTER_MM * pxPerMm.y
+    val inwardShiftPx = CONTROLS_INWARD_SHIFT_MM * pxPerMm.x
+    val systemBelowScreenPx = SYSTEM_BUTTONS_BELOW_SCREEN_MM * pxPerMm.y
+    val controlProfile = remember(
+        placement,
+        usableArea,
+        activeControlLayout,
+        minTouchTargetPx,
+        isPortrait,
+        ceilingBelowCenterPx,
+        inwardShiftPx,
+        systemBelowScreenPx,
+    ) {
         val current = placement ?: return@remember null
         ControlLayout.resolveProfile(
             custom = activeControlLayout,
@@ -207,8 +244,29 @@ fun GameScreen(onExit: () -> Unit) {
             touchScreen = current.touchScreen,
             minTouchTarget = minTouchTargetPx,
             opacity = ControlLayout.DEFAULT_OPACITY,
+            overlay = isPortrait,
+            // Nunca por encima de la pantalla de arriba: los mandos van
+            // encima de la inferior, no de las dos.
+            ceiling = ControlLayout.overlayCeiling(current, usableArea, belowCenter = ceilingBelowCenterPx),
+            inwardShift = inwardShiftPx,
+            systemTop = ControlLayout.lowerScreenBottom(current)?.plus(systemBelowScreenPx),
         )
     }
+
+    // Apartar los mandos sólo existe en vertical, que es donde tapan las
+    // pantallas, y sólo se llevan los que tapan alguna: Select y Start bajo
+    // la pantalla inferior se quedan. Si ninguno tapa nada —las pantallas en
+    // la mitad de arriba—, no hay botón de apartar.
+    val hideableGroups = remember(controlProfile, placement) {
+        val profile = controlProfile ?: return@remember emptySet()
+        val current = placement ?: return@remember emptySet()
+        ControlLayout.groupsCoveringScreens(profile, current)
+    }
+    val canHideControls = isPortrait && hideableGroups.isNotEmpty()
+    val hideProgress by animateFloatAsState(
+        targetValue = if (canHideControls && controlsHidden) 1f else 0f,
+        label = "controls-hide",
+    )
 
     val renderer = remember { DsGLRenderer(frameProvider = { viewModel.currentFrame }) }
     LaunchedEffect(placement) { placement?.let(renderer::setPlacement) }
@@ -253,6 +311,10 @@ fun GameScreen(onExit: () -> Unit) {
         if (controlProfile != null && !(isGamepadConnected && !isPortrait)) {
             ControlGroups(
                 profile = controlProfile,
+                directionalControl = settings.directionalControl,
+                hideProgress = hideProgress,
+                hideableGroups = hideableGroups,
+                windowWidth = availableSize.width,
                 pressedMask = pressedMask,
                 micActive = micActive,
                 onButton = viewModel::onButton,
@@ -262,10 +324,37 @@ fun GameScreen(onExit: () -> Unit) {
             )
         }
 
-        // Un solo botón encima del juego, y por eso está: el de menú. El
-        // avance rápido vivió aquí al lado y tapaba demasiado —dos pastillas
-        // sobre la esquina de la pantalla superior—, así que se cambia sólo
-        // desde el menú de pausa, que es donde ya estaba el mismo ajuste.
+        // La velocidad, entre las dos pantallas cuando están apiladas en
+        // vertical: a mano sin abrir el menú y sin tapar nada del juego. El
+        // menú de pausa conserva el mismo ajuste para el resto de casos.
+        if (isPortrait) {
+            placement?.let(ControlLayout::stackedGap)?.let { (gapTop, gapBottom) ->
+                SpeedBar(
+                    centerY = (gapTop + gapBottom) / 2f,
+                    centerX = usableArea.centerX,
+                    selected = settings.speed,
+                    onSelect = viewModel::setSpeed,
+                    density = density,
+                )
+            }
+        }
+
+        // Apartar los mandos: abajo a la derecha, a la altura de Start (ver
+        // ControlLayout.hideToggleBounds). No se aparta con ellos —es lo que
+        // los devuelve— y por eso no es uno más de ControlGroups.
+        if (canHideControls && controlProfile != null && !(isGamepadConnected && !isPortrait)) {
+            HideControlsToggle(
+                bounds = ControlLayout.hideToggleBounds(controlProfile, minTouchTargetPx, usableArea),
+                hidden = controlsHidden,
+                onToggle = { controlsHidden = !controlsHidden },
+                density = density,
+            )
+        }
+
+        // Un solo botón arriba, encima del juego: el de menú. El avance rápido
+        // vivió aquí al lado y tapaba demasiado —dos pastillas sobre la
+        // esquina de la pantalla superior—, así que se cambia sólo desde el
+        // menú de pausa, que es donde ya estaba el mismo ajuste.
         GlassIconButton(
             icon = Icons.Filled.Menu,
             contentDescription = stringResource(R.string.cd_menu),
@@ -289,6 +378,8 @@ fun GameScreen(onExit: () -> Unit) {
                 onLayoutModeChange = { mode -> viewModel.setLayoutMode(mode, isPortrait) },
                 speed = settings.speed,
                 onSpeedChange = viewModel::setSpeed,
+                screensSwapped = settings.screensSwapped,
+                onScreensSwappedChange = viewModel::setScreensSwapped,
                 touchMode = settings.touchMode,
                 onTouchModeChange = viewModel::setTouchMode,
                 imageFilter = settings.imageFilter,
@@ -499,9 +590,113 @@ private fun reportTouch(
     if (point != null) onTouch(point.x, point.y, true) else onTouch(0, 0, false)
 }
 
+/**
+ * Los tres botones de velocidad —1x, 1,5x y 2x— en una fila centrada en
+ * ([centerX], [centerY]), con el mismo aspecto transparente que los mandos.
+ * El elegido se ve relleno. 1x es el valor por defecto de
+ * [EmulationSpeed]; lo que se elija se guarda como cualquier otro ajuste.
+ */
+@Composable
+private fun SpeedBar(
+    centerY: Float,
+    centerX: Float,
+    selected: EmulationSpeed,
+    onSelect: (EmulationSpeed) -> Unit,
+    density: Density,
+) {
+    val (x, y) = with(density) { centerX.toDp() to centerY.toDp() }
+    val totalWidth = SPEED_CHIP_WIDTH * EmulationSpeed.entries.size + SPEED_CHIP_SPACING * (EmulationSpeed.entries.size - 1)
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(SPEED_CHIP_SPACING),
+        modifier = Modifier.offset(x - totalWidth / 2, y - SPEED_CHIP_HEIGHT / 2),
+    ) {
+        EmulationSpeed.entries.forEach { speed ->
+            GhostSurface(
+                shape = RoundedCornerShape(50),
+                pressed = speed == selected,
+                opacity = ControlLayout.DEFAULT_OPACITY,
+                modifier = Modifier
+                    .size(SPEED_CHIP_WIDTH, SPEED_CHIP_HEIGHT)
+                    .clickable { onSelect(speed) },
+            ) {
+                Text(
+                    text = stringResource(speed.labelRes()),
+                    style = MaterialTheme.typography.labelMedium.copy(
+                        shadow = ghostShadow(ControlLayout.DEFAULT_OPACITY),
+                    ),
+                    color = ghostContentColor(ControlLayout.DEFAULT_OPACITY),
+                )
+            }
+        }
+    }
+}
+
+private val SPEED_CHIP_WIDTH = 46.dp
+private val SPEED_CHIP_HEIGHT = 26.dp
+private val SPEED_CHIP_SPACING = 8.dp
+
+/**
+ * El botón «>» / «<» que aparta los mandos o los devuelve. Con el mismo
+ * aspecto que ellos —transparente, borde claro—, pero es un botón de la
+ * aplicación, no de la DS: un clic, sin pulsación mantenida.
+ */
+@Composable
+private fun HideControlsToggle(
+    bounds: LayoutRect,
+    hidden: Boolean,
+    onToggle: () -> Unit,
+    density: Density,
+) {
+    if (bounds.width <= 0f || bounds.height <= 0f) return
+    val (offsetX, offsetY, boxWidth, boxHeight) = with(density) {
+        listOf(bounds.left.toDp(), bounds.top.toDp(), bounds.width.toDp(), bounds.height.toDp())
+    }
+    GhostSurface(
+        shape = CircleShape,
+        pressed = false,
+        opacity = ControlLayout.DEFAULT_OPACITY,
+        modifier = Modifier
+            .offset(offsetX, offsetY)
+            .size(boxWidth, boxHeight)
+            .clickable(onClick = onToggle),
+    ) {
+        GhostIcon(
+            imageVector = if (hidden) Icons.Filled.ChevronLeft else Icons.Filled.ChevronRight,
+            opacity = ControlLayout.DEFAULT_OPACITY,
+            contentDescription = stringResource(
+                if (hidden) R.string.cd_show_controls else R.string.cd_hide_controls,
+            ),
+            tint = ghostContentColor(ControlLayout.DEFAULT_OPACITY),
+            modifier = Modifier.fillMaxSize(0.8f),
+        )
+    }
+}
+
+/**
+ * Los grupos de la mano izquierda. Al apartar los mandos salen por el borde
+ * izquierdo; el resto, por el derecho.
+ */
+private val LEFT_HAND_GROUPS = setOf(
+    ControlGroup.L,
+    ControlGroup.BLOW,
+    ControlGroup.DIRECTIONAL_PAD,
+    ControlGroup.SELECT,
+)
+
+/**
+ * @param hideProgress 0 con los mandos en su sitio, 1 del todo fuera. Del
+ *   todo fuera, los grupos dejan de componerse: así el `finally` de cada
+ *   mando suelta lo que estuviera pulsado y la pantalla inferior entera
+ *   vuelve a ser de la táctil.
+ * @param hideableGroups los únicos que se apartan; el resto no se mueve.
+ */
 @Composable
 private fun ControlGroups(
     profile: ControlLayoutProfile,
+    directionalControl: DirectionalControl,
+    hideProgress: Float,
+    hideableGroups: Set<ControlGroup>,
+    windowWidth: Float,
     pressedMask: Int,
     micActive: Boolean,
     onButton: (DsButton, Boolean) -> Unit,
@@ -516,18 +711,33 @@ private fun ControlGroups(
         val (offsetX, offsetY, boxWidth, boxHeight) = with(density) {
             listOf(bounds.left.toDp(), bounds.top.toDp(), bounds.width.toDp(), bounds.height.toDp())
         }
+        val progress = if (group in hideableGroups) hideProgress else 0f
+        if (progress >= 1f) return@forEach
+        // Lo justo para que el grupo quede entero fuera de la ventana por su lado.
+        val slide = if (group in LEFT_HAND_GROUPS) -bounds.right else windowWidth - bounds.left
         val groupModifier = Modifier
+            .offset { IntOffset((slide * progress).roundToInt(), 0) }
             .offset(offsetX, offsetY)
             .size(boxWidth, boxHeight)
 
         when (group) {
-            ControlGroup.DIRECTIONAL_PAD -> DirectionalPad(
-                pressedMask = pressedMask,
-                opacity = placement.opacity,
-                haptic = true,
-                onDirections = onDirections,
-                modifier = groupModifier,
-            )
+            ControlGroup.DIRECTIONAL_PAD -> when (directionalControl) {
+                DirectionalControl.JOYSTICK -> Joystick(
+                    pressedMask = pressedMask,
+                    opacity = placement.opacity,
+                    haptic = true,
+                    onDirections = onDirections,
+                    modifier = groupModifier,
+                )
+
+                DirectionalControl.DPAD -> DirectionalPad(
+                    pressedMask = pressedMask,
+                    opacity = placement.opacity,
+                    haptic = true,
+                    onDirections = onDirections,
+                    modifier = groupModifier,
+                )
+            }
 
             ControlGroup.ACTION_BUTTONS -> ActionButtons(
                 pressedMask = pressedMask,

@@ -14,14 +14,16 @@ import androidx.compose.ui.text.font.FontWeight
 import com.moralesDev.dsForEveryone.emulator.DsButton
 
 /**
- * El rombo de acción: A, B, X e Y. En la GBA es un par; en la DS crece a
- * cuatro (ver docs/entrada.md, «Doce botones donde había diez»), así que se
- * reparte en cruz dentro del cuadrado que le asigne `ControlLayout` —Y
- * arriba, A a la derecha, B abajo, X a la izquierda—, con A en la paleta
- * violeta de [RubberAccent] por ser el que más se pulsa.
+ * El rombo de acción: A, B, X e Y, en cruz dentro del cuadrado que le asigne
+ * `ControlLayout` —Y arriba, A a la derecha, B abajo, X a la izquierda—.
+ *
+ * Los cuatro botones **no se tocan**, ni siquiera sus cajas: con cada uno
+ * ocupando [ACTION_FRACTION] del lado y pegado a su borde, entre dos vecinos
+ * queda siempre un hueco (hace falta menos de un tercio del lado para que las
+ * cajas no se crucen). Un dedo entre Y y A no pulsa los dos por accidente.
  *
  * Cada botón sigue su propio dedo con [pressable]: A + B a la vez, o A con la
- * cruceta, funcionan sin tratamiento especial.
+ * dirección, funcionan sin tratamiento especial.
  */
 @Composable
 fun ActionButtons(
@@ -32,46 +34,22 @@ fun ActionButtons(
     modifier: Modifier = Modifier,
 ) {
     Box(modifier = modifier.fillMaxSize()) {
-        ActionButton(
-            button = DsButton.Y,
-            label = "Y",
-            pressedMask = pressedMask,
-            opacity = opacity,
-            haptic = haptic,
-            onPress = onPress,
-            palette = RubberNeutral,
-            modifier = Modifier.align(Alignment.TopCenter).fillMaxSize(ACTION_FRACTION),
-        )
-        ActionButton(
-            button = DsButton.X,
-            label = "X",
-            pressedMask = pressedMask,
-            opacity = opacity,
-            haptic = haptic,
-            onPress = onPress,
-            palette = RubberNeutral,
-            modifier = Modifier.align(Alignment.CenterStart).fillMaxSize(ACTION_FRACTION),
-        )
-        ActionButton(
-            button = DsButton.A,
-            label = "A",
-            pressedMask = pressedMask,
-            opacity = opacity,
-            haptic = haptic,
-            onPress = onPress,
-            palette = RubberAccent,
-            modifier = Modifier.align(Alignment.CenterEnd).fillMaxSize(ACTION_FRACTION),
-        )
-        ActionButton(
-            button = DsButton.B,
-            label = "B",
-            pressedMask = pressedMask,
-            opacity = opacity,
-            haptic = haptic,
-            onPress = onPress,
-            palette = RubberNeutral,
-            modifier = Modifier.align(Alignment.BottomCenter).fillMaxSize(ACTION_FRACTION),
-        )
+        listOf(
+            Triple(DsButton.Y, "Y", Alignment.TopCenter),
+            Triple(DsButton.X, "X", Alignment.CenterStart),
+            Triple(DsButton.A, "A", Alignment.CenterEnd),
+            Triple(DsButton.B, "B", Alignment.BottomCenter),
+        ).forEach { (button, label, alignment) ->
+            ActionButton(
+                button = button,
+                label = label,
+                pressedMask = pressedMask,
+                opacity = opacity,
+                haptic = haptic,
+                onPress = onPress,
+                modifier = Modifier.align(alignment).fillMaxSize(ACTION_FRACTION),
+            )
+        }
     }
 }
 
@@ -82,24 +60,27 @@ private fun ActionButton(
     pressedMask: Int,
     opacity: Float,
     haptic: Boolean,
-    palette: RubberPalette,
     onPress: (DsButton, Boolean) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val pressed = pressedMask and button.mask != 0
-
-    RubberSurface(
+    GhostSurface(
         shape = CircleShape,
-        pressed = pressed,
+        pressed = pressedMask and button.mask != 0,
         opacity = opacity,
-        palette = palette,
         modifier = modifier
             .semantics { contentDescription = label }
             .pressable(haptic = haptic) { isPressed -> onPress(button, isPressed) },
     ) {
-        Text(text = label, color = palette.text, style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Medium))
+        Text(
+            text = label,
+            color = ghostContentColor(opacity),
+            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Medium, shadow = ghostShadow(opacity)),
+        )
     }
 }
 
-/** Cada botón ocupa poco menos de la mitad del cuadrado, para que quepan los cuatro sin solaparse. */
-private const val ACTION_FRACTION = 0.46f
+/**
+ * Lado de cada botón, como fracción del rombo. Por debajo de 1/3 las cajas de
+ * dos vecinos no se cruzan; 0,32 deja además algo de aire entre ellas.
+ */
+private const val ACTION_FRACTION = 0.32f
