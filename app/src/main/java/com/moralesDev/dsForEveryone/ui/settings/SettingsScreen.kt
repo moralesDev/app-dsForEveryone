@@ -1,5 +1,7 @@
 package com.moralesDev.dsForEveryone.ui.settings
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -25,6 +27,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
@@ -40,11 +44,15 @@ import com.moralesDev.dsForEveryone.ui.components.SegmentedPair
 import com.moralesDev.dsForEveryone.ui.components.SettingsDivider
 import com.moralesDev.dsForEveryone.ui.components.SettingsGroup
 import com.moralesDev.dsForEveryone.ui.components.SettingsRow
+import com.moralesDev.dsForEveryone.ui.archive.PendingArchiveImport
+import com.moralesDev.dsForEveryone.ui.resolve
 import com.moralesDev.dsForEveryone.ui.theme.Accent
 import com.moralesDev.dsForEveryone.ui.theme.Accent200
 import com.moralesDev.dsForEveryone.ui.theme.Background
+import com.moralesDev.dsForEveryone.ui.theme.Danger
 import com.moralesDev.dsForEveryone.ui.theme.Glass
 import com.moralesDev.dsForEveryone.ui.theme.textAlpha
+import java.time.LocalDate
 
 /**
  * Los ajustes de la aplicación: lo que no depende de la partida que se esté
@@ -71,6 +79,19 @@ fun SettingsScreen(
 ) {
     val viewModel: SettingsViewModel = hiltViewModel()
     val settings by viewModel.settings.collectAsStateWithLifecycle()
+    val archiveMessage by viewModel.message.collectAsStateWithLifecycle()
+    val pendingArchiveImport by viewModel.pendingArchiveImport.collectAsStateWithLifecycle()
+    val archiveBusy by viewModel.archiveBusy.collectAsStateWithLifecycle()
+
+    val contentResolver = LocalContext.current.contentResolver
+    val archiveExportPicker = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.CreateDocument("application/zip"),
+        onResult = { uri -> viewModel.exportAllSaves(contentResolver, uri) },
+    )
+    val archiveImportPicker = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument(),
+        onResult = { uri -> viewModel.onArchiveImportPicked(contentResolver, uri) },
+    )
 
     Column(
         modifier = Modifier
@@ -204,6 +225,53 @@ fun SettingsScreen(
             }
         }
 
+        // ------------------------------------------------ Partidas
+
+        SectionLabel(
+            text = stringResource(R.string.se_section_saves),
+            modifier = Modifier.padding(top = 8.dp),
+        )
+        SettingsGroup {
+            val pending = pendingArchiveImport
+            if (pending != null) {
+                // La confirmación ocupa el sitio de las dos filas, dentro de la
+                // propia pantalla: sin diálogos, que abrirían otra raíz de
+                // composición adonde no llega el idioma elegido.
+                ArchiveImportConfirmation(
+                    pending = pending,
+                    onConfirm = viewModel::confirmArchiveImport,
+                    onCancel = viewModel::cancelArchiveImport,
+                )
+            } else {
+                SettingsRow(
+                    label = stringResource(R.string.se_archive_export),
+                    description = stringResource(R.string.se_archive_export_hint),
+                    onClick = {
+                        if (!archiveBusy) archiveExportPicker.launch(suggestedBackupFileName())
+                    },
+                ) {
+                    NavigationChevron()
+                }
+                SettingsDivider()
+                SettingsRow(
+                    label = stringResource(R.string.se_archive_import),
+                    description = stringResource(R.string.se_archive_import_hint),
+                    // Cualquier tipo: los proveedores no siempre etiquetan un .zip como tal.
+                    onClick = { if (!archiveBusy) archiveImportPicker.launch(arrayOf("*/*")) },
+                ) {
+                    NavigationChevron()
+                }
+            }
+        }
+        archiveMessage?.let { message ->
+            Text(
+                text = message.resolve(),
+                style = MaterialTheme.typography.bodySmall,
+                color = Accent200,
+                modifier = Modifier.padding(horizontal = 4.dp),
+            )
+        }
+
         // ------------------------------------------------ Acerca de
 
         SectionLabel(
@@ -262,6 +330,65 @@ private val OFFSET_LABELS = listOf(
     R.string.se_touch_medium,
     R.string.se_touch_long,
 )
+
+@Composable
+private fun ArchiveImportConfirmation(
+    pending: PendingArchiveImport,
+    onConfirm: () -> Unit,
+    onCancel: () -> Unit,
+) {
+    Column(
+        modifier = Modifier.padding(horizontal = 13.dp, vertical = 13.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Text(
+            text = stringResource(R.string.se_archive_replace_title),
+            style = MaterialTheme.typography.titleMedium,
+            color = MaterialTheme.colorScheme.onSurface,
+        )
+        Text(
+            text = stringResource(
+                R.string.se_archive_replace_body,
+                pending.gameCount,
+                pending.replacedCount,
+            ),
+            style = MaterialTheme.typography.bodySmall,
+            color = textAlpha(0.58f),
+        )
+        Row(
+            modifier = Modifier.padding(top = 4.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            ConfirmationChip(
+                text = stringResource(R.string.se_archive_replace),
+                color = Danger,
+                onClick = onConfirm,
+            )
+            ConfirmationChip(
+                text = stringResource(R.string.st_cancel),
+                color = MaterialTheme.colorScheme.onSurface,
+                onClick = onCancel,
+            )
+        }
+    }
+}
+
+@Composable
+private fun ConfirmationChip(text: String, color: Color, onClick: () -> Unit) {
+    Box(
+        modifier = Modifier
+            .clip(RoundedCornerShape(10.dp))
+            .background(Glass)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 14.dp, vertical = 10.dp),
+    ) {
+        Text(text = text, style = MaterialTheme.typography.titleSmall, color = color)
+    }
+}
+
+/** `dsforeveryone-saves-AAAA-MM-DD.zip`: la fecha distingue una copia de la siguiente. */
+private fun suggestedBackupFileName(): String =
+    "dsforeveryone-saves-${LocalDate.now()}.zip"
 
 /** La punta de flecha de las filas que llevan a otra pantalla. */
 @Composable

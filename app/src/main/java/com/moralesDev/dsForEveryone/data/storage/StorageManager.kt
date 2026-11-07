@@ -23,6 +23,7 @@ import java.io.File
  * │   └── <bios7.bin, firmware.bin, ...>   (lo que pida el core elegido)
  * ├── scratch/
  * │   └── rom_scratch*.nds   (vive segundos: se borra al abrir su descriptor)
+ * ├── import-staging/        (copia de partidas validada, pendiente de confirmar)
  * └── saves/
  *     ├── <sha256 de la ROM>/
  *     │   ├── battery.sav
@@ -50,6 +51,26 @@ class StorageManager(filesDirectory: File) {
     private val coversRoot = File(filesDirectory, "covers")
     private val systemRoot = File(filesDirectory, "system")
     private val scratchRoot = File(filesDirectory, "scratch")
+    private val importStagingRoot = File(filesDirectory, "import-staging")
+
+    /**
+     * La carpeta que contiene una carpeta por juego. Sólo la recorre la copia
+     * de partidas (`SaveArchive`), que necesita ver todos los juegos a la vez;
+     * el resto del código entra siempre por el id de una ROM concreta.
+     */
+    fun savesDirectory(): File = savesRoot
+
+    /**
+     * Dónde se prepara una importación antes de confirmarla. Cuelga de
+     * `filesDir` igual que `saves/` —mismo sistema de archivos—, que es lo que
+     * permite reemplazar la carpeta de un juego con un `rename` y no con una
+     * copia que podría quedarse a medias.
+     */
+    fun importStagingDirectory(): File = importStagingRoot
+
+    /** Si el juego tiene algún archivo guardado, sin crear su carpeta para averiguarlo. */
+    fun hasRomData(romId: String): Boolean =
+        File(savesRoot, romId).walkBottomUp().any(File::isFile)
 
     fun romDirectory(romId: String): File =
         File(savesRoot, romId).also { it.mkdirs() }

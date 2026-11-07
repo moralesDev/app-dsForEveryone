@@ -11,6 +11,7 @@ import com.moralesDev.dsForEveryone.data.rom.ContentResolverDocumentAccess
 import com.moralesDev.dsForEveryone.data.rom.DocumentAccess
 import com.moralesDev.dsForEveryone.data.rom.RomRepository
 import com.moralesDev.dsForEveryone.data.save.BatterySaveManager
+import com.moralesDev.dsForEveryone.data.save.SaveArchive
 import com.moralesDev.dsForEveryone.data.save.SaveManager
 import com.moralesDev.dsForEveryone.data.save.SaveStateManager
 import com.moralesDev.dsForEveryone.data.settings.SettingsRepository
@@ -131,6 +132,13 @@ object AppModule {
         saveStateManager: SaveStateManager,
         storageManager: StorageManager,
     ): SaveManager = SaveManager(batterySaveManager, saveStateManager, storageManager)
+
+    @Provides
+    @Singleton
+    fun provideSaveArchive(
+        storageManager: StorageManager,
+        @IoDispatcher ioDispatcher: CoroutineDispatcher,
+    ): SaveArchive = SaveArchive(storageManager, ioDispatcher)
 
     /**
      * Único punto donde se decide qué core usa la aplicación.

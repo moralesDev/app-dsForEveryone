@@ -28,9 +28,15 @@ emulación. Si algún día se hace, se hace aparte.
 
 Paquete: `com.moralesDev.dsForEveryone`. Nombre de la app: **DsForEveryone**.
 
-Estado: **fase de documentación.** No hay código todavía. El plan de desarrollo
-por fases, con el prompt de cada entregable, está en
-[`docs/plan-de-trabajo.md`](docs/plan-de-trabajo.md).
+Estado: **las cinco fases del plan están cerradas** y el emulador funciona con
+melonDS 1.1 (JIT activado, renderizador 3D por software en hilo aparte). Sobre
+eso ya se ha añadido funcionalidad: trucos Action Replay, mandos Bluetooth/USB
+con mapeo persistente, extraer/importar/borrar el `.sav`, copia de partidas (exportar/importar), avance rápido
+(1x / 1,5x / 2x), pausa al dejar de verse la app, cerrar la tapa y respeto de
+las barras del sistema. Lo pendiente está en la sección «Después» de
+[`docs/plan-de-trabajo.md`](docs/plan-de-trabajo.md); lo que se rompió y se
+midió al meter el core real, en
+[`docs/estabilizacion-core.md`](docs/estabilizacion-core.md).
 
 ## Licencia: esto condiciona todo lo demás
 
@@ -56,15 +62,25 @@ Consecuencias prácticas que hay que tener presentes al escribir código:
 
 ## Comandos
 
-Windows / PowerShell (el shell de este entorno). Cuando exista el proyecto
-Gradle serán los mismos que en `app-emulador`:
+El entorno actual es **macOS / zsh**:
 
-```powershell
-.\gradlew.bat assembleDebug        # APK (compila el core + puente + app)
-.\gradlew.bat testDebugUnitTest    # pruebas de JVM
-.\gradlew.bat installDebug         # instalar en el dispositivo conectado
-.\gradlew.bat lint                 # lint de AGP
+```sh
+./gradlew assembleDebug            # APK (compila el core + puente + app)
+./gradlew testDebugUnitTest        # pruebas de JVM
+./gradlew installDebug             # instalar en el dispositivo conectado
+./gradlew lint                     # lint de AGP
 ```
+
+En Windows / PowerShell son los mismos con `.\gradlew.bat`.
+
+Requisitos para compilar en una copia nueva:
+
+- `local.properties` con `sdk.dir=…` (no se versiona).
+- melonDS **1.1** en `third_party/melonDS/`, como tarball de la etiqueta
+  (`https://github.com/melonDS-emu/melonDS/archive/refs/tags/1.1.tar.gz`),
+  nunca como `git clone`: no debe quedar un `.git` anidado. `third_party/*`
+  está excluido de git.
+- NDK `28.2.13676358` y CMake `3.22.1`, fijados en `app/build.gradle.kts`.
 
 ## Las fronteras del proyecto
 
@@ -185,8 +201,12 @@ menos sitio.
 | 3 | Biblioteca, cabecera y banner de la ROM, sistema de partidas | `feature/fase-3-biblioteca-partidas` |
 | 4 | El core nativo, el puente JNI, archivos de sistema y la medición | `feature/fase-4-core-nativo` |
 
-**Una rama por fase, un commit por entregable.** Claude Code sólo hace commits
-dentro de la rama de la fase; el *merge* a `develop` lo hace el usuario a mano
+Las cinco fases ya están fusionadas en `develop`. Desde entonces cada
+funcionalidad va en su propia rama `moralesDev-<tema>` (p. ej.
+`moralesDev-trucos`, `moralesDev-barras-sistema`), con la misma regla.
+
+**Una rama por fase (o por funcionalidad), un commit por entregable.** Claude
+Code sólo hace commits dentro de esa rama; el *merge* a `develop` lo hace el usuario a mano
 al terminar cada fase. `develop` es el tronco real; `master` significa
 únicamente «lo que está publicado en la tienda ahora mismo».
 
@@ -203,4 +223,5 @@ Ampliar aquí antes de escribir código nuevo en esas áreas:
 - [`docs/pantallas.md`](docs/pantallas.md) — las dos pantallas, el renderizador GL y las disposiciones.
 - [`docs/entrada.md`](docs/entrada.md) — lápiz con el dedo, los doce botones, el editor de disposición y el micrófono.
 - [`docs/reutilizacion.md`](docs/reutilizacion.md) — qué se trae de `app-emulador`, qué se adapta y qué es nuevo.
+- [`docs/copia-de-partidas.md`](docs/copia-de-partidas.md) — exportar e importar partidas: formato, qué se rechaza y cómo se recupera un reemplazo interrumpido.
 - [`docs/plan-de-trabajo.md`](docs/plan-de-trabajo.md) — las cinco fases, los diecinueve entregables y el prompt de cada uno.

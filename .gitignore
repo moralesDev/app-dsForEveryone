@@ -28,3 +28,6 @@ keystore.properties
 third_party/*
 !third_party/.gitkeep
 !third_party/README.md
+
+# Ajustes locales del editor
+.vscode/

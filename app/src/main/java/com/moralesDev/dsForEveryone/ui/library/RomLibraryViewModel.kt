@@ -12,8 +12,11 @@ import android.content.ContentResolver
 import com.moralesDev.dsForEveryone.data.rom.RomImportResult
 import com.moralesDev.dsForEveryone.data.rom.RomInfo
 import com.moralesDev.dsForEveryone.data.rom.RomRepository
+import com.moralesDev.dsForEveryone.data.save.SaveArchive
 import com.moralesDev.dsForEveryone.data.save.SaveManager
 import com.moralesDev.dsForEveryone.ui.UiMessage
+import com.moralesDev.dsForEveryone.ui.archive.PendingArchiveImport
+import com.moralesDev.dsForEveryone.ui.archive.SaveArchiveCoordinator
 import dagger.hilt.android.lifecycle.HiltViewModel
 import java.util.Locale
 import javax.inject.Inject
@@ -40,13 +43,20 @@ data class LibraryUiState(
     /** Un `.sav` ya leído del selector, esperando que se confirme la sobrescritura. */
     val pendingSavImport: PendingSavImport? = null,
     val pendingSavDelete: Boolean = false,
+    /** Una copia de partidas ya validada que reemplazaría las de este juego. */
+    val pendingArchiveImport: PendingArchiveImport? = null,
 ) {
     val isEmpty: Boolean get() = allRoms.isEmpty()
     val hasNoResults: Boolean get() = !isEmpty && roms.isEmpty()
 }
 
 /** El juego del menú de opciones, con lo que decide qué acciones de partida tienen sentido. */
-data class RomOptionsState(val rom: RomInfo, val hasBatterySave: Boolean)
+data class RomOptionsState(
+    val rom: RomInfo,
+    val hasBatterySave: Boolean,
+    /** Si hay algo que exportar: partida, ranuras o trucos. */
+    val hasSaveData: Boolean,
+)
 
 /** Un `.sav` leído del selector, pendiente de confirmar que reemplace al actual. */
 data class PendingSavImport(val romId: String, val payload: ByteArray) {
@@ -99,9 +109,14 @@ class RomLibraryViewModel @Inject constructor(
     private val romRepository: RomRepository,
     private val coverRepository: CoverRepository,
     private val saveManager: SaveManager,
+    saveArchive: SaveArchive,
 ) : ViewModel() {
 
     private val transient = MutableStateFlow(TransientState())
+
+    private val archive = SaveArchiveCoordinator(saveArchive, viewModelScope) { message ->
+        transient.update { it.copy(romOptions = null, message = message) }
+    }
     private val query = MutableStateFlow("")
 
     /**
@@ -116,7 +131,8 @@ class RomLibraryViewModel @Inject constructor(
         query,
         transient,
         coverRevision,
-    ) { roms, currentQuery, state, _ ->
+        archive.pending,
+    ) { roms, currentQuery, state, _, pendingArchive ->
         val items = roms.map { rom ->
             LibraryItem(
                 rom = rom,
@@ -136,6 +152,7 @@ class RomLibraryViewModel @Inject constructor(
             romOptions = state.romOptions,
             pendingSavImport = state.pendingSavImport,
             pendingSavDelete = state.pendingSavDelete,
+            pendingArchiveImport = pendingArchive,
         )
     }.stateIn(
         scope = viewModelScope,
@@ -193,11 +210,48 @@ class RomLibraryViewModel @Inject constructor(
 
     /** Toque sobre el «…» de una fila: abre el menú de opciones del juego. */
     fun onRomOptionsRequested(item: LibraryItem) {
-        transient.update { it.copy(romOptions = RomOptionsState(item.rom, item.hasBatterySave)) }
+        // Se consulta al abrir la hoja y no se toma de [item]: una importación
+        // desde Configuración pudo cambiarlo sin que la lista se recalculara.
+        val romId = item.rom.id
+        val options = RomOptionsState(
+            rom = item.rom,
+            hasBatterySave = saveManager.hasBattery(romId),
+            hasSaveData = saveManager.usedBytes(romId) > 0,
+        )
+        transient.update { it.copy(romOptions = options) }
     }
 
-    fun dismissRomOptions() =
+    fun dismissRomOptions() {
+        archive.cancel()
         transient.update { it.copy(romOptions = null, pendingSavImport = null, pendingSavDelete = false) }
+    }
+
+    // --------------------------------------------------- copia de partidas
+
+    /** Exporta las partidas de un juego. Ver `docs/copia-de-partidas.md`. */
+    fun exportArchive(rom: RomInfo, contentResolver: ContentResolver, uri: Uri?) {
+        archive.export(
+            open = uri?.let { { contentResolver.openOutputStream(it) } },
+            titles = mapOf(rom.id to rom.displayName),
+            onlyRomId = rom.id,
+        )
+    }
+
+    /**
+     * Importa desde la hoja de un juego: de la copia sólo se toma ese juego,
+     * aunque traiga más. Si ya tenía partidas, se pide confirmación.
+     */
+    fun onArchiveImportPicked(romId: String, contentResolver: ContentResolver, uri: Uri?) {
+        archive.onPicked(open = uri?.let { { contentResolver.openInputStream(it) } }, onlyRomId = romId)
+    }
+
+    fun confirmArchiveImport() = archive.confirm()
+
+    fun cancelArchiveImport() = archive.cancel()
+
+    override fun onCleared() {
+        archive.clear()
+    }
 
     // --------------------------------------------------- partida de batería
 

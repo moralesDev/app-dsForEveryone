@@ -58,5 +58,16 @@ en este repositorio.
 
 ## Estado
 
-Fase de documentación. No hay código todavía. El plan de desarrollo por
-fases está en [`docs/plan-de-trabajo.md`](docs/plan-de-trabajo.md).
+Funcional sobre **melonDS 1.1**. Las cinco fases del plan
+([`docs/plan-de-trabajo.md`](docs/plan-de-trabajo.md)) están cerradas, y
+después se han añadido trucos Action Replay, mandos Bluetooth/USB, gestión del
+`.sav`, copia de partidas, avance rápido y cerrar la tapa. Lo pendiente está en la sección
+«Después» del plan.
+
+## Compilar
+
+1. Crea `local.properties` con `sdk.dir=<ruta al SDK de Android>`.
+2. Descomprime melonDS 1.1 en `third_party/melonDS/` desde el tarball de la
+   etiqueta (`https://github.com/melonDS-emu/melonDS/archive/refs/tags/1.1.tar.gz`).
+3. `./gradlew assembleDebug` (`.\gradlew.bat` en Windows). Gradle descarga el NDK y CMake
+   fijados si faltan.
