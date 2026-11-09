@@ -1,5 +1,7 @@
 package com.moralesDev.dsForEveryone.di
 
+import androidx.core.os.ConfigurationCompat
+import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import androidx.room.Room
 import com.moralesDev.dsForEveryone.data.cheats.CheatsManager
 import com.moralesDev.dsForEveryone.data.cover.CoverRepository
@@ -53,7 +55,23 @@ val appModule = module {
         CoroutineScope(SupervisorJob() + get<CoroutineDispatcher>(IoDispatcher))
     }
 
-    single { SettingsRepository(androidContext()) }
+    // El almacén de ajustes: uno solo en todo el proceso (`single`), en el
+    // mismo archivo que usaba el `preferencesDataStore` de antes, así que los
+    // ajustes de cada usuario se conservan.
+    single {
+        val context = androidContext()
+        PreferenceDataStoreFactory.create(
+            produceFile = { context.filesDir.resolve("datastore/${SettingsRepository.FILE_NAME}") },
+        )
+    }
+
+    single {
+        val context = androidContext()
+        SettingsRepository(
+            dataStore = get(),
+            systemLanguageTag = { ConfigurationCompat.getLocales(context.resources.configuration)[0]?.language },
+        )
+    }
 
     single { StorageManager(androidContext().filesDir) }
 

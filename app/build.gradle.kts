@@ -4,8 +4,6 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.kotlin.serialization)
-    alias(libs.plugins.ksp)
-    alias(libs.plugins.room)
 }
 
 /**
@@ -124,10 +122,6 @@ android {
     testOptions {
         unitTests.isReturnDefaultValues = true
     }
-}
-
-room {
-    schemaDirectory("$projectDir/schemas")
 }
 
 // Verifica que el objeto compilado de nuestro puente (ds_core.cpp.o, no
@@ -283,7 +277,8 @@ listOf(
 }
 
 dependencies {
-    // Lo común con iOS: la geometría de pantallas y mandos (docs/ios.md, iOS-2).
+    // Lo común con iOS (docs/ios.md): geometría, ROMs, partidas, ajustes y
+    // base de datos. Trae consigo Room y DataStore (`api` en :shared).
     implementation(project(":shared"))
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
@@ -292,11 +287,7 @@ dependencies {
     implementation(libs.androidx.navigation.compose)
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.kotlinx.serialization.json)
-    implementation(libs.androidx.datastore.preferences)
 
-    implementation(libs.androidx.room.runtime)
-    implementation(libs.androidx.room.ktx)
-    ksp(libs.androidx.room.compiler)
     implementation(libs.androidx.exifinterface)
 
     implementation(platform(libs.androidx.compose.bom))

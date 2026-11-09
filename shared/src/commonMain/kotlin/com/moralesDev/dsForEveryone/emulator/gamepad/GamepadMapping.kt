@@ -1,6 +1,5 @@
 package com.moralesDev.dsForEveryone.emulator.gamepad
 
-import android.view.KeyEvent
 import com.moralesDev.dsForEveryone.emulator.DsButton
 
 /**
@@ -57,19 +56,19 @@ data class GamepadMapping(private val keyCodeByTarget: Map<GamepadTarget, Int>) 
          */
         val DEFAULT = GamepadMapping(
             mapOf(
-                GamepadTarget.Button(DsButton.A) to KeyEvent.KEYCODE_BUTTON_A,
-                GamepadTarget.Button(DsButton.B) to KeyEvent.KEYCODE_BUTTON_B,
-                GamepadTarget.Button(DsButton.X) to KeyEvent.KEYCODE_BUTTON_X,
-                GamepadTarget.Button(DsButton.Y) to KeyEvent.KEYCODE_BUTTON_Y,
-                GamepadTarget.Button(DsButton.L) to KeyEvent.KEYCODE_BUTTON_L1,
-                GamepadTarget.Button(DsButton.R) to KeyEvent.KEYCODE_BUTTON_R1,
-                GamepadTarget.Button(DsButton.START) to KeyEvent.KEYCODE_BUTTON_START,
-                GamepadTarget.Button(DsButton.SELECT) to KeyEvent.KEYCODE_BUTTON_SELECT,
-                GamepadTarget.Button(DsButton.UP) to KeyEvent.KEYCODE_DPAD_UP,
-                GamepadTarget.Button(DsButton.DOWN) to KeyEvent.KEYCODE_DPAD_DOWN,
-                GamepadTarget.Button(DsButton.LEFT) to KeyEvent.KEYCODE_DPAD_LEFT,
-                GamepadTarget.Button(DsButton.RIGHT) to KeyEvent.KEYCODE_DPAD_RIGHT,
-                GamepadTarget.Blow to KeyEvent.KEYCODE_BUTTON_THUMBL,
+                GamepadTarget.Button(DsButton.A) to GamepadKeyCodes.BUTTON_A,
+                GamepadTarget.Button(DsButton.B) to GamepadKeyCodes.BUTTON_B,
+                GamepadTarget.Button(DsButton.X) to GamepadKeyCodes.BUTTON_X,
+                GamepadTarget.Button(DsButton.Y) to GamepadKeyCodes.BUTTON_Y,
+                GamepadTarget.Button(DsButton.L) to GamepadKeyCodes.BUTTON_L1,
+                GamepadTarget.Button(DsButton.R) to GamepadKeyCodes.BUTTON_R1,
+                GamepadTarget.Button(DsButton.START) to GamepadKeyCodes.BUTTON_START,
+                GamepadTarget.Button(DsButton.SELECT) to GamepadKeyCodes.BUTTON_SELECT,
+                GamepadTarget.Button(DsButton.UP) to GamepadKeyCodes.DPAD_UP,
+                GamepadTarget.Button(DsButton.DOWN) to GamepadKeyCodes.DPAD_DOWN,
+                GamepadTarget.Button(DsButton.LEFT) to GamepadKeyCodes.DPAD_LEFT,
+                GamepadTarget.Button(DsButton.RIGHT) to GamepadKeyCodes.DPAD_RIGHT,
+                GamepadTarget.Blow to GamepadKeyCodes.BUTTON_THUMBL,
             ),
         )
 

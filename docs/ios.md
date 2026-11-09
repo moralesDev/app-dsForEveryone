@@ -267,6 +267,22 @@ Se hace en cinco pasos; tras cada uno Android sigue igual:
    dependencias al compilar y Koin no: `AppModuleTest` verifica el módulo
    entero en la JVM (comprobado que falla si se quita una definición).
 2. **Datos**: Room KMP, DataStore KMP y los repositorios a `:shared`.
+   - ✅ **Base de datos y ajustes** (2026-11-09). `DsEmuDatabase`, `RomDao`
+     y `RomEntity` a `commonMain` con Room KMP (`@ConstructedBy`; KSP genera
+     el código para Android, `iosArm64` e `iosSimulatorArm64`). El esquema
+     pasa a `shared/schemas/` sin cambiar un byte. En Android se sigue usando
+     el SQLite del sistema; `sqlite-bundled` sólo entra en iOS.
+     `SettingsRepository` y `EmulatorSettings` a común: recibe el DataStore
+     ya abierto (en Android, el mismo archivo
+     `datastore/emulator_settings.preferences_pb` de siempre) y una función
+     con el idioma del sistema. `GamepadMapping` y `GamepadTarget` también,
+     con los códigos de tecla de `KeyEvent` copiados como números en
+     `GamepadKeyCodes` (GamepadKeyCodesTest comprueba en `:app` que
+     coinciden).
+   - Pendiente: los archivos (`StorageManager`, escritura atómica, partidas,
+     trucos), con Okio; el zip de exportar/importar y de las ROMs
+     comprimidas, que no tiene equivalente común; las portadas y
+     miniaturas (`Bitmap`); y `RomRepository`/`DocumentAccess`.
 3. **Textos**: los 282 de `strings.xml` (es/en) a los recursos de Compose
    Multiplatform, sin perder el cambio de idioma dentro de la app.
 4. **Pantallas** a `commonMain`; vídeo, mandos físicos, archivos y

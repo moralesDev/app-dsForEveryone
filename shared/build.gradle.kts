@@ -13,6 +13,8 @@
 plugins {
     alias(libs.plugins.kotlin.multiplatform)
     alias(libs.plugins.android.kotlin.multiplatform.library)
+    alias(libs.plugins.ksp)
+    alias(libs.plugins.room)
 }
 
 kotlin {
@@ -28,8 +30,32 @@ kotlin {
     iosSimulatorArm64()
 
     sourceSets {
+        commonMain.dependencies {
+            // `api`: :app construye la base y el almacén de ajustes (AppModule),
+            // así que necesita ver Room y DataStore.
+            api(libs.androidx.room.runtime)
+            api(libs.androidx.datastore.preferences.core)
+        }
+        iosMain.dependencies {
+            // SQLite compilado dentro de la app: en iOS no hay uno del sistema
+            // que Room sepa usar. En Android se sigue usando el del sistema.
+            implementation(libs.androidx.sqlite.bundled)
+        }
         commonTest.dependencies {
             implementation(kotlin("test"))
         }
     }
+}
+
+// Room genera su código con KSP, una vez por plataforma.
+dependencies {
+    add("kspAndroid", libs.androidx.room.compiler)
+    add("kspIosArm64", libs.androidx.room.compiler)
+    add("kspIosSimulatorArm64", libs.androidx.room.compiler)
+}
+
+// El esquema exportado de la base de datos, versionado en git: es lo que
+// permite escribir migraciones cuando cambie (ver DsEmuDatabase).
+room {
+    schemaDirectory("$projectDir/schemas")
 }

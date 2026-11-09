@@ -1,7 +1,5 @@
 package com.moralesDev.dsForEveryone.data.settings
 
-import android.content.Context
-import androidx.core.os.ConfigurationCompat
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.MutablePreferences
 import androidx.datastore.preferences.core.Preferences
@@ -9,7 +7,6 @@ import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.floatPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
-import androidx.datastore.preferences.preferencesDataStore
 import com.moralesDev.dsForEveryone.emulator.gamepad.GamepadMapping
 import com.moralesDev.dsForEveryone.emulator.layout.ControlGroup
 import com.moralesDev.dsForEveryone.emulator.layout.ControlGroupFraction
@@ -18,20 +15,31 @@ import com.moralesDev.dsForEveryone.emulator.layout.LayoutMode
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
-private val Context.settingsDataStore: DataStore<Preferences> by preferencesDataStore(
-    name = "emulator_settings",
-)
-
 /**
  * Preferencias del emulador sobre DataStore.
  *
  * Aquí sólo viven escalares. Las ROMs, las partidas y los archivos de sistema
  * nunca pasan por este almacén: son binarios que van a disco, y nada de esto
  * pasa por `SharedPreferences`.
+ *
+ * Vive en el módulo común (docs/ios.md, iOS-3) y no sabe de qué plataforma
+ * le llegan sus dos dependencias:
+ *
+ * @param dataStore el almacén ya abierto. Tiene que ser **uno solo por
+ *   archivo** en todo el proceso: DataStore no admite dos instancias sobre el
+ *   mismo archivo. Quien lo construye es el módulo de inyección, como
+ *   `single`. En Android es el mismo archivo de siempre
+ *   (`datastore/emulator_settings.preferences_pb`), así que los ajustes de
+ *   antes se conservan.
+ * @param systemLanguageTag el idioma del sistema (`"es"`, `"en"`…), para
+ *   cuando el usuario no ha elegido uno.
  */
-class SettingsRepository(private val context: Context) {
+class SettingsRepository(
+    private val dataStore: DataStore<Preferences>,
+    private val systemLanguageTag: () -> String?,
+) {
 
-    val settings: Flow<EmulatorSettings> = context.settingsDataStore.data.map { preferences ->
+    val settings: Flow<EmulatorSettings> = dataStore.data.map { preferences ->
         EmulatorSettings(
             // Sin elección explícita se sigue el idioma del teléfono.
             language = AppLanguage.fromTag(preferences[Keys.LANGUAGE]) ?: systemLanguage(),
@@ -115,14 +123,11 @@ class SettingsRepository(private val context: Context) {
     private fun layoutModeFromName(name: String?): LayoutMode? =
         LayoutMode.entries.firstOrNull { it.name == name }
 
-    private fun systemLanguage(): AppLanguage {
-        val locales = ConfigurationCompat.getLocales(context.resources.configuration)
-        val primary = locales[0]?.language
-        return if (primary == AppLanguage.SPANISH.tag) AppLanguage.SPANISH else AppLanguage.ENGLISH
-    }
+    private fun systemLanguage(): AppLanguage =
+        if (systemLanguageTag() == AppLanguage.SPANISH.tag) AppLanguage.SPANISH else AppLanguage.ENGLISH
 
     private suspend fun edit(block: (MutablePreferences) -> Unit) {
-        context.settingsDataStore.edit(block)
+        dataStore.edit(block)
     }
 
     private object Keys {
@@ -151,9 +156,16 @@ class SettingsRepository(private val context: Context) {
         val GAMEPAD_MAPPINGS = stringPreferencesKey("gamepad_mappings")
     }
 
-    private companion object {
-        val DEFAULT = EmulatorSettings()
-        const val MIN_SECONDARY_SCALE = 0.1f
-        const val MAX_SECONDARY_SCALE = 0.9f
+    companion object {
+        /**
+         * El nombre del archivo, sin carpeta. En Android va en
+         * `filesDir/datastore/`, que es donde lo dejaba el `preferencesDataStore`
+         * de antes; cambiarlo perdería los ajustes de todos los usuarios.
+         */
+        const val FILE_NAME = "emulator_settings.preferences_pb"
+
+        private val DEFAULT = EmulatorSettings()
+        private const val MIN_SECONDARY_SCALE = 0.1f
+        private const val MAX_SECONDARY_SCALE = 0.9f
     }
 }

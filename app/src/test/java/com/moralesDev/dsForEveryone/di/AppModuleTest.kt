@@ -16,7 +16,9 @@ import org.koin.test.verify.verify
  *
  * Los tipos de [extraTypes] los pone el sistema, no el módulo: el `Context`
  * lo da `androidContext()`, el `File` es `filesDir`, y el `SavedStateHandle`
- * lo pone la entrada de navegación de cada ViewModel.
+ * lo pone la entrada de navegación de cada ViewModel. `Function0` es el
+ * `systemLanguageTag` de SettingsRepository, una lambda escrita en el propio
+ * módulo y no algo que se pida a Koin.
  */
 class AppModuleTest {
 
@@ -28,6 +30,7 @@ class AppModuleTest {
                 Context::class,
                 File::class,
                 SavedStateHandle::class,
+                Function0::class,
             ),
         )
     }
