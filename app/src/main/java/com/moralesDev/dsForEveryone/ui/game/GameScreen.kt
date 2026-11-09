@@ -255,7 +255,7 @@ fun GameScreen(onExit: () -> Unit) {
 
     // Apartar los mandos sólo existe en vertical, que es donde tapan las
     // pantallas, y sólo se llevan los que tapan alguna: Select y Start bajo
-    // la pantalla inferior se quedan. Si ninguno tapa nada —las pantallas en
+    // la pantalla inferior se quedan, y soplar no se va nunca. Si ninguno tapa nada —las pantallas en
     // la mitad de arriba—, no hay botón de apartar.
     val hideableGroups = remember(controlProfile, placement) {
         val profile = controlProfile ?: return@remember emptySet()

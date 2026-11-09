@@ -557,7 +557,7 @@ class ControlLayoutTest {
     }
 
     @Test
-    fun `Select y Start bajan a la altura pedida y el resto no se mueve`() {
+    fun `Select y Start bajan a la altura pedida, soplar con ellos, y el resto no se mueve`() {
         val area = portraitAreas.first()
         val ceiling = area.centerY + 30f
         val base = ControlLayout.overlayProfile(area, 126f, ceiling = ceiling, inwardShift = 40f)
@@ -568,7 +568,10 @@ class ControlLayoutTest {
 
         assertEquals(systemTop, groups.getValue(ControlGroup.SELECT).top, 0.01f)
         assertEquals(systemTop, groups.getValue(ControlGroup.START).top, 0.01f)
-        (ControlGroup.entries - ControlGroup.SELECT - ControlGroup.START).forEach {
+        val blow = groups.getValue(ControlGroup.BLOW)
+        assertEquals(groups.getValue(ControlGroup.SELECT).centerY, blow.centerY, 0.01f)
+        assertEquals(groups.getValue(ControlGroup.L).left, blow.left, 0.01f)
+        (ControlGroup.entries - ControlGroup.SELECT - ControlGroup.START - ControlGroup.BLOW).forEach {
             assertEquals("$it", base.getValue(it), groups.getValue(it))
         }
         assertFalse(ControlLayout.hasOverlap(moved, touchScreen = null))
@@ -624,6 +627,30 @@ class ControlLayoutTest {
             assertTrue("$swapped", ControlGroup.DIRECTIONAL_PAD in hideable)
             assertTrue("$swapped", ControlGroup.ACTION_BUTTONS in hideable)
         }
+    }
+
+    @Test
+    fun `apiladas, soplar va abajo a la izquierda frente al boton de apartar, sin tapar la pantalla`() {
+        for (swapped in listOf(false, true)) {
+            val (profile, placement) = portraitScene(LayoutMode.STACKED, swapped)
+            val blow = profile.groups.getValue(ControlGroup.BLOW).bounds
+            val area = LayoutSize(1080f, 2400f).asArea().inset(LayoutInsets(top = 66f, bottom = 48f))
+            val toggle = ControlLayout.hideToggleBounds(profile, 126f, area)
+
+            assertEquals("$swapped", toggle.centerY, blow.centerY, 0.01f)
+            assertEquals("$swapped", profile.groups.getValue(ControlGroup.L).bounds.left, blow.left, 0.01f)
+            assertFalse("$swapped", LayoutEngine.overlaps(blow, placement.topScreen))
+            assertFalse("$swapped", LayoutEngine.overlaps(blow, placement.touchScreen))
+            assertFalse("$swapped", ControlLayout.hasOverlap(profile, touchScreen = null))
+        }
+    }
+
+    @Test
+    fun `soplar no se aparta nunca, aunque tape una pantalla`() {
+        val (profile, placement) = portraitScene(LayoutMode.STACKED)
+        val l = profile.groups.getValue(ControlGroup.L)
+        val overBottomScreen = ControlLayoutProfile(profile.groups + (ControlGroup.BLOW to l))
+        assertFalse(ControlGroup.BLOW in ControlLayout.groupsCoveringScreens(overBottomScreen, placement))
     }
 
     @Test

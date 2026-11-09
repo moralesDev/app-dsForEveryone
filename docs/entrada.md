@@ -113,11 +113,14 @@ El manifiesto de `app-emulador` **no declara ni un permiso**, y esa es una
 propiedad del proyecto que merece defenderse. La solución estándar y sin
 permisos:
 
-> **Un botón de «soplar»** que, mientras está pulsado, inyecta ruido blanco en
-> la entrada de micrófono del core.
+> **Un botón de «soplar»** que, mientras está pulsado, mete en la entrada de
+> micrófono del core la grabación de un soplido de verdad, en bucle.
 
-Funciona en prácticamente todos los juegos que lo piden, porque casi ninguno
-analiza el sonido: sólo mide amplitud. Es un botón más en la disposición de
+Al principio era ruido blanco aleatorio a plena escala, y no bastaba: Zelda:
+Phantom Hourglass no apagaba las velas con él. Hay juegos que analizan algo
+más que la amplitud. La grabación es la misma que usa el frontend de
+referencia de melonDS (`third_party/melonDS/src/frontend/mic_blow.h`), que
+existe precisamente por eso. Es un botón más en la disposición de
 controles, activable por juego.
 
 El micrófono real (`RECORD_AUDIO`) queda como **decisión expresa y aplazada**.
@@ -252,9 +255,9 @@ la sustituye en vertical:
 
 ```
 [ L ]                          [ R ]
-(soplar)
+
 ( DIRECCIÓN )             ( A·B·X·Y )
-         [select] [start]           (>)
+(soplar) [select] [start]           (>)
 ```
 
 - Las dos pantallas van **centradas** a lo alto; lo que sobra se reparte
@@ -273,6 +276,9 @@ la sustituye en vertical:
   pantalla inferior** (`ControlLayout.lowerScreenBottom`), centrados. Si ahí
   pisaran la dirección o el rombo, bajan hasta librarlos; si no caben antes
   del borde, se quedan en el bloque.
+- **Soplar** va con ellos, abajo a la izquierda, pegado al borde de L: el
+  espejo del botón «>» al otro lado. Así no tapa la pantalla inferior. Si
+  Select y Start no han podido bajar, soplar se queda debajo de L.
 - Estas tres medidas son **físicas**, no dp: se convierten con
   `xdpi`/`ydpi` (`rememberPxPerMm`), porque lo que se pidió es lo que mide
   una regla sobre el cristal.
@@ -294,7 +300,8 @@ la sustituye en vertical:
   y deja la pantalla inferior entera para el lápiz; **«<»** los devuelve.
   Los que no tapan nada, como Select y Start bajo la pantalla inferior, se
   quedan (`ControlLayout.groupsCoveringScreens`); si ninguno tapa nada, el
-  botón no aparece. Del todo apartados, los mandos
+  botón no aparece. **Soplar no se aparta nunca**, tape o no: hay juegos
+  que lo piden de golpe en mitad de una escena. Del todo apartados, los mandos
   dejan de componerse, así que no queda ningún botón pegado. Sólo existe en
   vertical: en horizontal los mandos no tapan la táctil.
 
