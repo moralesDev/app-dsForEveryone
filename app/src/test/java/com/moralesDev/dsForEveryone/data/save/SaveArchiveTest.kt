@@ -19,6 +19,8 @@ import java.util.zip.ZipInputStream
 import java.util.zip.ZipOutputStream
 import com.moralesDev.dsForEveryone.data.storage.importStagingDirectory
 import com.moralesDev.dsForEveryone.data.storage.savesDirectory
+import okio.sink
+import okio.source
 
 /**
  * La copia de partidas sobre carpetas de verdad.
@@ -77,12 +79,12 @@ class SaveArchiveTest {
 
     private suspend fun Phone.exportAll(): Pair<ArchiveExportResult, ByteArray> {
         val output = ByteArrayOutputStream()
-        val result = archive.export(output, titles = mapOf(gameA to "Juego A"))
+        val result = archive.export(output.sink(), titles = mapOf(gameA to "Juego A"))
         return result to output.toByteArray()
     }
 
     private suspend fun Phone.prepare(bytes: ByteArray): ArchivePrepareResult =
-        archive.prepare { ByteArrayInputStream(bytes) }
+        archive.prepare { ByteArrayInputStream(bytes).source() }
 
     private suspend fun Phone.prepareReady(bytes: ByteArray): PreparedImport {
         val result = prepare(bytes)
@@ -156,7 +158,7 @@ class SaveArchiveTest {
         phoneA.saveState(gameB, 1, seed = 2)
 
         val output = ByteArrayOutputStream()
-        val result = phoneA.archive.export(output, emptyMap(), onlyRomId = gameB)
+        val result = phoneA.archive.export(output.sink(), emptyMap(), onlyRomId = gameB)
 
         assertEquals(ArchiveExportResult.Exported(games = 1, skippedFiles = 0), result)
         val names = entryNames(output.toByteArray())

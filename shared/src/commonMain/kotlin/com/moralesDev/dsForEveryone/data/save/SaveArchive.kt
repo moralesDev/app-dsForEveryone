@@ -1,28 +1,26 @@
 package com.moralesDev.dsForEveryone.data.save
 
-import android.util.Log
 import com.moralesDev.dsForEveryone.data.cheats.CheatsFileDto
 import com.moralesDev.dsForEveryone.data.storage.StorageManager
 import com.moralesDev.dsForEveryone.data.storage.writeAtomically
+import com.moralesDev.dsForEveryone.data.zip.ZipArchiveReader
+import com.moralesDev.dsForEveryone.data.zip.ZipFormatException
+import com.moralesDev.dsForEveryone.data.zip.ZipWriter
+import com.moralesDev.dsForEveryone.util.AppLog
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.json.Json
-import java.io.BufferedInputStream
-import java.io.BufferedOutputStream
-import java.io.ByteArrayOutputStream
-import java.io.File
-import java.io.IOException
-import java.io.InputStream
-import java.io.OutputStream
-import java.util.UUID
-import java.util.zip.ZipEntry
-import java.util.zip.ZipException
-import java.util.zip.ZipInputStream
-import java.util.zip.ZipOutputStream
-import com.moralesDev.dsForEveryone.data.storage.importStagingDirectory
-import com.moralesDev.dsForEveryone.data.storage.savesDirectory
+import okio.FileSystem
+import okio.IOException
+import okio.Path
+import okio.Sink
+import okio.Source
+import okio.buffer
+import okio.use
+import kotlin.random.Random
+import kotlin.time.Clock
 
 /** Un juego dentro de una copia, tal como lo describe el manifiesto. */
 @Serializable
@@ -90,7 +88,7 @@ data class PreparedGame(
  * [SaveArchive.recoverInterrupted] en el siguiente arranque.
  */
 class PreparedImport internal constructor(
-    internal val directory: File,
+    internal val directory: Path,
     val games: List<PreparedGame>,
 )
 
@@ -112,12 +110,18 @@ data class CommitOutcome(val imported: Int, val failed: Int)
  *   no sepa leer.
  * - **Importar no toca `saves/` hasta [commit]**, y entonces cada juego se
  *   reemplaza con dos `rename`, recuperables si el proceso muere en medio.
+ *
+ * Vive en el módulo común desde iOS-3 (docs/ios.md): el mismo código y el
+ * mismo zip ([ZipWriter], [ZipArchiveReader]) en Android y en iOS, para que
+ * una copia de un sistema se importe en el otro.
  */
 class SaveArchive(
     private val storageManager: StorageManager,
     private val ioDispatcher: CoroutineDispatcher,
-    private val clock: () -> Long = System::currentTimeMillis,
+    private val clock: () -> Long = { Clock.System.now().toEpochMilliseconds() },
 ) {
+
+    private val fileSystem = FileSystem.SYSTEM
 
     // ------------------------------------------------------------ exportar
 
@@ -130,7 +134,7 @@ class SaveArchive(
      * @param onlyRomId exportar sólo ese juego; `null` para todos.
      */
     suspend fun export(
-        output: OutputStream,
+        output: Sink,
         titles: Map<String, String>,
         onlyRomId: String? = null,
     ): ArchiveExportResult = withContext(ioDispatcher) {
@@ -140,17 +144,18 @@ class SaveArchive(
         // nada porque el manifiesto va primero y lista los juegos.
         var skipped = 0
         val plan = candidates.mapNotNull { id ->
-            val gameDir = File(storageManager.savesDirectory(), id)
+            val gameDir = storageManager.savesPath() / id
             val accepted = GAME_FILES.filter { relative ->
-                val file = File(gameDir, relative)
+                val file = gameDir / relative
+                val metadata = fileSystem.metadataOrNull(file)
                 when {
-                    !file.isFile -> false
+                    metadata?.isRegularFile != true -> false
                     // Un battery.sav vacío es «todavía no ha guardado»
                     // (BatterySaveManager lo trata así), no un archivo dañado.
-                    relative == BATTERY && file.length() == 0L -> false
+                    relative == BATTERY && (metadata.size ?: 0L) == 0L -> false
                     isAcceptable(parseEntry("$SAVES/$id/$relative")!!, file) -> true
                     else -> {
-                        Log.w(TAG, "No se exporta $id/$relative: no superaría la importación")
+                        AppLog.w(TAG, "No se exporta $id/$relative: no superaría la importación")
                         skipped++
                         false
                     }
@@ -171,31 +176,26 @@ class SaveArchive(
         )
 
         try {
-            ZipOutputStream(BufferedOutputStream(output)).use { zip ->
-                zip.putNextEntry(ZipEntry(MANIFEST))
-                zip.write(json.encodeToString(ArchiveManifest.serializer(), manifest).toByteArray())
-                zip.closeEntry()
+            ZipWriter(output, modifiedAtMillis = manifest.exportedAt).use { zip ->
+                zip.writeEntry(MANIFEST, json.encodeToString(ArchiveManifest.serializer(), manifest).encodeToByteArray())
                 for ((id, files) in plan) {
                     for (relative in files) {
-                        zip.putNextEntry(ZipEntry("$SAVES/$id/$relative"))
-                        File(storageManager.savesDirectory(), "$id/$relative")
-                            .inputStream().use { it.copyTo(zip) }
-                        zip.closeEntry()
+                        val bytes = fileSystem.read(storageManager.savesPath() / id / relative) { readByteArray() }
+                        zip.writeEntry("$SAVES/$id/$relative", bytes)
                     }
                 }
             }
             ArchiveExportResult.Exported(games = plan.size, skippedFiles = skipped)
         } catch (error: IOException) {
-            Log.e(TAG, "No se pudo escribir la copia", error)
+            AppLog.e(TAG, "No se pudo escribir la copia", error)
             ArchiveExportResult.WriteFailed
         }
     }
 
     private fun gameDirectoryIds(): List<String> =
-        storageManager.savesDirectory().listFiles()
-            .orEmpty()
-            .filter { it.isDirectory && ROM_ID.matches(it.name) }
-            .map(File::getName)
+        (fileSystem.listOrNull(storageManager.savesPath()) ?: emptyList())
+            .filter { fileSystem.metadataOrNull(it)?.isDirectory == true && ROM_ID.matches(it.name) }
+            .map(Path::name)
             .sorted()
 
     // ------------------------------------------------------------ importar
@@ -203,33 +203,69 @@ class SaveArchive(
     /**
      * Lee la copia entera, la valida y la deja preparada. No toca `saves/`.
      *
+     * El archivo elegido se copia primero a la carpeta de preparación: el
+     * lector de zip común ([ZipArchiveReader]) necesita poder saltar al
+     * directorio central, y el flujo del selector de documentos no lo
+     * permite. La copia se borra al terminar, vaya como vaya.
+     *
      * @param open abre el archivo elegido; `null` si el proveedor no lo da.
      */
-    suspend fun prepare(open: () -> InputStream?): ArchivePrepareResult = withContext(ioDispatcher) {
-        val staging = File(storageManager.importStagingDirectory(), "import-${UUID.randomUUID()}")
+    suspend fun prepare(open: () -> Source?): ArchivePrepareResult = withContext(ioDispatcher) {
+        val stagingRoot = storageManager.importStagingPath()
+        val staging = stagingRoot / "import-${randomName()}"
+        val incoming = stagingRoot / "incoming-${randomName()}.zip"
         val result = try {
-            open()?.use { stream -> readInto(stream, staging) } ?: ArchivePrepareResult.Unreadable
-        } catch (error: ZipException) {
-            Log.w(TAG, "La copia no es un zip legible", error)
+            val source = open()
+            if (source == null) {
+                ArchivePrepareResult.Unreadable
+            } else if (!copyBounded(source, incoming)) {
+                ArchivePrepareResult.TooLarge
+            } else {
+                ZipArchiveReader(fileSystem, incoming).use { zip -> readInto(zip, staging) }
+            }
+        } catch (error: ZipFormatException) {
+            AppLog.w(TAG, "La copia no es un zip legible", error)
             ArchivePrepareResult.Corrupt
         } catch (error: IOException) {
-            Log.e(TAG, "No se pudo leer la copia", error)
+            AppLog.e(TAG, "No se pudo leer la copia", error)
             ArchivePrepareResult.Unreadable
         } catch (error: IllegalStateException) {
             // writeAtomically no pudo renombrar dentro de la preparación.
-            Log.e(TAG, "No se pudo preparar la copia", error)
+            AppLog.e(TAG, "No se pudo preparar la copia", error)
             ArchivePrepareResult.Unreadable
+        } finally {
+            fileSystem.delete(incoming, mustExist = false)
         }
-        if (result !is ArchivePrepareResult.Ready) staging.deleteRecursively()
+        if (result !is ArchivePrepareResult.Ready) fileSystem.deleteRecursively(staging, mustExist = false)
         result
     }
 
-    private fun readInto(stream: InputStream, staging: File): ArchivePrepareResult {
-        val zip = ZipInputStream(BufferedInputStream(stream))
+    /**
+     * Copia [source] a [target] y lo cierra. `false` si pasa de
+     * [MAX_TOTAL_BYTES]: un zip no puede descomprimirse en menos de lo que
+     * ocupa comprimido, así que no tendría sentido seguir.
+     */
+    private fun copyBounded(source: Source, target: Path): Boolean {
+        fileSystem.createDirectories(target.parent!!)
+        source.buffer().use { input ->
+            fileSystem.write(target) {
+                var total = 0L
+                while (true) {
+                    val read = input.read(buffer, BUFFER_BYTES.toLong())
+                    if (read == -1L) break
+                    total += read
+                    if (total > MAX_TOTAL_BYTES) return false
+                    emitCompleteSegments()
+                }
+            }
+        }
+        return true
+    }
 
-        val first = zip.nextEntry ?: return ArchivePrepareResult.NotABackup
+    private fun readInto(zip: ZipArchiveReader, staging: Path): ArchivePrepareResult {
+        val first = zip.entries.firstOrNull() ?: return ArchivePrepareResult.NotABackup
         if (first.name != MANIFEST) return ArchivePrepareResult.NotABackup
-        val manifestBytes = zip.readBounded(MAX_MANIFEST_BYTES) ?: return ArchivePrepareResult.NotABackup
+        val manifestBytes = zip.read(first, MAX_MANIFEST_BYTES) ?: return ArchivePrepareResult.NotABackup
         val manifest = try {
             json.decodeFromString(ArchiveManifest.serializer(), manifestBytes.decodeToString())
         } catch (error: SerializationException) {
@@ -244,8 +280,7 @@ class SaveArchive(
         val seen = HashSet<String>()
         val gamesWithFiles = LinkedHashSet<String>()
         var total = 0L
-        while (true) {
-            val entry = zip.nextEntry ?: break
+        for (entry in zip.entries.drop(1)) {
             // Las carpetas no crean nada: el destino sale de los archivos.
             if (entry.isDirectory) continue
 
@@ -254,13 +289,13 @@ class SaveArchive(
 
             // Topes sobre lo descomprimido de verdad, no sobre lo que declara
             // la cabecera del zip, que puede mentir.
-            val bytes = zip.readBounded(path.limit) ?: return ArchivePrepareResult.TooLarge
+            val bytes = zip.read(entry, path.limit) ?: return ArchivePrepareResult.TooLarge
             total += bytes.size
             if (total > MAX_TOTAL_BYTES) return ArchivePrepareResult.TooLarge
 
             if (!isAcceptable(path, bytes)) return ArchivePrepareResult.Corrupt
 
-            File(staging, "${path.gameId}/${path.relative}").writeAtomically(bytes)
+            writeAtomically(staging / path.gameId / path.relative, bytes)
             gamesWithFiles += path.gameId
         }
 
@@ -289,19 +324,19 @@ class SaveArchive(
      */
     suspend fun commit(prepared: PreparedImport, onlyRomId: String? = null): CommitOutcome =
         withContext(ioDispatcher) {
-            val savesRoot = storageManager.savesDirectory().also { it.mkdirs() }
+            val savesRoot = storageManager.savesPath().also(fileSystem::createDirectories)
             var imported = 0
             var failed = 0
             prepared.games
                 .filter { onlyRomId == null || it.id == onlyRomId }
                 .forEach { game ->
-                    if (replaceGame(savesRoot, File(prepared.directory, game.id), game.id)) {
+                    if (replaceGame(savesRoot, prepared.directory / game.id, game.id)) {
                         imported++
                     } else {
                         failed++
                     }
                 }
-            prepared.directory.deleteRecursively()
+            fileSystem.deleteRecursively(prepared.directory, mustExist = false)
             CommitOutcome(imported, failed)
         }
 
@@ -314,26 +349,34 @@ class SaveArchive(
      * [recoverInterrupted] en el siguiente arranque.
      */
     fun discard(prepared: PreparedImport) {
-        prepared.directory.deleteRecursively()
+        fileSystem.deleteRecursively(prepared.directory, mustExist = false)
     }
 
-    private fun replaceGame(savesRoot: File, incoming: File, id: String): Boolean {
-        val target = File(savesRoot, id)
-        val replaced = File(savesRoot, "$REPLACED_PREFIX$id")
-        replaced.deleteRecursively()
+    private fun replaceGame(savesRoot: Path, incoming: Path, id: String): Boolean {
+        val target = savesRoot / id
+        val replaced = savesRoot / "$REPLACED_PREFIX$id"
+        fileSystem.deleteRecursively(replaced, mustExist = false)
 
-        if (target.exists() && !target.renameTo(replaced)) {
-            Log.e(TAG, "No se pudo apartar la carpeta actual de $id")
+        if (fileSystem.exists(target) && !rename(target, replaced)) {
+            AppLog.e(TAG, "No se pudo apartar la carpeta actual de $id")
             return false
         }
-        if (!incoming.renameTo(target)) {
-            Log.e(TAG, "No se pudo colocar la carpeta importada de $id")
+        if (!rename(incoming, target)) {
+            AppLog.e(TAG, "No se pudo colocar la carpeta importada de $id")
             // Deshacer: la carpeta de antes vuelve a su sitio.
-            if (replaced.exists()) replaced.renameTo(target)
+            if (fileSystem.exists(replaced)) rename(replaced, target)
             return false
         }
-        replaced.deleteRecursively()
+        fileSystem.deleteRecursively(replaced, mustExist = false)
         return true
+    }
+
+    /** Lo que era `File.renameTo`: `false` en vez de excepción si no se puede. */
+    private fun rename(from: Path, to: Path): Boolean = try {
+        fileSystem.atomicMove(from, to)
+        true
+    } catch (_: IOException) {
+        false
     }
 
     /**
@@ -349,26 +392,26 @@ class SaveArchive(
      *   muerte del proceso, así que se borra.
      */
     fun recoverInterrupted() {
-        val savesRoot = storageManager.savesDirectory()
-        savesRoot.listFiles().orEmpty()
-            .filter { it.isDirectory && it.name.startsWith(REPLACED_PREFIX) }
+        val savesRoot = storageManager.savesPath()
+        (fileSystem.listOrNull(savesRoot) ?: emptyList())
+            .filter { fileSystem.metadataOrNull(it)?.isDirectory == true && it.name.startsWith(REPLACED_PREFIX) }
             .forEach { replaced ->
-                val target = File(savesRoot, replaced.name.removePrefix(REPLACED_PREFIX))
-                if (target.exists()) {
-                    replaced.deleteRecursively()
-                } else if (!replaced.renameTo(target)) {
-                    Log.e(TAG, "No se pudo restaurar ${replaced.name}")
+                val target = savesRoot / replaced.name.removePrefix(REPLACED_PREFIX)
+                if (fileSystem.exists(target)) {
+                    fileSystem.deleteRecursively(replaced, mustExist = false)
+                } else if (!rename(replaced, target)) {
+                    AppLog.e(TAG, "No se pudo restaurar ${replaced.name}")
                 }
             }
-        storageManager.importStagingDirectory().deleteRecursively()
+        fileSystem.deleteRecursively(storageManager.importStagingPath(), mustExist = false)
     }
 
     // ------------------------------------------------------------ validación
 
-    private fun isAcceptable(path: EntryPath, file: File): Boolean {
-        if (file.length() > path.limit) return false
+    private fun isAcceptable(path: EntryPath, file: Path): Boolean {
+        if ((fileSystem.metadataOrNull(file)?.size ?: 0L) > path.limit) return false
         val bytes = try {
-            file.readBytes()
+            fileSystem.read(file) { readByteArray() }
         } catch (error: IOException) {
             return false
         }
@@ -438,20 +481,8 @@ class SaveArchive(
         }
     }
 
-    /** `null` si la entrada pasa de [limit] bytes: se deja de leer en cuanto se nota. */
-    private fun InputStream.readBounded(limit: Int): ByteArray? {
-        val output = ByteArrayOutputStream()
-        val buffer = ByteArray(BUFFER_BYTES)
-        var total = 0L
-        while (true) {
-            val read = read(buffer)
-            if (read < 0) break
-            total += read
-            if (total > limit) return null
-            output.write(buffer, 0, read)
-        }
-        return output.toByteArray()
-    }
+    /** Lo que era `UUID.randomUUID()` en el nombre: sólo tiene que no repetirse. */
+    private fun randomName(): String = Random.nextLong().toULong().toString(16) + Random.nextLong().toULong().toString(16)
 
     companion object {
         const val MANIFEST = "dsforeveryone-saves.json"

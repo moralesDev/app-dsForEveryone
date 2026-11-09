@@ -22,6 +22,8 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import okio.sink
+import okio.source
 
 /**
  * Los ajustes que no pertenecen a una partida concreta.
@@ -102,13 +104,13 @@ class SettingsViewModel(
         _message.value = null
         viewModelScope.launch {
             val titles = romRepository.observeLibrary().first().associate { it.id to it.displayName }
-            archive.export(open = { contentResolver.openOutputStream(uri) }, titles = titles)
+            archive.export(open = { contentResolver.openOutputStream(uri)?.sink() }, titles = titles)
         }
     }
 
     fun onArchiveImportPicked(contentResolver: ContentResolver, uri: Uri?) {
         _message.value = null
-        archive.onPicked(open = uri?.let { { contentResolver.openInputStream(it) } })
+        archive.onPicked(open = uri?.let { { contentResolver.openInputStream(it)?.source() } })
     }
 
     fun confirmArchiveImport() = archive.confirm()

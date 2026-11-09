@@ -48,6 +48,8 @@ import com.moralesDev.dsForEveryone.resources.msg_zip_corrupt
 import com.moralesDev.dsForEveryone.resources.msg_zip_encrypted
 import com.moralesDev.dsForEveryone.resources.msg_zip_multiple
 import com.moralesDev.dsForEveryone.resources.msg_zip_no_rom
+import okio.sink
+import okio.source
 
 data class LibraryUiState(
     /** Todos los juegos de la biblioteca, sin filtrar. */
@@ -251,7 +253,7 @@ class RomLibraryViewModel(
     /** Exporta las partidas de un juego. Ver `docs/copia-de-partidas.md`. */
     fun exportArchive(rom: RomInfo, contentResolver: ContentResolver, uri: Uri?) {
         archive.export(
-            open = uri?.let { { contentResolver.openOutputStream(it) } },
+            open = uri?.let { { contentResolver.openOutputStream(it)?.sink() } },
             titles = mapOf(rom.id to rom.displayName),
             onlyRomId = rom.id,
         )
@@ -262,7 +264,7 @@ class RomLibraryViewModel(
      * aunque traiga más. Si ya tenía partidas, se pide confirmación.
      */
     fun onArchiveImportPicked(romId: String, contentResolver: ContentResolver, uri: Uri?) {
-        archive.onPicked(open = uri?.let { { contentResolver.openInputStream(it) } }, onlyRomId = romId)
+        archive.onPicked(open = uri?.let { { contentResolver.openInputStream(it)?.source() } }, onlyRomId = romId)
     }
 
     fun confirmArchiveImport() = archive.confirm()

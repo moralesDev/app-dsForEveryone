@@ -10,8 +10,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import java.io.InputStream
-import java.io.OutputStream
+import okio.Sink
+import okio.Source
 import com.moralesDev.dsForEveryone.resources.Res
 import com.moralesDev.dsForEveryone.resources.msg_archive_corrupt
 import com.moralesDev.dsForEveryone.resources.msg_archive_export_failed
@@ -47,7 +47,8 @@ data class PendingArchiveImport(
  * sólo cambia [onlyRomId][export]: por eso vive aquí y no repetido en dos
  * ViewModel.
  *
- * Recibe funciones que abren los flujos, no `Uri` ni `ContentResolver`, por
+ * Recibe funciones que abren los flujos (de Okio, para que sirva igual en
+ * iOS), no `Uri` ni `ContentResolver`, por
  * la misma razón que [com.moralesDev.dsForEveryone.ui.game.CheatsCoordinator]
  * vive aparte de su ViewModel: así se prueba en JVM contra un [SaveArchive]
  * real sobre una carpeta temporal.
@@ -73,7 +74,7 @@ class SaveArchiveCoordinator(
      *   lo cerró sin elegir, y entonces no pasa nada.
      */
     fun export(
-        open: (() -> OutputStream?)?,
+        open: (() -> Sink?)?,
         titles: Map<String, String>,
         onlyRomId: String? = null,
     ) {
@@ -105,7 +106,7 @@ class SaveArchiveCoordinator(
      * Lee y valida la copia elegida. Si reemplazaría partidas existentes la
      * deja en [pending] para confirmar; si no, la importa ya.
      */
-    fun onPicked(open: (() -> InputStream?)?, onlyRomId: String? = null) {
+    fun onPicked(open: (() -> Source?)?, onlyRomId: String? = null) {
         if (open == null) return
         work {
             // Un proveedor de documentos puede lanzar SecurityException al

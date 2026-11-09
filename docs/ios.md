@@ -339,8 +339,16 @@ Se hace en cinco pasos; tras cada uno Android sigue igual:
      `System.nanoTime()` pasa a `TimeSource.Monotonic`. Lo `internal` de
      esos archivos pasa a público mientras haya pantallas en `:app` que lo
      usen.
-   - Pendiente: Ajustes, biblioteca, juego, editor de disposición, mapeo de
-     mandos, navegación y el idioma.
+   - ✅ **Copia de partidas** (2026-11-09): `SaveArchive` y
+     `SaveArchiveCoordinator` a común, con un zip propio sobre Okio
+     (`data/zip/ZipWriter`, `ZipArchiveReader`) en lugar de `java.util.zip`,
+     que no existe en iOS. Ver `docs/copia-de-partidas.md`. Reciben
+     `Sink`/`Source` de Okio; en Android, los flujos del selector se envuelven
+     con `.sink()`/`.source()`. 28 pruebas de `SaveArchiveTest` en verde con el
+     zip nuevo; `ZipInteropTest` contra `java.util.zip` en las dos direcciones;
+     `ZipRoundTripTest` también en el simulador de iOS.
+   - Pendiente: Ajustes (los selectores de archivos), biblioteca, juego,
+     editor de disposición, mapeo de mandos, navegación y el idioma.
 5. **Arranque en iOS**: la app abre en el simulador.
 
 ### iOS-4 · El juego en iOS
