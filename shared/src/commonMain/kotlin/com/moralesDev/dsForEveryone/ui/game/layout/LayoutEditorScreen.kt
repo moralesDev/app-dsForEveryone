@@ -1,6 +1,5 @@
 package com.moralesDev.dsForEveryone.ui.game.layout
 
-import android.content.res.Configuration
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.detectDragGestures
@@ -40,7 +39,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
-import androidx.compose.ui.platform.LocalConfiguration
+import com.moralesDev.dsForEveryone.ui.game.rememberIsPortrait
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import org.jetbrains.compose.resources.stringResource
@@ -115,7 +114,7 @@ fun LayoutEditorScreen(onBack: () -> Unit) {
     val settings by viewModel.settings.collectAsStateWithLifecycle()
     val density = LocalDensity.current
 
-    val isPortrait = LocalConfiguration.current.orientation == Configuration.ORIENTATION_PORTRAIT
+    val isPortrait = rememberIsPortrait()
     val activeMode = if (isPortrait) settings.portraitLayoutMode else settings.landscapeLayoutMode
     val customControlLayout = if (isPortrait) settings.portraitControlLayout else settings.landscapeControlLayout
 

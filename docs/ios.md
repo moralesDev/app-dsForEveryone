@@ -380,8 +380,15 @@ Se hace en cinco pasos; tras cada uno Android sigue igual:
        Android (como antes), `NSDateFormatter` en iOS. `LocalSystemLocale`
        pasa a `:shared` (androidMain), mismo paquete.
      - `CheatsCoordinator` se queda en `:app`: habla con `EmulatorController`.
-   - Pendiente: biblioteca, juego, editor de disposición, mapeo de mandos,
-     navegación y el idioma.
+   - ✅ **Editor de disposición** (2026-11-09): `LayoutEditorScreen` y su
+     ViewModel. La orientación pasa a `rememberIsPortrait()`, una por
+     plataforma: en Android, la `Configuration` de siempre (también la usa ya
+     `GameScreen`); en iOS, alto contra ancho de la ventana, que sirve
+     también en Split View.
+   - El **mapeo de mandos físicos** espera al sistema de mandos de iOS
+     (GameController): depende de `KeyEvent`, `GamepadManager` y
+     `GamepadInputRouter`, que son el de Android.
+   - Pendiente: biblioteca, juego, mapeo de mandos, navegación y el idioma.
 5. **Arranque en iOS**: la app abre en el simulador.
 
 ### iOS-4 · El juego en iOS

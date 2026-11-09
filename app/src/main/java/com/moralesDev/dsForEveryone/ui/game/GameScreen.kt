@@ -4,7 +4,6 @@ import android.app.Activity
 import android.content.Context
 import android.content.ContextWrapper
 import android.content.pm.ActivityInfo
-import android.content.res.Configuration
 import android.opengl.GLSurfaceView
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
@@ -49,7 +48,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
@@ -177,7 +175,7 @@ fun GameScreen(onExit: () -> Unit) {
         }
     }
 
-    val isPortrait = LocalConfiguration.current.orientation == Configuration.ORIENTATION_PORTRAIT
+    val isPortrait = rememberIsPortrait()
     val activeMode = if (isPortrait) settings.portraitLayoutMode else settings.landscapeLayoutMode
 
     val density = LocalDensity.current
