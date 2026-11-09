@@ -38,10 +38,12 @@ General → VPN y gestión de dispositivos → Confiar**.
 - Antes de compilar, Xcode llama a Gradle para el framework `Shared` del
   destino elegido (`:shared:linkDebugFramework<Destino>`) y sus recursos
   (`:shared:<destino>ProcessResources`). La primera vez tarda varios minutos.
-- Copia el framework dentro de la app y lo firma con ella.
-- Copia los recursos de Compose (textos, fuente) a
-  `DsForEveryone.app/compose-resources/` con `copy-compose-resources.sh`: sin
-  ellos la app falla al arrancar, en la primera letra.
+- `copy-into-app.sh` mete en la app, después de enlazar, el framework
+  (firmado) y los recursos de Compose (textos, fuente, imágenes) en
+  `DsForEveryone.app/compose-resources/`. Sin los recursos la app falla al
+  arrancar, en la primera letra. El framework no lo copia la fase «Embed
+  Frameworks» de Xcode: decide por la fecha de la carpeta, que no cambia al
+  recompilar, y la app se quedaba con código viejo sin avisar.
 - Gradle necesita Java, y Xcode no carga el perfil de la terminal: el
   proyecto usa el que diga `/usr/libexec/java_home`, o el que se le pase con
   `-DJAVA_HOME=…`.

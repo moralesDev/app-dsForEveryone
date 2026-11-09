@@ -34,11 +34,14 @@ add_custom_target(SharedFramework
     VERBATIM
 )
 
-add_executable(DsForEveryone MACOSX_BUNDLE main.m)
+# El icono de la app (Assets.xcassets/AppIcon, generado desde art/logo.png
+# con tools/make-icons.swift). Xcode lo compila con actool.
+add_executable(DsForEveryone MACOSX_BUNDLE main.m Assets.xcassets)
+set_source_files_properties(Assets.xcassets PROPERTIES MACOSX_PACKAGE_LOCATION Resources)
 add_dependencies(DsForEveryone SharedFramework)
 add_custom_command(TARGET DsForEveryone POST_BUILD
-    COMMAND /bin/sh ${CMAKE_CURRENT_SOURCE_DIR}/copy-compose-resources.sh ${COMPOSE_RESOURCES_DIR}
-    COMMENT "Copiando los recursos de Compose a la app"
+    COMMAND /bin/sh ${CMAKE_CURRENT_SOURCE_DIR}/copy-into-app.sh ${FRAMEWORK_DIR}/Shared.framework ${COMPOSE_RESOURCES_DIR}
+    COMMENT "Copiando el framework Shared y los recursos de Compose a la app"
     VERBATIM
 )
 target_compile_options(DsForEveryone PRIVATE -fobjc-arc -F${FRAMEWORK_DIR})
@@ -54,9 +57,8 @@ set_target_properties(DsForEveryone PROPERTIES
     XCODE_ATTRIBUTE_TARGETED_DEVICE_FAMILY "1,2"
     XCODE_ATTRIBUTE_IPHONEOS_DEPLOYMENT_TARGET 16.0
     XCODE_ATTRIBUTE_CLANG_ENABLE_OBJC_ARC YES
+    XCODE_ATTRIBUTE_ASSETCATALOG_COMPILER_APPICON_NAME AppIcon
     XCODE_ATTRIBUTE_LD_RUNPATH_SEARCH_PATHS "@executable_path/Frameworks"
-    # El framework de Kotlin va dentro de la app y se firma con ella.
-    XCODE_EMBED_FRAMEWORKS ${FRAMEWORK_DIR}/Shared.framework
-    XCODE_EMBED_FRAMEWORKS_CODE_SIGN_ON_COPY YES
-    XCODE_EMBED_FRAMEWORKS_REMOVE_HEADERS_ON_COPY YES
+    # El framework de Kotlin lo mete y lo firma copy-into-app.sh, no la fase
+    # «Embed Frameworks» de Xcode (ver el script).
 )
