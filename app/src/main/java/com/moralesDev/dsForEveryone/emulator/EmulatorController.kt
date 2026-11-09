@@ -92,6 +92,17 @@ class EmulatorController(private val core: EmulatorCore) {
      */
     val currentFrame: ByteBuffer? get() = if (frameReady) frameBuffer else null
 
+    /**
+     * Fotogramas emulados desde que la partida en curso salió de algún sitio:
+     * vuelve a cero al abrir la ROM y al cargar un estado. Sólo lo escribe el
+     * hilo de emulación. Es lo que permite saber si de verdad se ha jugado
+     * algo —y no sólo tener el juego abierto en pausa— antes de pisar el
+     * respaldo automático (ver GameViewModel).
+     */
+    @Volatile
+    var framesSinceLoad: Long = 0L
+        private set
+
     /** Identidad técnica del core; es lo que se graba en cada save state. */
     val coreName: String get() = core.coreName
     val coreVersion: String get() = core.coreVersion
@@ -124,6 +135,7 @@ class EmulatorController(private val core: EmulatorCore) {
             _status.value = EmulatorStatus.LOADING
 
             val result = load()
+            framesSinceLoad = 0L
             if (result is CoreLoadResult.Success) {
                 EmulationThread().also { thread = it; it.start() }
                 _status.value = EmulatorStatus.PAUSED
@@ -208,7 +220,10 @@ class EmulatorController(private val core: EmulatorCore) {
      */
     suspend fun loadState(state: ByteArray): Boolean = onEmulationThread {
         val rollback = core.serializeState()
-        if (core.deserializeState(state)) return@onEmulationThread true
+        if (core.deserializeState(state)) {
+            framesSinceLoad = 0L
+            return@onEmulationThread true
+        }
 
         if (rollback != null && !core.deserializeState(rollback)) {
             Log.e(TAG, "El estado anterior tampoco se pudo restaurar")
@@ -321,6 +336,7 @@ class EmulatorController(private val core: EmulatorCore) {
                         core.setLidClosed(lidClosed)
                     }
                     core.runFrame()
+                    framesSinceLoad++
                     frameReady = core.captureFrameInto(frameBuffer)
 
                     val now = System.nanoTime()

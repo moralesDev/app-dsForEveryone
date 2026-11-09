@@ -300,6 +300,7 @@ class GameViewModel(
         val rid = romId ?: return
         applicationScope.launch {
             controller.flushBattery()?.let { saveManager.persistBattery(rid, it) }
+            writeAutoBackup(rid)
         }
     }
 
@@ -553,12 +554,39 @@ class GameViewModel(
         applicationScope.launch {
             if (rid != null) {
                 controller.flushBattery()?.let { saveManager.persistBattery(rid, it) }
+                writeAutoBackup(rid)
             }
             controller.stop()
         }
     }
 
+    /**
+     * El respaldo automático: un save state de la partida tal como se deja,
+     * en su ranura propia (ver SaveManager.writeAutoBackup). Se escribe en los
+     * mismos dos momentos en que se vuelca la batería —al salir del juego y
+     * al pasar a segundo plano, cuando el sistema puede matar el proceso sin
+     * avisar— y con él la biblioteca ofrece «Continuar partida».
+     *
+     * Sólo si se ha jugado de verdad desde que se abrió el juego o se cargó
+     * una ranura ([MIN_FRAMES_FOR_AUTO_BACKUP], un minuto a 1x). Sin ese
+     * mínimo, abrir un juego y salir desde la pantalla de título pisaría el
+     * respaldo de la última sesión larga con el de la pantalla de título.
+     *
+     * Corre en [applicationScope]: en `onCleared` el `viewModelScope` ya está
+     * cancelado. Si falla no se avisa: no es algo que el usuario haya pedido.
+     */
+    private suspend fun writeAutoBackup(rid: String) {
+        val sessionIdentity = identity ?: return
+        if (controller.framesSinceLoad < MIN_FRAMES_FOR_AUTO_BACKUP) return
+        val payload = controller.saveState() ?: return
+        val frame = controller.captureFrame()
+        saveManager.writeAutoBackup(rid, payload, frame, sessionIdentity)
+    }
+
     private companion object {
+        /** Un minuto de juego a 1x (59,8261 fotogramas por segundo). */
+        const val MIN_FRAMES_FOR_AUTO_BACKUP = 3_590L
+
         /**
          * Suficiente para superar la comprobación de tamaño mínimo de
          * `StubEmulatorCore`; el contenido no importa, el stub no lee nada
