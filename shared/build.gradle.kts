@@ -16,6 +16,8 @@ plugins {
     alias(libs.plugins.ksp)
     alias(libs.plugins.room)
     alias(libs.plugins.kotlin.serialization)
+    alias(libs.plugins.kotlin.compose)
+    alias(libs.plugins.compose.multiplatform)
 }
 
 kotlin {
@@ -25,6 +27,14 @@ kotlin {
         minSdk = 26
 
         withHostTestBuilder {}
+
+        // Sin esto los textos de Compose Multiplatform (composeResources) no
+        // entran en el APK: este tipo de módulo trae los recursos de Android
+        // apagados, y es por ahí por donde se empaquetan. Las pruebas no lo
+        // notan —no abren la app—; la app fallaría al primer texto.
+        androidResources {
+            enable = true
+        }
     }
 
     iosArm64()
@@ -39,6 +49,10 @@ kotlin {
             // Archivos (StorageManager, partidas, trucos). `api` porque :app
             // convierte sus rutas a java.io.File (StorageFiles.android.kt).
             api(libs.okio)
+            // Los textos de la app (composeResources/values*/strings.xml) y
+            // stringResource(): `api` porque las pantallas de :app los usan.
+            api(libs.compose.multiplatform.runtime)
+            api(libs.compose.multiplatform.resources)
             implementation(libs.kotlinx.serialization.json)
             implementation(libs.kotlinx.coroutines.core)
         }
@@ -65,4 +79,12 @@ dependencies {
 // permite escribir migraciones cuando cambie (ver DsEmuDatabase).
 room {
     schemaDirectory("$projectDir/schemas")
+}
+
+// Textos traducidos (docs/ios.md, iOS-3 paso 3). La clase Res se genera en
+// un paquete fijo y pública, porque la usan las pantallas de :app.
+compose.resources {
+    publicResClass = true
+    packageOfResClass = "com.moralesDev.dsForEveryone.resources"
+    generateResClass = always
 }

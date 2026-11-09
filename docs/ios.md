@@ -305,8 +305,26 @@ Se hace en cinco pasos; tras cada uno Android sigue igual:
      las ROMs comprimidas (`RomZipReader`), que no tiene equivalente común;
      las portadas (`CoverRepository`, `Bitmap`); y
      `RomRepository`/`DocumentAccess` (SAF).
-3. **Textos**: los 282 de `strings.xml` (es/en) a los recursos de Compose
-   Multiplatform, sin perder el cambio de idioma dentro de la app.
+3. **Textos** — ✅ (2026-11-09). Los 282 de `strings.xml` (es/en) a
+   `shared/src/commonMain/composeResources/`, con Compose Multiplatform
+   1.12.2 (sólo runtime y recursos, todavía). `Res` se genera pública en
+   `com.moralesDev.dsForEveryone.resources`. 313 usos en 21 archivos de
+   `R.string.x` a `Res.string.x`; `UiMessage` guarda un `StringResource` en
+   vez de un `@StringRes Int`. Tres cosas que no eran obvias:
+   - Compose Multiplatform sólo entiende `\n`, `\t` y `\uXXXX`: los `\'` y
+     `\"` de Android (20 textos en inglés) saldrían tal cual. Se pasaron a
+     `'` y `"` sin barra.
+   - Su `stringResource` no lee `LocalConfiguration`, sino `Locale.current`
+     (el idioma del proceso), y no recompone al cambiarlo.
+     `ProvideAppLanguage` hace además `Locale.setDefault` con el idioma de la
+     app y rehace la interfaz con una `key` por idioma; el `NavController`
+     sube a `MainActivity` para que la pantalla actual sobreviva. En iOS
+     habrá que hacer lo equivalente con `AppleLanguages`.
+   - El módulo `com.android.kotlin.multiplatform.library` trae los recursos
+     de Android apagados, y sin `androidResources { enable = true }` los
+     textos **no entran en el APK** (compila y las pruebas pasan igual).
+     Comprobado abriendo el APK: `assets/composeResources/…` con los dos
+     idiomas.
 4. **Pantallas** a `commonMain`; vídeo, mandos físicos, archivos y
    vibración detrás de `expect`/`actual`.
 5. **Arranque en iOS**: la app abre en el simulador.

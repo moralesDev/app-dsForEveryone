@@ -37,11 +37,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.res.stringResource
+import org.jetbrains.compose.resources.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.moralesDev.dsForEveryone.R
 import com.moralesDev.dsForEveryone.ui.components.AccentButton
 import com.moralesDev.dsForEveryone.ui.components.AppLogo
 import com.moralesDev.dsForEveryone.ui.components.BrandWordmark
@@ -53,6 +52,25 @@ import com.moralesDev.dsForEveryone.ui.theme.Background
 import com.moralesDev.dsForEveryone.ui.theme.Glass
 import com.moralesDev.dsForEveryone.ui.theme.GlassBorder
 import com.moralesDev.dsForEveryone.ui.theme.textAlpha
+import com.moralesDev.dsForEveryone.resources.Res
+import com.moralesDev.dsForEveryone.resources.onb_body
+import com.moralesDev.dsForEveryone.resources.onb_cta
+import com.moralesDev.dsForEveryone.resources.onb_dont
+import com.moralesDev.dsForEveryone.resources.onb_f1
+import com.moralesDev.dsForEveryone.resources.onb_f1b
+import com.moralesDev.dsForEveryone.resources.onb_f2
+import com.moralesDev.dsForEveryone.resources.onb_f2b
+import com.moralesDev.dsForEveryone.resources.onb_f3
+import com.moralesDev.dsForEveryone.resources.onb_f3b
+import com.moralesDev.dsForEveryone.resources.onb_next
+import com.moralesDev.dsForEveryone.resources.onb_skip
+import com.moralesDev.dsForEveryone.resources.onb_sys_body
+import com.moralesDev.dsForEveryone.resources.onb_sys_f1
+import com.moralesDev.dsForEveryone.resources.onb_sys_f1b
+import com.moralesDev.dsForEveryone.resources.onb_sys_f2
+import com.moralesDev.dsForEveryone.resources.onb_sys_f2b
+import com.moralesDev.dsForEveryone.resources.onb_sys_title
+import com.moralesDev.dsForEveryone.resources.onb_title
 
 /**
  * Si el core elegido en la fase 4 necesita BIOS y firmware (melonDS los pide;
@@ -133,12 +151,12 @@ private fun IntroStep(
         Spacer(Modifier.height(40.dp))
 
         Text(
-            text = stringResource(R.string.onb_title),
+            text = stringResource(Res.string.onb_title),
             style = MaterialTheme.typography.headlineSmall.copy(fontSize = 26.sp),
             color = MaterialTheme.colorScheme.onBackground,
         )
         Text(
-            text = stringResource(R.string.onb_body),
+            text = stringResource(Res.string.onb_body),
             style = MaterialTheme.typography.bodyMedium,
             color = textAlpha(0.62f),
             modifier = Modifier.padding(top = 10.dp),
@@ -150,18 +168,18 @@ private fun IntroStep(
         ) {
             Feature(
                 icon = Icons.Filled.FolderOpen,
-                title = stringResource(R.string.onb_f1),
-                body = stringResource(R.string.onb_f1b),
+                title = stringResource(Res.string.onb_f1),
+                body = stringResource(Res.string.onb_f1b),
             )
             Feature(
                 icon = Icons.Filled.TouchApp,
-                title = stringResource(R.string.onb_f2),
-                body = stringResource(R.string.onb_f2b),
+                title = stringResource(Res.string.onb_f2),
+                body = stringResource(Res.string.onb_f2b),
             )
             Feature(
                 icon = Icons.Filled.Save,
-                title = stringResource(R.string.onb_f3),
-                body = stringResource(R.string.onb_f3b),
+                title = stringResource(Res.string.onb_f3),
+                body = stringResource(Res.string.onb_f3b),
             )
         }
 
@@ -174,12 +192,12 @@ private fun IntroStep(
         )
 
         AccentButton(
-            text = stringResource(if (showsNextStep) R.string.onb_next else R.string.onb_cta),
+            text = stringResource(if (showsNextStep) Res.string.onb_next else Res.string.onb_cta),
             onClick = onContinue,
         )
 
         Text(
-            text = stringResource(R.string.onb_skip),
+            text = stringResource(Res.string.onb_skip),
             style = MaterialTheme.typography.bodySmall,
             color = textAlpha(0.45f),
             textAlign = TextAlign.Center,
@@ -218,12 +236,12 @@ private fun SystemFilesStep(onContinue: () -> Unit) {
         Spacer(Modifier.height(40.dp))
 
         Text(
-            text = stringResource(R.string.onb_sys_title),
+            text = stringResource(Res.string.onb_sys_title),
             style = MaterialTheme.typography.headlineSmall.copy(fontSize = 26.sp),
             color = MaterialTheme.colorScheme.onBackground,
         )
         Text(
-            text = stringResource(R.string.onb_sys_body),
+            text = stringResource(Res.string.onb_sys_body),
             style = MaterialTheme.typography.bodyMedium,
             color = textAlpha(0.62f),
             modifier = Modifier.padding(top = 10.dp),
@@ -235,20 +253,20 @@ private fun SystemFilesStep(onContinue: () -> Unit) {
         ) {
             Feature(
                 icon = Icons.Filled.Memory,
-                title = stringResource(R.string.onb_sys_f1),
-                body = stringResource(R.string.onb_sys_f1b),
+                title = stringResource(Res.string.onb_sys_f1),
+                body = stringResource(Res.string.onb_sys_f1b),
             )
             Feature(
                 icon = Icons.Filled.CloudOff,
-                title = stringResource(R.string.onb_sys_f2),
-                body = stringResource(R.string.onb_sys_f2b),
+                title = stringResource(Res.string.onb_sys_f2),
+                body = stringResource(Res.string.onb_sys_f2b),
             )
         }
 
         Spacer(Modifier.weight(1f))
 
         AccentButton(
-            text = stringResource(R.string.onb_cta),
+            text = stringResource(Res.string.onb_cta),
             onClick = onContinue,
         )
     }
@@ -294,7 +312,7 @@ private fun DontShowAgain(
             }
         }
         Text(
-            text = stringResource(R.string.onb_dont),
+            text = stringResource(Res.string.onb_dont),
             style = MaterialTheme.typography.bodySmall,
             color = textAlpha(0.72f),
         )

@@ -183,7 +183,11 @@ Estas decisiones ya están tomadas, probadas en dispositivo y documentadas en
 - **Los ViewModel guardan `UiMessage`**, no texto traducido.
 - **Cambio de idioma en caliente** con `ContextThemeWrapper`, no con
   `createConfigurationContext`, que rompe la cadena de `ContextWrapper` hasta
-  la Activity.
+  la Activity. Desde que los textos son de Compose Multiplatform (iOS-3),
+  además se cambia `Locale.setDefault` —su `stringResource` elige por
+  `Locale.current`, no por `LocalConfiguration`— y se rehace la interfaz con
+  una `key` por idioma; el `NavController` vive en `MainActivity`, por
+  encima, para que la pantalla actual sobreviva al cambio.
 - **Los mandos no son `clickable`**: `pressable` con `awaitEachGesture` por id
   de puntero.
 - **Sin permisos en el manifiesto.**

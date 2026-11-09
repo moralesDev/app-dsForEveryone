@@ -26,10 +26,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.res.stringResource
+import org.jetbrains.compose.resources.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.moralesDev.dsForEveryone.R
 import com.moralesDev.dsForEveryone.emulator.DsButton
 import com.moralesDev.dsForEveryone.emulator.gamepad.GamepadTarget
 import com.moralesDev.dsForEveryone.ui.components.AccentButton
@@ -40,6 +39,30 @@ import com.moralesDev.dsForEveryone.ui.theme.Divider
 import com.moralesDev.dsForEveryone.ui.theme.Surface
 import com.moralesDev.dsForEveryone.ui.theme.textAlpha
 import org.koin.compose.viewmodel.koinViewModel
+import com.moralesDev.dsForEveryone.resources.Res
+import com.moralesDev.dsForEveryone.resources.cd_back
+import com.moralesDev.dsForEveryone.resources.gp_cancel
+import com.moralesDev.dsForEveryone.resources.gp_device_name
+import com.moralesDev.dsForEveryone.resources.gp_leave_blank
+import com.moralesDev.dsForEveryone.resources.gp_listening
+import com.moralesDev.dsForEveryone.resources.gp_no_gamepad
+import com.moralesDev.dsForEveryone.resources.gp_reset
+import com.moralesDev.dsForEveryone.resources.gp_swap_hint
+import com.moralesDev.dsForEveryone.resources.gp_target_a
+import com.moralesDev.dsForEveryone.resources.gp_target_b
+import com.moralesDev.dsForEveryone.resources.gp_target_blow
+import com.moralesDev.dsForEveryone.resources.gp_target_down
+import com.moralesDev.dsForEveryone.resources.gp_target_l
+import com.moralesDev.dsForEveryone.resources.gp_target_left
+import com.moralesDev.dsForEveryone.resources.gp_target_r
+import com.moralesDev.dsForEveryone.resources.gp_target_right
+import com.moralesDev.dsForEveryone.resources.gp_target_select
+import com.moralesDev.dsForEveryone.resources.gp_target_start
+import com.moralesDev.dsForEveryone.resources.gp_target_up
+import com.moralesDev.dsForEveryone.resources.gp_target_x
+import com.moralesDev.dsForEveryone.resources.gp_target_y
+import com.moralesDev.dsForEveryone.resources.gp_title
+import org.jetbrains.compose.resources.StringResource
 
 /**
  * Mapeo de botones del primer mando conectado: una fila por cada uno de los
@@ -66,11 +89,11 @@ fun GamepadMappingScreen(onBack: () -> Unit) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 GlassIconButton(
                     icon = Icons.AutoMirrored.Filled.ArrowBack,
-                    contentDescription = stringResource(R.string.cd_back),
+                    contentDescription = stringResource(Res.string.cd_back),
                     onClick = onBack,
                 )
                 Text(
-                    text = stringResource(R.string.gp_title),
+                    text = stringResource(Res.string.gp_title),
                     style = MaterialTheme.typography.headlineSmall,
                     color = MaterialTheme.colorScheme.onBackground,
                     modifier = Modifier.padding(start = 12.dp),
@@ -78,8 +101,8 @@ fun GamepadMappingScreen(onBack: () -> Unit) {
             }
 
             Text(
-                text = device?.let { stringResource(R.string.gp_device_name, it.name) }
-                    ?: stringResource(R.string.gp_no_gamepad),
+                text = device?.let { stringResource(Res.string.gp_device_name, it.name) }
+                    ?: stringResource(Res.string.gp_no_gamepad),
                 style = MaterialTheme.typography.bodyMedium,
                 color = textAlpha(0.62f),
             )
@@ -96,7 +119,7 @@ fun GamepadMappingScreen(onBack: () -> Unit) {
                     }
                 }
                 AccentButton(
-                    text = stringResource(R.string.gp_reset),
+                    text = stringResource(Res.string.gp_reset),
                     onClick = viewModel::resetToDefault,
                 )
             }
@@ -159,7 +182,7 @@ private fun CaptureOverlay(onCancel: () -> Unit, onLeaveBlank: () -> Unit) {
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             Text(
-                text = stringResource(R.string.gp_listening),
+                text = stringResource(Res.string.gp_listening),
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.onBackground,
             )
@@ -167,12 +190,12 @@ private fun CaptureOverlay(onCancel: () -> Unit, onLeaveBlank: () -> Unit) {
             // dos se intercambian (GamepadMapping.with) — esta pista evita
             // que parezca que el otro se quedó sin botón por accidente.
             Text(
-                text = stringResource(R.string.gp_swap_hint),
+                text = stringResource(Res.string.gp_swap_hint),
                 style = MaterialTheme.typography.bodySmall,
                 color = textAlpha(0.6f),
             )
             Text(
-                text = stringResource(R.string.gp_leave_blank),
+                text = stringResource(Res.string.gp_leave_blank),
                 style = MaterialTheme.typography.labelLarge,
                 color = Accent,
                 modifier = Modifier
@@ -181,7 +204,7 @@ private fun CaptureOverlay(onCancel: () -> Unit, onLeaveBlank: () -> Unit) {
                     .padding(horizontal = 12.dp, vertical = 8.dp),
             )
             Text(
-                text = stringResource(R.string.gp_cancel),
+                text = stringResource(Res.string.gp_cancel),
                 style = MaterialTheme.typography.labelLarge,
                 color = textAlpha(0.6f),
             )
@@ -193,20 +216,20 @@ private fun CaptureOverlay(onCancel: () -> Unit, onLeaveBlank: () -> Unit) {
 private fun keyCodeLabel(keyCode: Int): String =
     KeyEvent.keyCodeToString(keyCode).removePrefix("KEYCODE_")
 
-private fun GamepadTarget.labelRes(): Int = when (this) {
+private fun GamepadTarget.labelRes(): StringResource = when (this) {
     is GamepadTarget.Button -> when (button) {
-        DsButton.UP -> R.string.gp_target_up
-        DsButton.DOWN -> R.string.gp_target_down
-        DsButton.LEFT -> R.string.gp_target_left
-        DsButton.RIGHT -> R.string.gp_target_right
-        DsButton.A -> R.string.gp_target_a
-        DsButton.B -> R.string.gp_target_b
-        DsButton.X -> R.string.gp_target_x
-        DsButton.Y -> R.string.gp_target_y
-        DsButton.L -> R.string.gp_target_l
-        DsButton.R -> R.string.gp_target_r
-        DsButton.START -> R.string.gp_target_start
-        DsButton.SELECT -> R.string.gp_target_select
+        DsButton.UP -> Res.string.gp_target_up
+        DsButton.DOWN -> Res.string.gp_target_down
+        DsButton.LEFT -> Res.string.gp_target_left
+        DsButton.RIGHT -> Res.string.gp_target_right
+        DsButton.A -> Res.string.gp_target_a
+        DsButton.B -> Res.string.gp_target_b
+        DsButton.X -> Res.string.gp_target_x
+        DsButton.Y -> Res.string.gp_target_y
+        DsButton.L -> Res.string.gp_target_l
+        DsButton.R -> Res.string.gp_target_r
+        DsButton.START -> Res.string.gp_target_start
+        DsButton.SELECT -> Res.string.gp_target_select
     }
-    GamepadTarget.Blow -> R.string.gp_target_blow
+    GamepadTarget.Blow -> Res.string.gp_target_blow
 }

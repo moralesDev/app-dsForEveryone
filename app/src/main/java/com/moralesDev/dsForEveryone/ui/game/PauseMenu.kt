@@ -38,10 +38,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.res.stringResource
+import org.jetbrains.compose.resources.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import com.moralesDev.dsForEveryone.R
 import com.moralesDev.dsForEveryone.data.settings.EmulationSpeed
 import com.moralesDev.dsForEveryone.data.settings.ImageFilter
 import com.moralesDev.dsForEveryone.data.settings.TouchMode
@@ -57,6 +56,34 @@ import com.moralesDev.dsForEveryone.ui.theme.Glass
 import com.moralesDev.dsForEveryone.ui.theme.ScrimColor
 import com.moralesDev.dsForEveryone.ui.theme.Surface
 import com.moralesDev.dsForEveryone.ui.theme.textAlpha
+import com.moralesDev.dsForEveryone.resources.Res
+import com.moralesDev.dsForEveryone.resources.filter_sharp
+import com.moralesDev.dsForEveryone.resources.filter_smooth
+import com.moralesDev.dsForEveryone.resources.layout_bottom_only
+import com.moralesDev.dsForEveryone.resources.layout_main_secondary
+import com.moralesDev.dsForEveryone.resources.layout_side_by_side
+import com.moralesDev.dsForEveryone.resources.layout_stacked
+import com.moralesDev.dsForEveryone.resources.layout_top_only
+import com.moralesDev.dsForEveryone.resources.pa_cheats
+import com.moralesDev.dsForEveryone.resources.pa_cheats_count
+import com.moralesDev.dsForEveryone.resources.pa_exit
+import com.moralesDev.dsForEveryone.resources.pa_layout
+import com.moralesDev.dsForEveryone.resources.pa_lid
+import com.moralesDev.dsForEveryone.resources.pa_load
+import com.moralesDev.dsForEveryone.resources.pa_resume
+import com.moralesDev.dsForEveryone.resources.pa_save
+import com.moralesDev.dsForEveryone.resources.pa_speed
+import com.moralesDev.dsForEveryone.resources.pa_swap_screens
+import com.moralesDev.dsForEveryone.resources.pa_title
+import com.moralesDev.dsForEveryone.resources.pa_touch_mode
+import com.moralesDev.dsForEveryone.resources.se_filter
+import com.moralesDev.dsForEveryone.resources.speed_1_5x
+import com.moralesDev.dsForEveryone.resources.speed_2x
+import com.moralesDev.dsForEveryone.resources.speed_muted_hint
+import com.moralesDev.dsForEveryone.resources.speed_normal
+import com.moralesDev.dsForEveryone.resources.touch_direct
+import com.moralesDev.dsForEveryone.resources.touch_offset
+import org.jetbrains.compose.resources.StringResource
 
 /**
  * Menú de pausa, superpuesto al juego.
@@ -126,7 +153,7 @@ fun PauseMenu(
                 .padding(horizontal = 16.dp, vertical = 18.dp)
                 .verticalScroll(rememberScrollState()),
         ) {
-            SectionLabel(stringResource(R.string.pa_title))
+            SectionLabel(stringResource(Res.string.pa_title))
 
             ResumeButton(onResume, modifier = Modifier.padding(top = 10.dp))
 
@@ -135,7 +162,7 @@ fun PauseMenu(
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 Text(
-                    text = stringResource(R.string.pa_layout),
+                    text = stringResource(Res.string.pa_layout),
                     style = MaterialTheme.typography.labelMedium,
                     color = textAlpha(0.55f),
                     maxLines = 1,
@@ -150,7 +177,7 @@ fun PauseMenu(
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 Text(
-                    text = stringResource(R.string.pa_speed),
+                    text = stringResource(Res.string.pa_speed),
                     style = MaterialTheme.typography.labelMedium,
                     color = textAlpha(0.55f),
                 )
@@ -159,7 +186,7 @@ fun PauseMenu(
                 // se acelera y conviene saberlo antes, no cuando ya pasó.
                 if (speed.isFast) {
                     Text(
-                        text = stringResource(R.string.speed_muted_hint),
+                        text = stringResource(Res.string.speed_muted_hint),
                         style = MaterialTheme.typography.labelSmall,
                         color = textAlpha(0.45f),
                     )
@@ -171,13 +198,13 @@ fun PauseMenu(
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 Text(
-                    text = stringResource(R.string.pa_touch_mode),
+                    text = stringResource(Res.string.pa_touch_mode),
                     style = MaterialTheme.typography.labelMedium,
                     color = textAlpha(0.55f),
                 )
                 SegmentedPair(
-                    first = stringResource(R.string.touch_direct),
-                    second = stringResource(R.string.touch_offset),
+                    first = stringResource(Res.string.touch_direct),
+                    second = stringResource(Res.string.touch_offset),
                     firstSelected = touchMode == TouchMode.DIRECT,
                     onSelect = { direct ->
                         onTouchModeChange(if (direct) TouchMode.DIRECT else TouchMode.OFFSET)
@@ -190,13 +217,13 @@ fun PauseMenu(
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 Text(
-                    text = stringResource(R.string.se_filter),
+                    text = stringResource(Res.string.se_filter),
                     style = MaterialTheme.typography.labelMedium,
                     color = textAlpha(0.55f),
                 )
                 SegmentedPair(
-                    first = stringResource(R.string.filter_sharp),
-                    second = stringResource(R.string.filter_smooth),
+                    first = stringResource(Res.string.filter_sharp),
+                    second = stringResource(Res.string.filter_smooth),
                     firstSelected = imageFilter == ImageFilter.SHARP,
                     onSelect = { sharp ->
                         onImageFilterChange(if (sharp) ImageFilter.SHARP else ImageFilter.SMOOTH)
@@ -213,26 +240,26 @@ fun PauseMenu(
             )
 
             MenuRow(
-                label = stringResource(R.string.pa_save),
+                label = stringResource(Res.string.pa_save),
                 icon = Icons.Filled.Save,
                 onClick = { onChooseSlot(SlotAction.SAVE) },
             )
             MenuRow(
-                label = stringResource(R.string.pa_load),
+                label = stringResource(Res.string.pa_load),
                 icon = Icons.Filled.SettingsBackupRestore,
                 onClick = { onChooseSlot(SlotAction.LOAD) },
             )
             MenuRow(
-                label = stringResource(R.string.pa_cheats),
+                label = stringResource(Res.string.pa_cheats),
                 icon = Icons.Filled.FlashOn,
-                trailing = stringResource(R.string.pa_cheats_count, cheatsActive, cheatsTotal),
+                trailing = stringResource(Res.string.pa_cheats_count, cheatsActive, cheatsTotal),
                 onClick = onCheats,
             )
             // Cerrar la tapa reanuda la partida, no la deja en pausa: con la
             // emulación detenida el juego no llega a leer el bit de la
             // bisagra. Ver docs/entrada.md, «La tapa».
             MenuRow(
-                label = stringResource(R.string.pa_lid),
+                label = stringResource(Res.string.pa_lid),
                 icon = Icons.Filled.Bedtime,
                 onClick = onCloseLid,
             )
@@ -246,7 +273,7 @@ fun PauseMenu(
             )
 
             MenuRow(
-                label = stringResource(R.string.pa_exit),
+                label = stringResource(Res.string.pa_exit),
                 icon = Icons.AutoMirrored.Filled.Logout,
                 onClick = onExit,
                 contentColor = Danger,
@@ -277,7 +304,7 @@ private fun ResumeButton(onResume: () -> Unit, modifier: Modifier = Modifier) {
             modifier = Modifier.size(18.dp),
         )
         Text(
-            text = stringResource(R.string.pa_resume),
+            text = stringResource(Res.string.pa_resume),
             style = MaterialTheme.typography.titleSmall,
             color = Accent100,
         )
@@ -374,7 +401,7 @@ private fun SwapScreensChip(swapped: Boolean, onToggle: () -> Unit) {
             modifier = Modifier.size(14.dp),
         )
         Text(
-            text = stringResource(R.string.pa_swap_screens),
+            text = stringResource(Res.string.pa_swap_screens),
             style = MaterialTheme.typography.labelSmall,
             color = if (swapped) Accent200 else textAlpha(0.6f),
         )
@@ -404,16 +431,16 @@ internal fun SpeedChips(selected: EmulationSpeed, onSelect: (EmulationSpeed) -> 
     }
 }
 
-internal fun EmulationSpeed.labelRes(): Int = when (this) {
-    EmulationSpeed.NORMAL -> R.string.speed_normal
-    EmulationSpeed.FAST_1_5X -> R.string.speed_1_5x
-    EmulationSpeed.FAST_2X -> R.string.speed_2x
+internal fun EmulationSpeed.labelRes(): StringResource = when (this) {
+    EmulationSpeed.NORMAL -> Res.string.speed_normal
+    EmulationSpeed.FAST_1_5X -> Res.string.speed_1_5x
+    EmulationSpeed.FAST_2X -> Res.string.speed_2x
 }
 
-internal fun LayoutMode.labelRes(): Int = when (this) {
-    LayoutMode.STACKED -> R.string.layout_stacked
-    LayoutMode.SIDE_BY_SIDE -> R.string.layout_side_by_side
-    LayoutMode.TOP_ONLY -> R.string.layout_top_only
-    LayoutMode.BOTTOM_ONLY -> R.string.layout_bottom_only
-    LayoutMode.MAIN_AND_SECONDARY -> R.string.layout_main_secondary
+internal fun LayoutMode.labelRes(): StringResource = when (this) {
+    LayoutMode.STACKED -> Res.string.layout_stacked
+    LayoutMode.SIDE_BY_SIDE -> Res.string.layout_side_by_side
+    LayoutMode.TOP_ONLY -> Res.string.layout_top_only
+    LayoutMode.BOTTOM_ONLY -> Res.string.layout_bottom_only
+    LayoutMode.MAIN_AND_SECONDARY -> Res.string.layout_main_secondary
 }

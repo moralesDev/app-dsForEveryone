@@ -43,12 +43,11 @@ import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
-import androidx.compose.ui.res.stringResource
+import org.jetbrains.compose.resources.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.moralesDev.dsForEveryone.R
 import com.moralesDev.dsForEveryone.emulator.layout.ControlGroup
 import com.moralesDev.dsForEveryone.emulator.layout.ControlGroupPlacement
 import com.moralesDev.dsForEveryone.emulator.layout.ControlLayout
@@ -74,6 +73,24 @@ import com.moralesDev.dsForEveryone.ui.theme.GlassStrong
 import com.moralesDev.dsForEveryone.ui.theme.Surface
 import com.moralesDev.dsForEveryone.ui.theme.textAlpha
 import org.koin.compose.viewmodel.koinViewModel
+import com.moralesDev.dsForEveryone.resources.Res
+import com.moralesDev.dsForEveryone.resources.cd_back
+import com.moralesDev.dsForEveryone.resources.le_group_action
+import com.moralesDev.dsForEveryone.resources.le_group_blow
+import com.moralesDev.dsForEveryone.resources.le_group_dpad
+import com.moralesDev.dsForEveryone.resources.le_group_l
+import com.moralesDev.dsForEveryone.resources.le_group_r
+import com.moralesDev.dsForEveryone.resources.le_group_select
+import com.moralesDev.dsForEveryone.resources.le_group_start
+import com.moralesDev.dsForEveryone.resources.le_hint
+import com.moralesDev.dsForEveryone.resources.le_opacity
+import com.moralesDev.dsForEveryone.resources.le_reset
+import com.moralesDev.dsForEveryone.resources.le_screen_top
+import com.moralesDev.dsForEveryone.resources.le_screen_touch
+import com.moralesDev.dsForEveryone.resources.le_swap
+import com.moralesDev.dsForEveryone.resources.le_title_landscape
+import com.moralesDev.dsForEveryone.resources.le_title_portrait
+import org.jetbrains.compose.resources.StringResource
 
 /**
  * Editor de disposición (entregable 2.7): arrastra a mano las dos pantallas
@@ -194,12 +211,12 @@ fun LayoutEditorScreen(onBack: () -> Unit) {
         placement?.let { current ->
             ScreenPreview(
                 rect = current.topScreen,
-                label = stringResource(R.string.le_screen_top),
+                label = stringResource(Res.string.le_screen_top),
                 density = density,
             )
             ScreenPreview(
                 rect = current.touchScreen,
-                label = stringResource(R.string.le_screen_touch),
+                label = stringResource(Res.string.le_screen_touch),
                 density = density,
                 highlighted = true,
             )
@@ -284,19 +301,19 @@ fun LayoutEditorScreen(onBack: () -> Unit) {
         ) {
             GlassIconButton(
                 icon = Icons.AutoMirrored.Filled.ArrowBack,
-                contentDescription = stringResource(R.string.cd_back),
+                contentDescription = stringResource(Res.string.cd_back),
                 onClick = onBack,
             )
             Text(
                 text = stringResource(
-                    if (isPortrait) R.string.le_title_portrait else R.string.le_title_landscape,
+                    if (isPortrait) Res.string.le_title_portrait else Res.string.le_title_landscape,
                 ),
                 style = MaterialTheme.typography.titleSmall,
                 color = MaterialTheme.colorScheme.onBackground,
             )
             GlassIconButton(
                 icon = Icons.Filled.Refresh,
-                contentDescription = stringResource(R.string.le_reset),
+                contentDescription = stringResource(Res.string.le_reset),
                 onClick = {
                     selectedGroup = null
                     viewModel.resetControlLayout(isPortrait)
@@ -333,7 +350,7 @@ fun LayoutEditorScreen(onBack: () -> Unit) {
                 )
             } else {
                 Text(
-                    text = stringResource(R.string.le_hint),
+                    text = stringResource(Res.string.le_hint),
                     style = MaterialTheme.typography.labelMedium,
                     color = textAlpha(0.55f),
                 )
@@ -347,7 +364,7 @@ fun LayoutEditorScreen(onBack: () -> Unit) {
                     )
                     GlassIconButton(
                         icon = Icons.Filled.SwapVert,
-                        contentDescription = stringResource(R.string.le_swap),
+                        contentDescription = stringResource(Res.string.le_swap),
                         onClick = { viewModel.setScreensSwapped(!settings.screensSwapped) },
                     )
                 }
@@ -616,7 +633,7 @@ private fun OpacityPanel(
         )
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
-                text = stringResource(R.string.le_opacity),
+                text = stringResource(Res.string.le_opacity),
                 style = MaterialTheme.typography.labelSmall,
                 color = textAlpha(0.5f),
             )
@@ -633,14 +650,14 @@ private fun OpacityPanel(
     }
 }
 
-private fun ControlGroup.labelRes(): Int = when (this) {
-    ControlGroup.DIRECTIONAL_PAD -> R.string.le_group_dpad
-    ControlGroup.ACTION_BUTTONS -> R.string.le_group_action
-    ControlGroup.L -> R.string.le_group_l
-    ControlGroup.R -> R.string.le_group_r
-    ControlGroup.START -> R.string.le_group_start
-    ControlGroup.SELECT -> R.string.le_group_select
-    ControlGroup.BLOW -> R.string.le_group_blow
+private fun ControlGroup.labelRes(): StringResource = when (this) {
+    ControlGroup.DIRECTIONAL_PAD -> Res.string.le_group_dpad
+    ControlGroup.ACTION_BUTTONS -> Res.string.le_group_action
+    ControlGroup.L -> Res.string.le_group_l
+    ControlGroup.R -> Res.string.le_group_r
+    ControlGroup.START -> Res.string.le_group_start
+    ControlGroup.SELECT -> Res.string.le_group_select
+    ControlGroup.BLOW -> Res.string.le_group_blow
 }
 
 private fun LayoutRect.translated(dx: Float, dy: Float): LayoutRect =

@@ -53,7 +53,7 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
-import androidx.compose.ui.res.stringResource
+import org.jetbrains.compose.resources.stringResource
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
@@ -62,7 +62,6 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.moralesDev.dsForEveryone.R
 import com.moralesDev.dsForEveryone.data.cheats.CheatsManager
 import com.moralesDev.dsForEveryone.data.settings.DirectionalControl
 import com.moralesDev.dsForEveryone.data.settings.EmulationSpeed
@@ -99,6 +98,14 @@ import com.moralesDev.dsForEveryone.ui.theme.Surface
 import com.moralesDev.dsForEveryone.ui.theme.textAlpha
 import kotlin.math.roundToInt
 import org.koin.compose.viewmodel.koinViewModel
+import com.moralesDev.dsForEveryone.resources.Res
+import com.moralesDev.dsForEveryone.resources.app_name
+import com.moralesDev.dsForEveryone.resources.cd_blow
+import com.moralesDev.dsForEveryone.resources.cd_hide_controls
+import com.moralesDev.dsForEveryone.resources.cd_menu
+import com.moralesDev.dsForEveryone.resources.cd_show_controls
+import com.moralesDev.dsForEveryone.resources.lid_closed
+import com.moralesDev.dsForEveryone.resources.lid_open_hint
 
 /**
  * Pantalla de juego (entregable 2.6): las dos pantallas con [DsGLRenderer],
@@ -357,7 +364,7 @@ fun GameScreen(onExit: () -> Unit) {
         // menú de pausa, que es donde ya estaba el mismo ajuste.
         GlassIconButton(
             icon = Icons.Filled.Menu,
-            contentDescription = stringResource(R.string.cd_menu),
+            contentDescription = stringResource(Res.string.cd_menu),
             onClick = {
                 isMenuOpen = true
                 viewModel.pause()
@@ -411,7 +418,7 @@ fun GameScreen(onExit: () -> Unit) {
 
         if (isCheatsOpen) {
             CheatsSheet(
-                gameTitle = rom?.displayName ?: stringResource(R.string.app_name),
+                gameTitle = rom?.displayName ?: stringResource(Res.string.app_name),
                 cheats = cheats,
                 maxEntries = CheatsManager.MAX_ENTRIES,
                 hasAnySaveState = hasAnySaveState,
@@ -426,7 +433,7 @@ fun GameScreen(onExit: () -> Unit) {
         slotAction?.let { action ->
             SaveStateSheet(
                 action = action,
-                gameTitle = rom?.displayName ?: stringResource(R.string.app_name),
+                gameTitle = rom?.displayName ?: stringResource(Res.string.app_name),
                 slots = stateSlots,
                 autoSlot = autoSlot,
                 pending = pendingConfirmation,
@@ -505,13 +512,13 @@ private fun ClosedLidVeil(onOpen: () -> Unit) {
                 modifier = Modifier.size(34.dp),
             )
             Text(
-                text = stringResource(R.string.lid_closed),
+                text = stringResource(Res.string.lid_closed),
                 style = MaterialTheme.typography.titleSmall,
                 color = textAlpha(0.85f),
                 modifier = Modifier.padding(top = 14.dp),
             )
             Text(
-                text = stringResource(R.string.lid_open_hint),
+                text = stringResource(Res.string.lid_open_hint),
                 style = MaterialTheme.typography.labelMedium,
                 color = textAlpha(0.5f),
                 modifier = Modifier.padding(top = 6.dp),
@@ -664,7 +671,7 @@ private fun HideControlsToggle(
             imageVector = if (hidden) Icons.Filled.ChevronLeft else Icons.Filled.ChevronRight,
             opacity = ControlLayout.DEFAULT_OPACITY,
             contentDescription = stringResource(
-                if (hidden) R.string.cd_show_controls else R.string.cd_hide_controls,
+                if (hidden) Res.string.cd_show_controls else Res.string.cd_hide_controls,
             ),
             tint = ghostContentColor(ControlLayout.DEFAULT_OPACITY),
             modifier = Modifier.fillMaxSize(0.8f),
@@ -793,7 +800,7 @@ private fun ControlGroups(
                 active = micActive,
                 opacity = placement.opacity,
                 haptic = true,
-                contentDescription = stringResource(R.string.cd_blow),
+                contentDescription = stringResource(Res.string.cd_blow),
                 onBlow = onBlow,
                 modifier = groupModifier,
             )

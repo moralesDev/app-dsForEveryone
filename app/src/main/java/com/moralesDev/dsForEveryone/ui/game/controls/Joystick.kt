@@ -12,14 +12,15 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.res.stringResource
+import org.jetbrains.compose.resources.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.IntOffset
-import com.moralesDev.dsForEveryone.R
 import com.moralesDev.dsForEveryone.emulator.DsButton
 import com.moralesDev.dsForEveryone.emulator.JoystickGeometry
 import kotlin.math.roundToInt
+import com.moralesDev.dsForEveryone.resources.Res
+import com.moralesDev.dsForEveryone.resources.cd_joystick
 
 /**
  * Joystick de ocho direcciones: otra forma de pulsar la cruceta de la DS.
@@ -45,7 +46,7 @@ fun Joystick(
     onDirections: (Set<DsButton>) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val label = stringResource(R.string.cd_joystick)
+    val label = stringResource(Res.string.cd_joystick)
     var knob by remember { mutableStateOf(Offset.Zero) }
     val anyDirection = pressedMask and DIRECTION_MASK != 0
 

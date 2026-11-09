@@ -3,7 +3,6 @@ package com.moralesDev.dsForEveryone.ui.library
 import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.moralesDev.dsForEveryone.R
 import com.moralesDev.dsForEveryone.data.cover.CoverError
 import com.moralesDev.dsForEveryone.data.cover.CoverRepository
 import com.moralesDev.dsForEveryone.data.cover.PickResult
@@ -26,6 +25,29 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import com.moralesDev.dsForEveryone.data.storage.coverFile
+import com.moralesDev.dsForEveryone.resources.Res
+import com.moralesDev.dsForEveryone.resources.cover_failed
+import com.moralesDev.dsForEveryone.resources.cover_removed
+import com.moralesDev.dsForEveryone.resources.cover_too_large
+import com.moralesDev.dsForEveryone.resources.cover_unsupported
+import com.moralesDev.dsForEveryone.resources.msg_already
+import com.moralesDev.dsForEveryone.resources.msg_imported
+import com.moralesDev.dsForEveryone.resources.msg_removed_all
+import com.moralesDev.dsForEveryone.resources.msg_removed_keep
+import com.moralesDev.dsForEveryone.resources.msg_rom_too_large
+import com.moralesDev.dsForEveryone.resources.msg_sav_delete_failed
+import com.moralesDev.dsForEveryone.resources.msg_sav_deleted
+import com.moralesDev.dsForEveryone.resources.msg_sav_export_failed
+import com.moralesDev.dsForEveryone.resources.msg_sav_exported
+import com.moralesDev.dsForEveryone.resources.msg_sav_import_failed
+import com.moralesDev.dsForEveryone.resources.msg_sav_imported
+import com.moralesDev.dsForEveryone.resources.msg_sav_too_large
+import com.moralesDev.dsForEveryone.resources.msg_unreadable
+import com.moralesDev.dsForEveryone.resources.msg_unrecognized_rom
+import com.moralesDev.dsForEveryone.resources.msg_zip_corrupt
+import com.moralesDev.dsForEveryone.resources.msg_zip_encrypted
+import com.moralesDev.dsForEveryone.resources.msg_zip_multiple
+import com.moralesDev.dsForEveryone.resources.msg_zip_no_rom
 
 data class LibraryUiState(
     /** Todos los juegos de la biblioteca, sin filtrar. */
@@ -172,19 +194,19 @@ class RomLibraryViewModel(
             transient.value = TransientState(isImporting = true)
             val message = when (val result = romRepository.import(uri.toString())) {
                 is RomImportResult.Imported ->
-                    UiMessage(R.string.msg_imported, result.rom.displayName)
+                    UiMessage(Res.string.msg_imported, result.rom.displayName)
 
                 is RomImportResult.AlreadyInLibrary ->
-                    UiMessage(R.string.msg_already, result.rom.displayName)
+                    UiMessage(Res.string.msg_already, result.rom.displayName)
 
-                RomImportResult.UnrecognizedRom -> UiMessage(R.string.msg_unrecognized_rom)
-                RomImportResult.Unreadable -> UiMessage(R.string.msg_unreadable)
-                RomImportResult.NoRomInZip -> UiMessage(R.string.msg_zip_no_rom)
+                RomImportResult.UnrecognizedRom -> UiMessage(Res.string.msg_unrecognized_rom)
+                RomImportResult.Unreadable -> UiMessage(Res.string.msg_unreadable)
+                RomImportResult.NoRomInZip -> UiMessage(Res.string.msg_zip_no_rom)
                 is RomImportResult.MultipleRomsInZip ->
-                    UiMessage(R.string.msg_zip_multiple, result.count)
-                RomImportResult.EncryptedZip -> UiMessage(R.string.msg_zip_encrypted)
-                RomImportResult.CorruptZip -> UiMessage(R.string.msg_zip_corrupt)
-                RomImportResult.RomTooLarge -> UiMessage(R.string.msg_rom_too_large)
+                    UiMessage(Res.string.msg_zip_multiple, result.count)
+                RomImportResult.EncryptedZip -> UiMessage(Res.string.msg_zip_encrypted)
+                RomImportResult.CorruptZip -> UiMessage(Res.string.msg_zip_corrupt)
+                RomImportResult.RomTooLarge -> UiMessage(Res.string.msg_rom_too_large)
             }
             transient.value = TransientState(message = message)
         }
@@ -200,7 +222,7 @@ class RomLibraryViewModel(
             romRepository.remove(romId, deleteSaves)
             transient.value = TransientState(
                 message = UiMessage(
-                    if (deleteSaves) R.string.msg_removed_all else R.string.msg_removed_keep,
+                    if (deleteSaves) Res.string.msg_removed_all else Res.string.msg_removed_keep,
                 ),
             )
         }
@@ -270,7 +292,7 @@ class RomLibraryViewModel(
                 it.copy(
                     romOptions = null,
                     message = UiMessage(
-                        if (written) R.string.msg_sav_exported else R.string.msg_sav_export_failed,
+                        if (written) Res.string.msg_sav_exported else Res.string.msg_sav_export_failed,
                     ),
                 )
             }
@@ -292,11 +314,11 @@ class RomLibraryViewModel(
             }.getOrNull()
             when {
                 bytes == null -> transient.update {
-                    it.copy(romOptions = null, message = UiMessage(R.string.msg_sav_import_failed))
+                    it.copy(romOptions = null, message = UiMessage(Res.string.msg_sav_import_failed))
                 }
 
                 bytes.size > MAX_SAV_BYTES -> transient.update {
-                    it.copy(romOptions = null, message = UiMessage(R.string.msg_sav_too_large))
+                    it.copy(romOptions = null, message = UiMessage(Res.string.msg_sav_too_large))
                 }
 
                 saveManager.hasBattery(romId) -> transient.update {
@@ -322,7 +344,7 @@ class RomLibraryViewModel(
                 romOptions = null,
                 pendingSavImport = null,
                 message = UiMessage(
-                    if (written) R.string.msg_sav_imported else R.string.msg_sav_import_failed,
+                    if (written) Res.string.msg_sav_imported else Res.string.msg_sav_import_failed,
                 ),
             )
         }
@@ -346,7 +368,7 @@ class RomLibraryViewModel(
                     romOptions = null,
                     pendingSavDelete = false,
                     message = UiMessage(
-                        if (deleted) R.string.msg_sav_deleted else R.string.msg_sav_delete_failed,
+                        if (deleted) Res.string.msg_sav_deleted else Res.string.msg_sav_delete_failed,
                     ),
                 )
             }
@@ -413,7 +435,7 @@ class RomLibraryViewModel(
                 it.copy(
                     coverAction = null,
                     isProcessingCover = false,
-                    message = if (saved) null else UiMessage(R.string.cover_failed),
+                    message = if (saved) null else UiMessage(Res.string.cover_failed),
                 )
             }
             if (saved) coverRevision.update { revision -> revision + 1 }
@@ -424,16 +446,16 @@ class RomLibraryViewModel(
         viewModelScope.launch {
             coverRepository.delete(rom.id)
             transient.update {
-                it.copy(coverAction = null, message = UiMessage(R.string.cover_removed))
+                it.copy(coverAction = null, message = UiMessage(Res.string.cover_removed))
             }
             coverRevision.update { revision -> revision + 1 }
         }
     }
 
     private fun CoverError.toMessage(): UiMessage = when (this) {
-        CoverError.TOO_LARGE -> UiMessage(R.string.cover_too_large)
-        CoverError.UNSUPPORTED_TYPE -> UiMessage(R.string.cover_unsupported)
-        CoverError.UNREADABLE -> UiMessage(R.string.cover_failed)
+        CoverError.TOO_LARGE -> UiMessage(Res.string.cover_too_large)
+        CoverError.UNSUPPORTED_TYPE -> UiMessage(Res.string.cover_unsupported)
+        CoverError.UNREADABLE -> UiMessage(Res.string.cover_failed)
     }
 
     fun consumeMessage() {

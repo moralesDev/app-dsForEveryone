@@ -34,19 +34,20 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.res.stringResource
+import org.jetbrains.compose.resources.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
-import com.moralesDev.dsForEveryone.R
 import com.moralesDev.dsForEveryone.ui.theme.Accent
 import com.moralesDev.dsForEveryone.ui.theme.Accent900
 import com.moralesDev.dsForEveryone.ui.theme.Background
 import com.moralesDev.dsForEveryone.ui.theme.Inter
 import com.moralesDev.dsForEveryone.ui.theme.textAlpha
+import com.moralesDev.dsForEveryone.resources.Res
+import com.moralesDev.dsForEveryone.resources.tr_loading
 
 /**
  * Pantalla de carga entre pantallas.
@@ -82,7 +83,7 @@ fun LoadingVeil(modifier: Modifier = Modifier) {
         label = "veil-spin",
     )
 
-    val label = stringResource(R.string.tr_loading)
+    val label = stringResource(Res.string.tr_loading)
 
     Box(
         modifier = modifier

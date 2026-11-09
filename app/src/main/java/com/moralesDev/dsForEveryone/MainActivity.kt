@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.navigation.compose.rememberNavController
 import com.moralesDev.dsForEveryone.emulator.gamepad.GamepadInputRouter
 import com.moralesDev.dsForEveryone.ui.MainViewModel
 import com.moralesDev.dsForEveryone.ui.locale.ProvideAppLanguage
@@ -63,12 +64,17 @@ class MainActivity : ComponentActivity() {
                         .background(Background),
                 ) {
                     val settings by viewModel.settings.collectAsStateWithLifecycle()
+                    // Por encima de ProvideAppLanguage a propósito: al cambiar de
+                    // idioma la interfaz se rehace (ver ProvideAppLanguage), y la
+                    // navegación —en qué pantalla se está— tiene que sobrevivir.
+                    val navController = rememberNavController()
 
                     // Hasta que no se sabe el idioma y si toca el onboarding no
                     // se pinta nada: sólo el fondo, que ya es el definitivo.
                     settings?.let { current ->
                         ProvideAppLanguage(current.language) {
                             AppNavHost(
+                                navController = navController,
                                 skipWelcome = current.skipWelcome,
                                 onWelcomeFinished = viewModel::onWelcomeFinished,
                             )

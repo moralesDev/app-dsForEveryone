@@ -40,10 +40,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.res.stringResource
+import org.jetbrains.compose.resources.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import com.moralesDev.dsForEveryone.R
 import com.moralesDev.dsForEveryone.data.save.SaveStateManager
 import com.moralesDev.dsForEveryone.data.save.SaveStateSlot
 import com.moralesDev.dsForEveryone.data.save.StateRejection
@@ -61,6 +60,29 @@ import com.moralesDev.dsForEveryone.ui.theme.Surface
 import com.moralesDev.dsForEveryone.ui.theme.textAlpha
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import com.moralesDev.dsForEveryone.resources.Res
+import com.moralesDev.dsForEveryone.resources.cd_close
+import com.moralesDev.dsForEveryone.resources.cd_delete_auto
+import com.moralesDev.dsForEveryone.resources.cd_delete_state
+import com.moralesDev.dsForEveryone.resources.st_auto_last
+import com.moralesDev.dsForEveryone.resources.st_auto_never
+import com.moralesDev.dsForEveryone.resources.st_auto_restore
+import com.moralesDev.dsForEveryone.resources.st_auto_section
+import com.moralesDev.dsForEveryone.resources.st_cancel
+import com.moralesDev.dsForEveryone.resources.st_delete
+import com.moralesDev.dsForEveryone.resources.st_delete_body
+import com.moralesDev.dsForEveryone.resources.st_delete_title
+import com.moralesDev.dsForEveryone.resources.st_empty
+import com.moralesDev.dsForEveryone.resources.st_load
+import com.moralesDev.dsForEveryone.resources.st_load_title
+import com.moralesDev.dsForEveryone.resources.st_manual_section
+import com.moralesDev.dsForEveryone.resources.st_overwrite
+import com.moralesDev.dsForEveryone.resources.st_overwrite_body
+import com.moralesDev.dsForEveryone.resources.st_overwrite_title
+import com.moralesDev.dsForEveryone.resources.st_replace
+import com.moralesDev.dsForEveryone.resources.st_save
+import com.moralesDev.dsForEveryone.resources.st_save_title
+import com.moralesDev.dsForEveryone.resources.st_slot
 
 /**
  * Hoja inferior de ranuras de estado.
@@ -143,14 +165,14 @@ fun SaveStateSheet(
             ) {
                 Text(
                     text = stringResource(
-                        if (action == SlotAction.SAVE) R.string.st_save_title else R.string.st_load_title,
+                        if (action == SlotAction.SAVE) Res.string.st_save_title else Res.string.st_load_title,
                     ),
                     style = MaterialTheme.typography.titleLarge,
                     color = MaterialTheme.colorScheme.onSurface,
                 )
                 Icon(
                     imageVector = Icons.Filled.Close,
-                    contentDescription = stringResource(R.string.cd_close),
+                    contentDescription = stringResource(Res.string.cd_close),
                     tint = textAlpha(0.45f),
                     modifier = Modifier
                         .size(20.dp)
@@ -168,7 +190,7 @@ fun SaveStateSheet(
             )
 
             SectionLabel(
-                text = stringResource(R.string.st_manual_section),
+                text = stringResource(Res.string.st_manual_section),
                 modifier = Modifier.padding(top = 16.dp, bottom = 8.dp),
             )
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -186,7 +208,7 @@ fun SaveStateSheet(
             // puede guardar en él y confundirlo con las del usuario invitaría a
             // intentarlo.
             SectionLabel(
-                text = stringResource(R.string.st_auto_section),
+                text = stringResource(Res.string.st_auto_section),
                 modifier = Modifier.padding(top = 18.dp, bottom = 8.dp),
             )
             AutoBackupRow(
@@ -230,7 +252,7 @@ private fun AutoBackupRow(
 
         Column(modifier = Modifier.weight(1f)) {
             Text(
-                text = stringResource(R.string.st_auto_last),
+                text = stringResource(Res.string.st_auto_last),
                 style = MaterialTheme.typography.titleSmall,
                 color = MaterialTheme.colorScheme.onSurface,
             )
@@ -240,7 +262,7 @@ private fun AutoBackupRow(
                 problem != null -> ProblemLabel(problem, savedAt)
 
                 savedAt == null -> Text(
-                    text = stringResource(R.string.st_auto_never),
+                    text = stringResource(Res.string.st_auto_never),
                     style = MaterialTheme.typography.labelMedium,
                     color = textAlpha(0.34f),
                     modifier = Modifier.padding(top = 2.dp),
@@ -258,7 +280,7 @@ private fun AutoBackupRow(
         if (!empty) {
             Icon(
                 imageVector = Icons.Filled.DeleteOutline,
-                contentDescription = stringResource(R.string.cd_delete_auto),
+                contentDescription = stringResource(Res.string.cd_delete_auto),
                 tint = textAlpha(0.38f),
                 modifier = Modifier
                     .size(34.dp)
@@ -269,7 +291,7 @@ private fun AutoBackupRow(
         }
 
         SlotPillButton(
-            label = stringResource(R.string.st_auto_restore),
+            label = stringResource(Res.string.st_auto_restore),
             enabled = restorable,
             accent = false,
             onClick = onRestore,
@@ -299,11 +321,11 @@ private fun ConfirmationPanel(
 ) {
     val destructive = pending is SlotConfirmation.Delete
     val title = when (pending) {
-        is SlotConfirmation.Overwrite -> stringResource(R.string.st_overwrite_title, pending.slot)
-        is SlotConfirmation.Delete -> stringResource(R.string.st_delete_title, pending.slot)
+        is SlotConfirmation.Overwrite -> stringResource(Res.string.st_overwrite_title, pending.slot)
+        is SlotConfirmation.Delete -> stringResource(Res.string.st_delete_title, pending.slot)
     }
     val body = stringResource(
-        if (destructive) R.string.st_delete_body else R.string.st_overwrite_body,
+        if (destructive) Res.string.st_delete_body else Res.string.st_overwrite_body,
     )
 
     Column {
@@ -326,7 +348,7 @@ private fun ConfirmationPanel(
             horizontalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             SheetButton(
-                label = stringResource(R.string.st_cancel),
+                label = stringResource(Res.string.st_cancel),
                 tint = MaterialTheme.colorScheme.onSurface,
                 filled = false,
                 onClick = onCancel,
@@ -334,7 +356,7 @@ private fun ConfirmationPanel(
             )
             SheetButton(
                 label = stringResource(
-                    if (destructive) R.string.st_delete else R.string.st_replace,
+                    if (destructive) Res.string.st_delete else Res.string.st_replace,
                 ),
                 tint = if (destructive) Danger else Accent200,
                 filled = true,
@@ -397,7 +419,7 @@ private fun SlotRow(
 
         Column(modifier = Modifier.weight(1f)) {
             Text(
-                text = stringResource(R.string.st_slot, slot.index),
+                text = stringResource(Res.string.st_slot, slot.index),
                 style = MaterialTheme.typography.titleSmall,
                 color = MaterialTheme.colorScheme.onSurface,
             )
@@ -409,7 +431,7 @@ private fun SlotRow(
         if (!slot.isEmpty) {
             Icon(
                 imageVector = Icons.Filled.DeleteOutline,
-                contentDescription = stringResource(R.string.cd_delete_state, slot.index),
+                contentDescription = stringResource(Res.string.cd_delete_state, slot.index),
                 tint = textAlpha(0.38f),
                 modifier = Modifier
                     .size(34.dp)
@@ -429,7 +451,7 @@ private fun SlotSubtitle(slot: SaveStateSlot) {
     val problem = slot.problem
     when {
         slot.isEmpty -> Text(
-            text = stringResource(R.string.st_empty),
+            text = stringResource(Res.string.st_empty),
             style = MaterialTheme.typography.labelMedium,
             color = textAlpha(0.34f),
             modifier = Modifier.padding(top = 2.dp),
@@ -495,9 +517,9 @@ private fun SlotActionButton(
     onClick: () -> Unit,
 ) {
     val label = when {
-        action == SlotAction.LOAD -> stringResource(R.string.st_load)
-        slot.isEmpty -> stringResource(R.string.st_save)
-        else -> stringResource(R.string.st_overwrite)
+        action == SlotAction.LOAD -> stringResource(Res.string.st_load)
+        slot.isEmpty -> stringResource(Res.string.st_save)
+        else -> stringResource(Res.string.st_overwrite)
     }
     // La ranura vacía en modo guardar es la única acción de acento de la hoja:
     // es lo que el usuario busca cuando abre esta pantalla.

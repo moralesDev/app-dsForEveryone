@@ -14,7 +14,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.res.stringResource
+import org.jetbrains.compose.resources.stringResource
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.buildAnnotatedString
@@ -25,7 +25,6 @@ import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
-import com.moralesDev.dsForEveryone.R
 import com.moralesDev.dsForEveryone.ui.theme.Accent
 import com.moralesDev.dsForEveryone.ui.theme.Accent300
 import com.moralesDev.dsForEveryone.ui.theme.Accent400
@@ -33,6 +32,8 @@ import com.moralesDev.dsForEveryone.ui.theme.Accent700
 import com.moralesDev.dsForEveryone.ui.theme.Inter
 import com.moralesDev.dsForEveryone.ui.theme.ScreenBezel
 import com.moralesDev.dsForEveryone.ui.theme.TextPrimary
+import com.moralesDev.dsForEveryone.resources.Res
+import com.moralesDev.dsForEveryone.resources.app_name
 
 /**
  * La marca: una consola de contorno con su pantalla, su cruceta y sus dos
@@ -143,7 +144,7 @@ fun BrandHeader(modifier: Modifier = Modifier) {
     ) {
         AppLogo(size = 19.dp)
         Text(
-            text = stringResource(R.string.app_name).uppercase(),
+            text = stringResource(Res.string.app_name).uppercase(),
             style = TextStyle(
                 fontFamily = Inter,
                 fontWeight = FontWeight.Normal,

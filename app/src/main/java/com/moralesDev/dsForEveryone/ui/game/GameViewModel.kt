@@ -3,7 +3,6 @@ package com.moralesDev.dsForEveryone.ui.game
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.moralesDev.dsForEveryone.R
 import com.moralesDev.dsForEveryone.data.cheats.CheatsLoadResult
 import com.moralesDev.dsForEveryone.data.cheats.CheatsManager
 import com.moralesDev.dsForEveryone.data.rom.RomIdentity
@@ -42,6 +41,25 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.nio.ByteBuffer
+import com.moralesDev.dsForEveryone.resources.Res
+import com.moralesDev.dsForEveryone.resources.ch_limit_reached
+import com.moralesDev.dsForEveryone.resources.msg_cheat_added
+import com.moralesDev.dsForEveryone.resources.msg_cheat_deleted
+import com.moralesDev.dsForEveryone.resources.msg_cheat_disabled
+import com.moralesDev.dsForEveryone.resources.msg_cheat_enabled
+import com.moralesDev.dsForEveryone.resources.msg_cheat_rejected_line
+import com.moralesDev.dsForEveryone.resources.msg_cheat_save_failed
+import com.moralesDev.dsForEveryone.resources.msg_cheat_too_large
+import com.moralesDev.dsForEveryone.resources.msg_cheats_corrupt
+import com.moralesDev.dsForEveryone.resources.msg_gamepad_detected
+import com.moralesDev.dsForEveryone.resources.msg_state_deleted
+import com.moralesDev.dsForEveryone.resources.msg_state_failed
+import com.moralesDev.dsForEveryone.resources.msg_state_loaded
+import com.moralesDev.dsForEveryone.resources.msg_state_no_session
+import com.moralesDev.dsForEveryone.resources.msg_state_rejected_by_core
+import com.moralesDev.dsForEveryone.resources.msg_state_saved
+import com.moralesDev.dsForEveryone.resources.msg_state_slot_empty
+import com.moralesDev.dsForEveryone.resources.msg_state_unreadable
 
 /** Qué se está eligiendo en la hoja de ranuras. */
 enum class SlotAction { SAVE, LOAD }
@@ -158,7 +176,7 @@ class GameViewModel(
 
         viewModelScope.launch {
             gamepadManager.connections.collect { device ->
-                _message.value = UiMessage(R.string.msg_gamepad_detected, device.name)
+                _message.value = UiMessage(Res.string.msg_gamepad_detected, device.name)
             }
         }
 
@@ -368,21 +386,21 @@ class GameViewModel(
         val sessionIdentity = identity
         val rid = romId
         if (sessionIdentity == null || rid == null) {
-            _message.value = UiMessage(R.string.msg_state_no_session)
+            _message.value = UiMessage(Res.string.msg_state_no_session)
             return
         }
         viewModelScope.launch {
             val payload = controller.saveState()
             if (payload == null) {
-                _message.value = UiMessage(R.string.msg_state_failed)
+                _message.value = UiMessage(Res.string.msg_state_failed)
                 return@launch
             }
             val frame = controller.captureFrame()
             val saved = saveManager.writeState(rid, slot, payload, frame, sessionIdentity)
             _message.value = if (saved) {
-                UiMessage(R.string.msg_state_saved, slot)
+                UiMessage(Res.string.msg_state_saved, slot)
             } else {
-                UiMessage(R.string.msg_state_failed)
+                UiMessage(Res.string.msg_state_failed)
             }
             refreshSlots()
             _slotAction.value = null
@@ -398,20 +416,20 @@ class GameViewModel(
         val sessionIdentity = identity
         val rid = romId
         if (sessionIdentity == null || rid == null) {
-            _message.value = UiMessage(R.string.msg_state_no_session)
+            _message.value = UiMessage(Res.string.msg_state_no_session)
             return
         }
         viewModelScope.launch {
             when (val result = saveManager.readState(rid, slot, sessionIdentity)) {
-                StateReadResult.Empty -> _message.value = UiMessage(R.string.msg_state_slot_empty, slot)
-                StateReadResult.Unreadable -> _message.value = UiMessage(R.string.msg_state_unreadable)
+                StateReadResult.Empty -> _message.value = UiMessage(Res.string.msg_state_slot_empty, slot)
+                StateReadResult.Unreadable -> _message.value = UiMessage(Res.string.msg_state_unreadable)
                 is StateReadResult.Rejected -> _message.value = result.reason.toMessage()
                 is StateReadResult.Loaded -> {
                     val ok = controller.loadState(result.payload)
                     _message.value = if (ok) {
-                        UiMessage(R.string.msg_state_loaded, slot)
+                        UiMessage(Res.string.msg_state_loaded, slot)
                     } else {
-                        UiMessage(R.string.msg_state_rejected_by_core)
+                        UiMessage(Res.string.msg_state_rejected_by_core)
                     }
                 }
             }
@@ -424,7 +442,7 @@ class GameViewModel(
         val rid = romId ?: return
         viewModelScope.launch {
             saveManager.deleteState(rid, slot)
-            _message.value = UiMessage(R.string.msg_state_deleted, slot)
+            _message.value = UiMessage(Res.string.msg_state_deleted, slot)
             refreshSlots()
         }
     }
@@ -464,25 +482,25 @@ class GameViewModel(
         viewModelScope.launch {
             when (val result = coordinator.add(lines, label)) {
                 CheatsCoordinator.AddResult.LimitReached ->
-                    _message.value = UiMessage(R.string.ch_limit_reached, CheatsManager.MAX_ENTRIES)
+                    _message.value = UiMessage(Res.string.ch_limit_reached, CheatsManager.MAX_ENTRIES)
 
                 CheatsCoordinator.AddResult.TooLarge ->
-                    _message.value = UiMessage(R.string.msg_cheat_too_large)
+                    _message.value = UiMessage(Res.string.msg_cheat_too_large)
 
                 is CheatsCoordinator.AddResult.Rejected -> {
                     val rejection = result.rejection
                     _message.value = when (rejection) {
                         is CheatRejection.InvalidLine ->
-                            UiMessage(R.string.msg_cheat_rejected_line, rejection.lineIndex + 1)
+                            UiMessage(Res.string.msg_cheat_rejected_line, rejection.lineIndex + 1)
                     }
                 }
 
                 is CheatsCoordinator.AddResult.Added -> {
                     _cheats.value = coordinator.entries
                     _message.value = if (result.persisted) {
-                        UiMessage(R.string.msg_cheat_added)
+                        UiMessage(Res.string.msg_cheat_added)
                     } else {
-                        UiMessage(R.string.msg_cheat_save_failed)
+                        UiMessage(Res.string.msg_cheat_save_failed)
                     }
                 }
             }
@@ -495,9 +513,9 @@ class GameViewModel(
             val persisted = coordinator.toggle(id, enabled)
             _cheats.value = coordinator.entries
             _message.value = when {
-                !persisted -> UiMessage(R.string.msg_cheat_save_failed)
-                enabled -> UiMessage(R.string.msg_cheat_enabled)
-                else -> UiMessage(R.string.msg_cheat_disabled)
+                !persisted -> UiMessage(Res.string.msg_cheat_save_failed)
+                enabled -> UiMessage(Res.string.msg_cheat_enabled)
+                else -> UiMessage(Res.string.msg_cheat_disabled)
             }
         }
     }
@@ -508,7 +526,7 @@ class GameViewModel(
             val persisted = coordinator.delete(id)
             _cheats.value = coordinator.entries
             _message.value =
-                if (persisted) UiMessage(R.string.msg_cheat_deleted) else UiMessage(R.string.msg_cheat_save_failed)
+                if (persisted) UiMessage(Res.string.msg_cheat_deleted) else UiMessage(Res.string.msg_cheat_save_failed)
         }
     }
 
@@ -516,7 +534,7 @@ class GameViewModel(
         val coordinator = cheatsCoordinator ?: return
         when (val result = coordinator.load()) {
             is CheatsLoadResult.Loaded -> _cheats.value = result.entries
-            CheatsLoadResult.Corrupt -> _message.value = UiMessage(R.string.msg_cheats_corrupt)
+            CheatsLoadResult.Corrupt -> _message.value = UiMessage(Res.string.msg_cheats_corrupt)
         }
     }
 

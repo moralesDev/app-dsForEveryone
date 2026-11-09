@@ -6,6 +6,7 @@ import android.view.ContextThemeWrapper
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.compositionLocalOf
+import androidx.compose.runtime.key
 import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
@@ -62,6 +63,19 @@ fun ProvideAppLanguage(
     // que no puede pasar.
     val systemLocale = ConfigurationCompat.getLocales(systemConfiguration)[0]!!
 
+    // Los textos son de Compose Multiplatform (docs/ios.md, iOS-3 paso 3), y su
+    // stringResource no lee LocalConfiguration: elige el idioma por
+    // `Locale.current`, que en Android sale de `Locale.getDefault()`. Por eso
+    // el idioma de la app pasa también a ser el del proceso, con la región
+    // real del teléfono (para formatos de números y fechas cercanos a los
+    // del sistema). Lo sustituido en LocalContext/LocalConfiguration sigue
+    // haciendo falta para lo que aún lee recursos de Android.
+    remember(language, systemLocale) {
+        Locale.setDefault(
+            Locale.Builder().setLanguage(language.tag).setRegion(systemLocale.country).build(),
+        )
+    }
+
     val localizedContext = remember(language, context, systemConfiguration) {
         val configuration = Configuration(systemConfiguration).apply {
             setLocales(LocaleList(Locale.forLanguageTag(language.tag)))
@@ -75,6 +89,12 @@ fun ProvideAppLanguage(
         LocalContext provides localizedContext,
         LocalConfiguration provides localizedContext.resources.configuration,
         LocalSystemLocale provides systemLocale,
-        content = content,
-    )
+    ) {
+        // `Locale.current` no es estado de Compose: cambiarlo no recompone a
+        // nadie. La `key` rehace la interfaz cuando cambia el idioma para que
+        // cada stringResource vuelva a leerlo. Lo que no se pierde con ello
+        // —la pantalla en la que se está, sus ViewModels— vive por encima:
+        // el NavController lo crea MainActivity fuera de esta función.
+        key(language) { content() }
+    }
 }

@@ -5,9 +5,14 @@ Guía para Claude Code (claude.ai/code) al trabajar en este repositorio.
 ## Idioma del proyecto
 
 Todo —documentación, comentarios de código, mensajes de commit y la
-conversación con el usuario— está en **español**. La UI será bilingüe (español
-por defecto en `res/values/`, inglés en `res/values-en/`), igual que en
-`app-emulador`. Mantén esa convención.
+conversación con el usuario— está en **español**. La UI es bilingüe, igual que
+en `app-emulador`: español por defecto en
+`shared/src/commonMain/composeResources/values/strings.xml` e inglés en
+`values-en/`. Son recursos de Compose Multiplatform, comunes con iOS: se piden
+con `stringResource(Res.string.…)` de `org.jetbrains.compose.resources`, y en
+esos XML el apóstrofo y las comillas van **sin barra** (`\'` saldría tal
+cual). En `app/src/main/res/` sólo queda `app_name`, para el manifiesto.
+Mantén esa convención.
 
 ## Qué es
 

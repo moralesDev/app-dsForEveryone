@@ -15,12 +15,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Shape
-import androidx.compose.ui.res.stringResource
+import org.jetbrains.compose.resources.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
-import com.moralesDev.dsForEveryone.R
 import com.moralesDev.dsForEveryone.emulator.DirectionalPadZones
 import com.moralesDev.dsForEveryone.emulator.DsButton
+import com.moralesDev.dsForEveryone.resources.Res
+import com.moralesDev.dsForEveryone.resources.cd_dpad
 
 /**
  * Cruceta de ocho direcciones.
@@ -46,7 +47,7 @@ fun DirectionalPad(
     onDirections: (Set<DsButton>) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val dpadLabel = stringResource(R.string.cd_dpad)
+    val dpadLabel = stringResource(Res.string.cd_dpad)
 
     Box(
         modifier = modifier

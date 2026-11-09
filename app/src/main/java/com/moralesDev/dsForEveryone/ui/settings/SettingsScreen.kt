@@ -29,10 +29,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.stringResource
+import org.jetbrains.compose.resources.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.moralesDev.dsForEveryone.R
 import com.moralesDev.dsForEveryone.data.settings.AppLanguage
 import com.moralesDev.dsForEveryone.data.settings.ImageFilter
 import com.moralesDev.dsForEveryone.data.settings.DirectionalControl
@@ -54,6 +53,51 @@ import com.moralesDev.dsForEveryone.ui.theme.Glass
 import com.moralesDev.dsForEveryone.ui.theme.textAlpha
 import java.time.LocalDate
 import org.koin.compose.viewmodel.koinViewModel
+import com.moralesDev.dsForEveryone.resources.Res
+import com.moralesDev.dsForEveryone.resources.cd_back
+import com.moralesDev.dsForEveryone.resources.directional_dpad
+import com.moralesDev.dsForEveryone.resources.directional_joystick
+import com.moralesDev.dsForEveryone.resources.filter_sharp
+import com.moralesDev.dsForEveryone.resources.filter_smooth
+import com.moralesDev.dsForEveryone.resources.nav_open_about
+import com.moralesDev.dsForEveryone.resources.pa_touch_mode
+import com.moralesDev.dsForEveryone.resources.scr_settings_title
+import com.moralesDev.dsForEveryone.resources.se_about_hint
+import com.moralesDev.dsForEveryone.resources.se_archive_export
+import com.moralesDev.dsForEveryone.resources.se_archive_export_hint
+import com.moralesDev.dsForEveryone.resources.se_archive_import
+import com.moralesDev.dsForEveryone.resources.se_archive_import_hint
+import com.moralesDev.dsForEveryone.resources.se_archive_replace
+import com.moralesDev.dsForEveryone.resources.se_archive_replace_body
+import com.moralesDev.dsForEveryone.resources.se_archive_replace_title
+import com.moralesDev.dsForEveryone.resources.se_directional
+import com.moralesDev.dsForEveryone.resources.se_directional_hint
+import com.moralesDev.dsForEveryone.resources.se_filter
+import com.moralesDev.dsForEveryone.resources.se_filter_hint
+import com.moralesDev.dsForEveryone.resources.se_gamepad
+import com.moralesDev.dsForEveryone.resources.se_gamepad_hint
+import com.moralesDev.dsForEveryone.resources.se_language
+import com.moralesDev.dsForEveryone.resources.se_language_en
+import com.moralesDev.dsForEveryone.resources.se_language_es
+import com.moralesDev.dsForEveryone.resources.se_language_hint
+import com.moralesDev.dsForEveryone.resources.se_screens
+import com.moralesDev.dsForEveryone.resources.se_screens_hint
+import com.moralesDev.dsForEveryone.resources.se_section_about
+import com.moralesDev.dsForEveryone.resources.se_section_app
+import com.moralesDev.dsForEveryone.resources.se_section_image
+import com.moralesDev.dsForEveryone.resources.se_section_input
+import com.moralesDev.dsForEveryone.resources.se_section_saves
+import com.moralesDev.dsForEveryone.resources.se_touch_distance
+import com.moralesDev.dsForEveryone.resources.se_touch_distance_hint
+import com.moralesDev.dsForEveryone.resources.se_touch_hint
+import com.moralesDev.dsForEveryone.resources.se_touch_long
+import com.moralesDev.dsForEveryone.resources.se_touch_medium
+import com.moralesDev.dsForEveryone.resources.se_touch_short
+import com.moralesDev.dsForEveryone.resources.se_welcome
+import com.moralesDev.dsForEveryone.resources.se_welcome_hint
+import com.moralesDev.dsForEveryone.resources.st_cancel
+import com.moralesDev.dsForEveryone.resources.touch_direct
+import com.moralesDev.dsForEveryone.resources.touch_offset
 
 /**
  * Los ajustes de la aplicación: lo que no depende de la partida que se esté
@@ -106,11 +150,11 @@ fun SettingsScreen(
         Row(verticalAlignment = Alignment.CenterVertically) {
             GlassIconButton(
                 icon = Icons.AutoMirrored.Filled.ArrowBack,
-                contentDescription = stringResource(R.string.cd_back),
+                contentDescription = stringResource(Res.string.cd_back),
                 onClick = onBack,
             )
             Text(
-                text = stringResource(R.string.scr_settings_title),
+                text = stringResource(Res.string.scr_settings_title),
                 style = MaterialTheme.typography.headlineSmall,
                 color = MaterialTheme.colorScheme.onBackground,
                 modifier = Modifier.padding(start = 12.dp),
@@ -120,17 +164,17 @@ fun SettingsScreen(
         // ------------------------------------------------ Aplicación
 
         SectionLabel(
-            text = stringResource(R.string.se_section_app),
+            text = stringResource(Res.string.se_section_app),
             modifier = Modifier.padding(top = 8.dp),
         )
         SettingsGroup {
             SettingsRow(
-                label = stringResource(R.string.se_language),
-                description = stringResource(R.string.se_language_hint),
+                label = stringResource(Res.string.se_language),
+                description = stringResource(Res.string.se_language_hint),
             ) {
                 SegmentedPair(
-                    first = stringResource(R.string.se_language_es),
-                    second = stringResource(R.string.se_language_en),
+                    first = stringResource(Res.string.se_language_es),
+                    second = stringResource(Res.string.se_language_en),
                     firstSelected = settings.language == AppLanguage.SPANISH,
                     onSelect = { spanish ->
                         viewModel.setLanguage(
@@ -141,8 +185,8 @@ fun SettingsScreen(
             }
             SettingsDivider()
             SettingsRow(
-                label = stringResource(R.string.se_welcome),
-                description = stringResource(R.string.se_welcome_hint),
+                label = stringResource(Res.string.se_welcome),
+                description = stringResource(Res.string.se_welcome_hint),
             ) {
                 GlassSwitch(
                     checked = !settings.skipWelcome,
@@ -154,17 +198,17 @@ fun SettingsScreen(
         // ------------------------------------------------ Imagen
 
         SectionLabel(
-            text = stringResource(R.string.se_section_image),
+            text = stringResource(Res.string.se_section_image),
             modifier = Modifier.padding(top = 8.dp),
         )
         SettingsGroup {
             SettingsRow(
-                label = stringResource(R.string.se_filter),
-                description = stringResource(R.string.se_filter_hint),
+                label = stringResource(Res.string.se_filter),
+                description = stringResource(Res.string.se_filter_hint),
             ) {
                 SegmentedPair(
-                    first = stringResource(R.string.filter_sharp),
-                    second = stringResource(R.string.filter_smooth),
+                    first = stringResource(Res.string.filter_sharp),
+                    second = stringResource(Res.string.filter_smooth),
                     firstSelected = settings.imageFilter == ImageFilter.SHARP,
                     onSelect = { sharp ->
                         viewModel.setImageFilter(if (sharp) ImageFilter.SHARP else ImageFilter.SMOOTH)
@@ -173,8 +217,8 @@ fun SettingsScreen(
             }
             SettingsDivider()
             SettingsRow(
-                label = stringResource(R.string.se_screens),
-                description = stringResource(R.string.se_screens_hint),
+                label = stringResource(Res.string.se_screens),
+                description = stringResource(Res.string.se_screens_hint),
                 onClick = onOpenLayoutEditor,
             ) {
                 NavigationChevron()
@@ -184,17 +228,17 @@ fun SettingsScreen(
         // ------------------------------------------------ Entrada
 
         SectionLabel(
-            text = stringResource(R.string.se_section_input),
+            text = stringResource(Res.string.se_section_input),
             modifier = Modifier.padding(top = 8.dp),
         )
         SettingsGroup {
             SettingsRow(
-                label = stringResource(R.string.se_directional),
-                description = stringResource(R.string.se_directional_hint),
+                label = stringResource(Res.string.se_directional),
+                description = stringResource(Res.string.se_directional_hint),
             ) {
                 SegmentedPair(
-                    first = stringResource(R.string.directional_joystick),
-                    second = stringResource(R.string.directional_dpad),
+                    first = stringResource(Res.string.directional_joystick),
+                    second = stringResource(Res.string.directional_dpad),
                     firstSelected = settings.directionalControl == DirectionalControl.JOYSTICK,
                     onSelect = { joystick ->
                         viewModel.setDirectionalControl(
@@ -205,12 +249,12 @@ fun SettingsScreen(
             }
             SettingsDivider()
             SettingsRow(
-                label = stringResource(R.string.pa_touch_mode),
-                description = stringResource(R.string.se_touch_hint),
+                label = stringResource(Res.string.pa_touch_mode),
+                description = stringResource(Res.string.se_touch_hint),
             ) {
                 SegmentedPair(
-                    first = stringResource(R.string.touch_direct),
-                    second = stringResource(R.string.touch_offset),
+                    first = stringResource(Res.string.touch_direct),
+                    second = stringResource(Res.string.touch_offset),
                     firstSelected = settings.touchMode == TouchMode.DIRECT,
                     onSelect = { direct ->
                         viewModel.setTouchMode(if (direct) TouchMode.DIRECT else TouchMode.OFFSET)
@@ -223,8 +267,8 @@ fun SettingsScreen(
             if (settings.touchMode == TouchMode.OFFSET) {
                 SettingsDivider()
                 SettingsRow(
-                    label = stringResource(R.string.se_touch_distance),
-                    description = stringResource(R.string.se_touch_distance_hint),
+                    label = stringResource(Res.string.se_touch_distance),
+                    description = stringResource(Res.string.se_touch_distance_hint),
                 ) {
                     OffsetChips(
                         selected = settings.touchOffsetDp,
@@ -234,8 +278,8 @@ fun SettingsScreen(
             }
             SettingsDivider()
             SettingsRow(
-                label = stringResource(R.string.se_gamepad),
-                description = stringResource(R.string.se_gamepad_hint),
+                label = stringResource(Res.string.se_gamepad),
+                description = stringResource(Res.string.se_gamepad_hint),
                 onClick = onOpenGamepadMapping,
             ) {
                 NavigationChevron()
@@ -245,7 +289,7 @@ fun SettingsScreen(
         // ------------------------------------------------ Partidas
 
         SectionLabel(
-            text = stringResource(R.string.se_section_saves),
+            text = stringResource(Res.string.se_section_saves),
             modifier = Modifier.padding(top = 8.dp),
         )
         SettingsGroup {
@@ -261,8 +305,8 @@ fun SettingsScreen(
                 )
             } else {
                 SettingsRow(
-                    label = stringResource(R.string.se_archive_export),
-                    description = stringResource(R.string.se_archive_export_hint),
+                    label = stringResource(Res.string.se_archive_export),
+                    description = stringResource(Res.string.se_archive_export_hint),
                     onClick = {
                         if (!archiveBusy) archiveExportPicker.launch(suggestedBackupFileName())
                     },
@@ -271,8 +315,8 @@ fun SettingsScreen(
                 }
                 SettingsDivider()
                 SettingsRow(
-                    label = stringResource(R.string.se_archive_import),
-                    description = stringResource(R.string.se_archive_import_hint),
+                    label = stringResource(Res.string.se_archive_import),
+                    description = stringResource(Res.string.se_archive_import_hint),
                     // Cualquier tipo: los proveedores no siempre etiquetan un .zip como tal.
                     onClick = { if (!archiveBusy) archiveImportPicker.launch(arrayOf("*/*")) },
                 ) {
@@ -292,13 +336,13 @@ fun SettingsScreen(
         // ------------------------------------------------ Acerca de
 
         SectionLabel(
-            text = stringResource(R.string.se_section_about),
+            text = stringResource(Res.string.se_section_about),
             modifier = Modifier.padding(top = 8.dp),
         )
         SettingsGroup {
             SettingsRow(
-                label = stringResource(R.string.nav_open_about),
-                description = stringResource(R.string.se_about_hint),
+                label = stringResource(Res.string.nav_open_about),
+                description = stringResource(Res.string.se_about_hint),
                 onClick = onOpenAbout,
             ) {
                 NavigationChevron()
@@ -343,9 +387,9 @@ private fun OffsetChips(selected: Float, onSelect: (Float) -> Unit) {
 }
 
 private val OFFSET_LABELS = listOf(
-    R.string.se_touch_short,
-    R.string.se_touch_medium,
-    R.string.se_touch_long,
+    Res.string.se_touch_short,
+    Res.string.se_touch_medium,
+    Res.string.se_touch_long,
 )
 
 @Composable
@@ -359,13 +403,13 @@ private fun ArchiveImportConfirmation(
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         Text(
-            text = stringResource(R.string.se_archive_replace_title),
+            text = stringResource(Res.string.se_archive_replace_title),
             style = MaterialTheme.typography.titleMedium,
             color = MaterialTheme.colorScheme.onSurface,
         )
         Text(
             text = stringResource(
-                R.string.se_archive_replace_body,
+                Res.string.se_archive_replace_body,
                 pending.gameCount,
                 pending.replacedCount,
             ),
@@ -377,12 +421,12 @@ private fun ArchiveImportConfirmation(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             ConfirmationChip(
-                text = stringResource(R.string.se_archive_replace),
+                text = stringResource(Res.string.se_archive_replace),
                 color = Danger,
                 onClick = onConfirm,
             )
             ConfirmationChip(
-                text = stringResource(R.string.st_cancel),
+                text = stringResource(Res.string.st_cancel),
                 color = MaterialTheme.colorScheme.onSurface,
                 onClick = onCancel,
             )

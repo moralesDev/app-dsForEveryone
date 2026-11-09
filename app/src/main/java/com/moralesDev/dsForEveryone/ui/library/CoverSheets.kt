@@ -40,12 +40,11 @@ import androidx.compose.ui.graphics.FilterQuality
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.res.stringResource
+import org.jetbrains.compose.resources.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
-import com.moralesDev.dsForEveryone.R
 import com.moralesDev.dsForEveryone.data.cover.CoverImage
 import com.moralesDev.dsForEveryone.data.cover.PickedImage
 import com.moralesDev.dsForEveryone.ui.theme.Accent
@@ -57,6 +56,20 @@ import com.moralesDev.dsForEveryone.ui.theme.ScrimColor
 import com.moralesDev.dsForEveryone.ui.theme.Surface
 import com.moralesDev.dsForEveryone.ui.theme.textAlpha
 import kotlin.math.min
+import com.moralesDev.dsForEveryone.resources.Res
+import com.moralesDev.dsForEveryone.resources.cover_add
+import com.moralesDev.dsForEveryone.resources.cover_add_title
+import com.moralesDev.dsForEveryone.resources.cover_change
+import com.moralesDev.dsForEveryone.resources.cover_change_title
+import com.moralesDev.dsForEveryone.resources.cover_crop_body
+import com.moralesDev.dsForEveryone.resources.cover_crop_square
+import com.moralesDev.dsForEveryone.resources.cover_crop_title
+import com.moralesDev.dsForEveryone.resources.cover_delete
+import com.moralesDev.dsForEveryone.resources.cover_delete_body
+import com.moralesDev.dsForEveryone.resources.cover_delete_title
+import com.moralesDev.dsForEveryone.resources.cover_save
+import com.moralesDev.dsForEveryone.resources.st_cancel
+import com.moralesDev.dsForEveryone.resources.st_delete
 
 /**
  * Qué hacer con la portada de un juego.
@@ -75,25 +88,25 @@ fun CoverOptionsSheet(
 ) {
     CoverSheetFrame(
         title = stringResource(
-            if (hasCover) R.string.cover_change_title else R.string.cover_add_title,
+            if (hasCover) Res.string.cover_change_title else Res.string.cover_add_title,
         ),
         subtitle = gameName,
         onDismiss = onDismiss,
     ) {
         CoverAction(
-            text = stringResource(if (hasCover) R.string.cover_change else R.string.cover_add),
+            text = stringResource(if (hasCover) Res.string.cover_change else Res.string.cover_add),
             icon = if (hasCover) Icons.Filled.SwapHoriz else Icons.Filled.AddPhotoAlternate,
             onClick = onPick,
         )
         if (hasCover) {
             CoverAction(
-                text = stringResource(R.string.cover_delete),
+                text = stringResource(Res.string.cover_delete),
                 icon = Icons.Filled.DeleteOutline,
                 tint = Danger,
                 onClick = onDelete,
             )
         }
-        CoverAction(text = stringResource(R.string.st_cancel), onClick = onDismiss)
+        CoverAction(text = stringResource(Res.string.st_cancel), onClick = onDismiss)
     }
 }
 
@@ -101,14 +114,14 @@ fun CoverOptionsSheet(
 @Composable
 fun CoverDeleteSheet(gameName: String, onConfirm: () -> Unit, onDismiss: () -> Unit) {
     CoverSheetFrame(
-        title = stringResource(R.string.cover_delete_title),
+        title = stringResource(Res.string.cover_delete_title),
         subtitle = gameName,
-        body = stringResource(R.string.cover_delete_body),
+        body = stringResource(Res.string.cover_delete_body),
         onDismiss = onDismiss,
     ) {
-        CoverAction(text = stringResource(R.string.st_cancel), onClick = onDismiss)
+        CoverAction(text = stringResource(Res.string.st_cancel), onClick = onDismiss)
         CoverAction(
-            text = stringResource(R.string.st_delete),
+            text = stringResource(Res.string.st_delete),
             icon = Icons.Filled.DeleteOutline,
             tint = Danger,
             onClick = onConfirm,
@@ -147,12 +160,12 @@ fun CoverCropSheet(
     val bitmap = remember(image) { image.bitmap.asImageBitmap() }
 
     CoverSheetFrame(
-        title = stringResource(R.string.cover_crop_title),
+        title = stringResource(Res.string.cover_crop_title),
         subtitle = gameName,
         body = if (image.isSquare) {
-            stringResource(R.string.cover_crop_square)
+            stringResource(Res.string.cover_crop_square)
         } else {
-            stringResource(R.string.cover_crop_body)
+            stringResource(Res.string.cover_crop_body)
         },
         onDismiss = onDismiss,
     ) {
@@ -198,12 +211,12 @@ fun CoverCropSheet(
             horizontalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             CoverButton(
-                text = stringResource(R.string.st_cancel),
+                text = stringResource(Res.string.st_cancel),
                 onClick = onDismiss,
                 modifier = Modifier.weight(1f),
             )
             CoverButton(
-                text = stringResource(R.string.cover_save),
+                text = stringResource(Res.string.cover_save),
                 accent = true,
                 enabled = !isSaving,
                 onClick = { onSave(zoom, centerX, centerY) },

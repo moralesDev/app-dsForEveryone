@@ -1,6 +1,5 @@
 package com.moralesDev.dsForEveryone.ui.archive
 
-import com.moralesDev.dsForEveryone.R
 import com.moralesDev.dsForEveryone.data.save.ArchiveExportResult
 import com.moralesDev.dsForEveryone.data.save.ArchivePrepareResult
 import com.moralesDev.dsForEveryone.data.save.PreparedImport
@@ -13,6 +12,19 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import java.io.InputStream
 import java.io.OutputStream
+import com.moralesDev.dsForEveryone.resources.Res
+import com.moralesDev.dsForEveryone.resources.msg_archive_corrupt
+import com.moralesDev.dsForEveryone.resources.msg_archive_export_failed
+import com.moralesDev.dsForEveryone.resources.msg_archive_exported
+import com.moralesDev.dsForEveryone.resources.msg_archive_exported_skipped
+import com.moralesDev.dsForEveryone.resources.msg_archive_import_partial
+import com.moralesDev.dsForEveryone.resources.msg_archive_imported
+import com.moralesDev.dsForEveryone.resources.msg_archive_newer
+import com.moralesDev.dsForEveryone.resources.msg_archive_not_backup
+import com.moralesDev.dsForEveryone.resources.msg_archive_not_this_game
+import com.moralesDev.dsForEveryone.resources.msg_archive_nothing
+import com.moralesDev.dsForEveryone.resources.msg_archive_too_large
+import com.moralesDev.dsForEveryone.resources.msg_archive_unreadable
 
 /**
  * Una copia ya validada que reemplazaría partidas existentes, esperando a que
@@ -77,13 +89,13 @@ class SaveArchiveCoordinator(
                 when (result) {
                     is ArchiveExportResult.Exported ->
                         if (result.skippedFiles == 0) {
-                            UiMessage(R.string.msg_archive_exported)
+                            UiMessage(Res.string.msg_archive_exported)
                         } else {
-                            UiMessage(R.string.msg_archive_exported_skipped, result.skippedFiles)
+                            UiMessage(Res.string.msg_archive_exported_skipped, result.skippedFiles)
                         }
 
-                    ArchiveExportResult.NothingToExport -> UiMessage(R.string.msg_archive_nothing)
-                    ArchiveExportResult.WriteFailed -> UiMessage(R.string.msg_archive_export_failed)
+                    ArchiveExportResult.NothingToExport -> UiMessage(Res.string.msg_archive_nothing)
+                    ArchiveExportResult.WriteFailed -> UiMessage(Res.string.msg_archive_export_failed)
                 },
             )
         }
@@ -109,7 +121,7 @@ class SaveArchiveCoordinator(
             val games = prepared.games.filter { onlyRomId == null || it.id == onlyRomId }
             if (games.isEmpty()) {
                 archive.discard(prepared)
-                onMessage(UiMessage(R.string.msg_archive_not_this_game))
+                onMessage(UiMessage(Res.string.msg_archive_not_this_game))
                 return@work
             }
 
@@ -141,9 +153,9 @@ class SaveArchiveCoordinator(
         val outcome = archive.commit(prepared, onlyRomId)
         onMessage(
             if (outcome.failed == 0) {
-                UiMessage(R.string.msg_archive_imported)
+                UiMessage(Res.string.msg_archive_imported)
             } else {
-                UiMessage(R.string.msg_archive_import_partial, outcome.imported, outcome.failed)
+                UiMessage(Res.string.msg_archive_import_partial, outcome.imported, outcome.failed)
             },
         )
     }
@@ -161,11 +173,11 @@ class SaveArchiveCoordinator(
     }
 
     private fun ArchivePrepareResult.toMessage(): UiMessage = when (this) {
-        is ArchivePrepareResult.Ready -> UiMessage(R.string.msg_archive_imported)
-        ArchivePrepareResult.NotABackup -> UiMessage(R.string.msg_archive_not_backup)
-        is ArchivePrepareResult.NewerFormat -> UiMessage(R.string.msg_archive_newer)
-        ArchivePrepareResult.Corrupt -> UiMessage(R.string.msg_archive_corrupt)
-        ArchivePrepareResult.TooLarge -> UiMessage(R.string.msg_archive_too_large)
-        ArchivePrepareResult.Unreadable -> UiMessage(R.string.msg_archive_unreadable)
+        is ArchivePrepareResult.Ready -> UiMessage(Res.string.msg_archive_imported)
+        ArchivePrepareResult.NotABackup -> UiMessage(Res.string.msg_archive_not_backup)
+        is ArchivePrepareResult.NewerFormat -> UiMessage(Res.string.msg_archive_newer)
+        ArchivePrepareResult.Corrupt -> UiMessage(Res.string.msg_archive_corrupt)
+        ArchivePrepareResult.TooLarge -> UiMessage(Res.string.msg_archive_too_large)
+        ArchivePrepareResult.Unreadable -> UiMessage(Res.string.msg_archive_unreadable)
     }
 }

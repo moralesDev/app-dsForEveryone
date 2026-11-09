@@ -18,14 +18,20 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.stringResource
+import org.jetbrains.compose.resources.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
-import com.moralesDev.dsForEveryone.R
 import com.moralesDev.dsForEveryone.ui.components.AccentButton
 import com.moralesDev.dsForEveryone.ui.components.GlassIconButton
 import com.moralesDev.dsForEveryone.ui.theme.Background
 import com.moralesDev.dsForEveryone.ui.theme.textAlpha
+import com.moralesDev.dsForEveryone.resources.Res
+import com.moralesDev.dsForEveryone.resources.ab_core_label
+import com.moralesDev.dsForEveryone.resources.ab_core_link
+import com.moralesDev.dsForEveryone.resources.ab_source_link
+import com.moralesDev.dsForEveryone.resources.cd_back
+import com.moralesDev.dsForEveryone.resources.scr_about_body
+import com.moralesDev.dsForEveryone.resources.scr_about_title
 
 /** Repositorio de melonDS, el core de emulación que empotra esta aplicación. */
 private const val MELONDS_SOURCE_URL = "https://github.com/melonDS-emu/melonDS"
@@ -58,31 +64,31 @@ fun AboutScreen(onBack: () -> Unit) {
     ) {
         GlassIconButton(
             icon = Icons.AutoMirrored.Filled.ArrowBack,
-            contentDescription = stringResource(R.string.cd_back),
+            contentDescription = stringResource(Res.string.cd_back),
             onClick = onBack,
         )
         Text(
-            text = stringResource(R.string.scr_about_title),
+            text = stringResource(Res.string.scr_about_title),
             style = MaterialTheme.typography.headlineSmall,
             color = MaterialTheme.colorScheme.onBackground,
         )
         Text(
-            text = stringResource(R.string.scr_about_body),
+            text = stringResource(Res.string.scr_about_body),
             style = MaterialTheme.typography.bodyMedium,
             color = textAlpha(0.62f),
         )
         Text(
-            text = stringResource(R.string.ab_core_label),
+            text = stringResource(Res.string.ab_core_label),
             style = MaterialTheme.typography.labelMedium,
             color = textAlpha(0.45f),
         )
         AccentButton(
-            text = stringResource(R.string.ab_source_link),
+            text = stringResource(Res.string.ab_source_link),
             icon = Icons.AutoMirrored.Filled.OpenInNew,
             onClick = { context.startActivity(Intent(Intent.ACTION_VIEW, APP_SOURCE_URL.toUri())) },
         )
         AccentButton(
-            text = stringResource(R.string.ab_core_link),
+            text = stringResource(Res.string.ab_core_link),
             icon = Icons.AutoMirrored.Filled.OpenInNew,
             onClick = { context.startActivity(Intent(Intent.ACTION_VIEW, MELONDS_SOURCE_URL.toUri())) },
         )

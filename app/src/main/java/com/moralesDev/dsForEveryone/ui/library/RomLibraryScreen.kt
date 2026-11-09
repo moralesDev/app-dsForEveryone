@@ -67,7 +67,7 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.stringResource
+import org.jetbrains.compose.resources.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.TextFieldValue
@@ -75,7 +75,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.moralesDev.dsForEveryone.R
 import com.moralesDev.dsForEveryone.data.rom.DsBanner
 import com.moralesDev.dsForEveryone.data.rom.RomInfo
 import com.moralesDev.dsForEveryone.ui.components.AccentButton
@@ -103,6 +102,45 @@ import java.util.Locale
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.koin.compose.viewmodel.koinViewModel
+import com.moralesDev.dsForEveryone.resources.Res
+import com.moralesDev.dsForEveryone.resources.cd_cover_custom
+import com.moralesDev.dsForEveryone.resources.cd_cover_default
+import com.moralesDev.dsForEveryone.resources.cd_page_next
+import com.moralesDev.dsForEveryone.resources.cd_page_previous
+import com.moralesDev.dsForEveryone.resources.cd_rom_options
+import com.moralesDev.dsForEveryone.resources.cd_settings
+import com.moralesDev.dsForEveryone.resources.em_body
+import com.moralesDev.dsForEveryone.resources.em_cta
+import com.moralesDev.dsForEveryone.resources.em_title
+import com.moralesDev.dsForEveryone.resources.lib_add
+import com.moralesDev.dsForEveryone.resources.lib_archive_export
+import com.moralesDev.dsForEveryone.resources.lib_archive_import
+import com.moralesDev.dsForEveryone.resources.lib_archive_replace_body
+import com.moralesDev.dsForEveryone.resources.lib_archive_replace_title
+import com.moralesDev.dsForEveryone.resources.lib_no_results
+import com.moralesDev.dsForEveryone.resources.lib_open
+import com.moralesDev.dsForEveryone.resources.lib_options_title
+import com.moralesDev.dsForEveryone.resources.lib_page_indicator
+import com.moralesDev.dsForEveryone.resources.lib_remove_body
+import com.moralesDev.dsForEveryone.resources.lib_remove_delete
+import com.moralesDev.dsForEveryone.resources.lib_remove_keep
+import com.moralesDev.dsForEveryone.resources.lib_sav_delete
+import com.moralesDev.dsForEveryone.resources.lib_sav_delete_body
+import com.moralesDev.dsForEveryone.resources.lib_sav_delete_title
+import com.moralesDev.dsForEveryone.resources.lib_sav_extract
+import com.moralesDev.dsForEveryone.resources.lib_sav_import
+import com.moralesDev.dsForEveryone.resources.lib_sav_replace_body
+import com.moralesDev.dsForEveryone.resources.lib_sav_replace_title
+import com.moralesDev.dsForEveryone.resources.lib_search
+import com.moralesDev.dsForEveryone.resources.lib_title
+import com.moralesDev.dsForEveryone.resources.lib_unavailable
+import com.moralesDev.dsForEveryone.resources.st_cancel
+import com.moralesDev.dsForEveryone.resources.st_replace
+import com.moralesDev.dsForEveryone.resources.when_days_ago
+import com.moralesDev.dsForEveryone.resources.when_last_week
+import com.moralesDev.dsForEveryone.resources.when_never
+import com.moralesDev.dsForEveryone.resources.when_today
+import com.moralesDev.dsForEveryone.resources.when_yesterday
 
 /** Juegos que se muestran por página de la biblioteca. */
 private const val PAGE_SIZE = 5
@@ -207,7 +245,7 @@ fun RomLibraryScreen(
 
             Box(modifier = Modifier.padding(start = 22.dp, end = 22.dp, bottom = 22.dp)) {
                 AccentButton(
-                    text = stringResource(R.string.lib_add),
+                    text = stringResource(Res.string.lib_add),
                     icon = Icons.Filled.Add,
                     onClick = { pickRom() },
                 )
@@ -302,7 +340,7 @@ private fun LibraryHeader(
             Column {
                 BrandHeader()
                 Text(
-                    text = stringResource(R.string.lib_title),
+                    text = stringResource(Res.string.lib_title),
                     style = MaterialTheme.typography.headlineSmall,
                     color = MaterialTheme.colorScheme.onBackground,
                     modifier = Modifier.padding(top = 7.dp),
@@ -310,7 +348,7 @@ private fun LibraryHeader(
             }
             GlassIconButton(
                 icon = Icons.Filled.Tune,
-                contentDescription = stringResource(R.string.cd_settings),
+                contentDescription = stringResource(Res.string.cd_settings),
                 onClick = onOpenSettings,
             )
         }
@@ -367,7 +405,7 @@ private fun SearchField(query: String, onQueryChange: (String) -> Unit, modifier
         Box(modifier = Modifier.weight(1f)) {
             if (field.text.isEmpty()) {
                 Text(
-                    text = stringResource(R.string.lib_search),
+                    text = stringResource(Res.string.lib_search),
                     style = MaterialTheme.typography.bodyMedium,
                     color = textAlpha(0.40f),
                 )
@@ -418,7 +456,7 @@ private fun LibraryList(
         Box(modifier = Modifier.weight(1f)) {
             if (hasNoResults) {
                 Text(
-                    text = stringResource(R.string.lib_no_results, query),
+                    text = stringResource(Res.string.lib_no_results, query),
                     style = MaterialTheme.typography.bodyMedium,
                     color = textAlpha(0.50f),
                     textAlign = TextAlign.Center,
@@ -478,18 +516,18 @@ private fun PageControls(page: Int, pageCount: Int, onPrevious: () -> Unit, onNe
     ) {
         PageButton(
             icon = Icons.AutoMirrored.Filled.KeyboardArrowLeft,
-            contentDescription = stringResource(R.string.cd_page_previous),
+            contentDescription = stringResource(Res.string.cd_page_previous),
             enabled = page > 0,
             onClick = onPrevious,
         )
         Text(
-            text = stringResource(R.string.lib_page_indicator, page + 1, pageCount),
+            text = stringResource(Res.string.lib_page_indicator, page + 1, pageCount),
             style = MaterialTheme.typography.labelMedium,
             color = textAlpha(0.55f),
         )
         PageButton(
             icon = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-            contentDescription = stringResource(R.string.cd_page_next),
+            contentDescription = stringResource(Res.string.cd_page_next),
             enabled = page < pageCount - 1,
             onClick = onNext,
         )
@@ -564,7 +602,7 @@ private fun RomRow(
                     text = if (rom.isAvailable) {
                         "${relativeWhen(rom.lastPlayedAt)} · ${formatSize(rom.sizeBytes)}"
                     } else {
-                        stringResource(R.string.lib_unavailable)
+                        stringResource(Res.string.lib_unavailable)
                     },
                     style = MaterialTheme.typography.labelMedium,
                     color = if (rom.isAvailable) textAlpha(0.48f) else Danger,
@@ -576,7 +614,7 @@ private fun RomRow(
 
             Icon(
                 imageVector = Icons.Filled.MoreVert,
-                contentDescription = stringResource(R.string.cd_rom_options, rom.displayName),
+                contentDescription = stringResource(Res.string.cd_rom_options, rom.displayName),
                 tint = textAlpha(0.32f),
                 modifier = Modifier
                     .size(20.dp)
@@ -587,7 +625,7 @@ private fun RomRow(
         if (!rom.isAvailable) return@Column
 
         RomAction(
-            text = stringResource(R.string.lib_open),
+            text = stringResource(Res.string.lib_open),
             icon = Icons.Filled.PlayArrow,
             onClick = onOpen,
             modifier = Modifier
@@ -668,7 +706,7 @@ private fun Cover(
     }
 
     val label = stringResource(
-        if (coverPath != null) R.string.cd_cover_custom else R.string.cd_cover_default,
+        if (coverPath != null) Res.string.cd_cover_custom else Res.string.cd_cover_default,
         rom.displayName,
     )
 
@@ -732,7 +770,7 @@ private fun EmptyLibrary(onAdd: () -> Unit, modifier: Modifier = Modifier) {
     Column(modifier = modifier.padding(horizontal = 22.dp, vertical = 26.dp)) {
         BrandHeader()
         Text(
-            text = stringResource(R.string.lib_title),
+            text = stringResource(Res.string.lib_title),
             style = MaterialTheme.typography.headlineSmall,
             color = MaterialTheme.colorScheme.onBackground,
             modifier = Modifier.padding(top = 7.dp),
@@ -761,13 +799,13 @@ private fun EmptyLibrary(onAdd: () -> Unit, modifier: Modifier = Modifier) {
                 )
             }
             Text(
-                text = stringResource(R.string.em_title),
+                text = stringResource(Res.string.em_title),
                 style = MaterialTheme.typography.titleLarge,
                 color = MaterialTheme.colorScheme.onBackground,
                 modifier = Modifier.padding(top = 14.dp),
             )
             Text(
-                text = stringResource(R.string.em_body),
+                text = stringResource(Res.string.em_body),
                 style = MaterialTheme.typography.bodyMedium,
                 color = textAlpha(0.52f),
                 textAlign = TextAlign.Center,
@@ -776,7 +814,7 @@ private fun EmptyLibrary(onAdd: () -> Unit, modifier: Modifier = Modifier) {
         }
 
         AccentButton(
-            text = stringResource(R.string.em_cta),
+            text = stringResource(Res.string.em_cta),
             icon = Icons.Filled.Add,
             onClick = onAdd,
         )
@@ -888,19 +926,19 @@ private fun RomOptionsSheet(
                 val confirmLabel: String
                 val onConfirm: () -> Unit
                 if (pendingArchiveImport) {
-                    title = stringResource(R.string.lib_archive_replace_title, rom.displayName)
-                    body = stringResource(R.string.lib_archive_replace_body)
-                    confirmLabel = stringResource(R.string.st_replace)
+                    title = stringResource(Res.string.lib_archive_replace_title, rom.displayName)
+                    body = stringResource(Res.string.lib_archive_replace_body)
+                    confirmLabel = stringResource(Res.string.st_replace)
                     onConfirm = onConfirmArchiveImport
                 } else if (pendingSavImport != null) {
-                    title = stringResource(R.string.lib_sav_replace_title, rom.displayName)
-                    body = stringResource(R.string.lib_sav_replace_body)
-                    confirmLabel = stringResource(R.string.st_replace)
+                    title = stringResource(Res.string.lib_sav_replace_title, rom.displayName)
+                    body = stringResource(Res.string.lib_sav_replace_body)
+                    confirmLabel = stringResource(Res.string.st_replace)
                     onConfirm = onConfirmSavImport
                 } else {
-                    title = stringResource(R.string.lib_sav_delete_title, rom.displayName)
-                    body = stringResource(R.string.lib_sav_delete_body)
-                    confirmLabel = stringResource(R.string.lib_sav_delete)
+                    title = stringResource(Res.string.lib_sav_delete_title, rom.displayName)
+                    body = stringResource(Res.string.lib_sav_delete_body)
+                    confirmLabel = stringResource(Res.string.lib_sav_delete)
                     onConfirm = onConfirmSavDelete
                 }
 
@@ -921,7 +959,7 @@ private fun RomOptionsSheet(
                 ) {
                     SheetAction(text = confirmLabel, onClick = onConfirm, contentColor = Danger)
                     SheetAction(
-                        text = stringResource(R.string.st_cancel),
+                        text = stringResource(Res.string.st_cancel),
                         onClick = onCancelConfirmation,
                     )
                 }
@@ -929,12 +967,12 @@ private fun RomOptionsSheet(
             }
 
             Text(
-                text = stringResource(R.string.lib_options_title, rom.displayName),
+                text = stringResource(Res.string.lib_options_title, rom.displayName),
                 style = MaterialTheme.typography.titleLarge,
                 color = MaterialTheme.colorScheme.onSurface,
             )
             Text(
-                text = stringResource(R.string.lib_remove_body),
+                text = stringResource(Res.string.lib_remove_body),
                 style = MaterialTheme.typography.bodySmall,
                 color = textAlpha(0.58f),
                 modifier = Modifier.padding(top = 8.dp),
@@ -944,31 +982,31 @@ private fun RomOptionsSheet(
                 modifier = Modifier.padding(top = 18.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                SheetAction(text = stringResource(R.string.lib_remove_keep), onClick = onKeep)
+                SheetAction(text = stringResource(Res.string.lib_remove_keep), onClick = onKeep)
                 SheetAction(
-                    text = stringResource(R.string.lib_remove_delete),
+                    text = stringResource(Res.string.lib_remove_delete),
                     onClick = onDeleteAll,
                     contentColor = Danger,
                 )
                 SheetAction(
-                    text = stringResource(R.string.lib_sav_extract),
+                    text = stringResource(Res.string.lib_sav_extract),
                     onClick = onExtractSav,
                     enabled = hasBatterySave,
                 )
-                SheetAction(text = stringResource(R.string.lib_sav_import), onClick = onImportSav)
+                SheetAction(text = stringResource(Res.string.lib_sav_import), onClick = onImportSav)
                 SheetAction(
-                    text = stringResource(R.string.lib_sav_delete),
+                    text = stringResource(Res.string.lib_sav_delete),
                     onClick = onDeleteSav,
                     contentColor = Danger,
                     enabled = hasBatterySave,
                 )
                 SheetAction(
-                    text = stringResource(R.string.lib_archive_export),
+                    text = stringResource(Res.string.lib_archive_export),
                     onClick = onExportArchive,
                     enabled = hasSaveData,
                 )
-                SheetAction(text = stringResource(R.string.lib_archive_import), onClick = onImportArchive)
-                SheetAction(text = stringResource(R.string.st_cancel), onClick = onDismiss)
+                SheetAction(text = stringResource(Res.string.lib_archive_import), onClick = onImportArchive)
+                SheetAction(text = stringResource(Res.string.st_cancel), onClick = onDismiss)
             }
         }
     }
@@ -1006,17 +1044,17 @@ private fun SheetAction(
  */
 @Composable
 private fun relativeWhen(timestamp: Long?): String {
-    if (timestamp == null) return stringResource(R.string.when_never)
+    if (timestamp == null) return stringResource(Res.string.when_never)
 
     val zone = ZoneId.systemDefault()
     val moment = Instant.ofEpochMilli(timestamp).atZone(zone)
     val days = ChronoUnit.DAYS.between(moment.toLocalDate(), LocalDate.now(zone))
 
     return when {
-        days <= 0L -> stringResource(R.string.when_today, TIME_FORMATTER.format(moment))
-        days == 1L -> stringResource(R.string.when_yesterday)
-        days < 7L -> stringResource(R.string.when_days_ago, days.toInt())
-        days < 14L -> stringResource(R.string.when_last_week)
+        days <= 0L -> stringResource(Res.string.when_today, TIME_FORMATTER.format(moment))
+        days == 1L -> stringResource(Res.string.when_yesterday)
+        days < 7L -> stringResource(Res.string.when_days_ago, days.toInt())
+        days < 14L -> stringResource(Res.string.when_last_week)
         else -> DATE_FORMATTER.format(moment)
     }
 }

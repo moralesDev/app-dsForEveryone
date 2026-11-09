@@ -35,10 +35,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.res.stringResource
+import org.jetbrains.compose.resources.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import com.moralesDev.dsForEveryone.R
 import com.moralesDev.dsForEveryone.emulator.core.CheatEntry
 import com.moralesDev.dsForEveryone.ui.components.GlassSwitch
 import com.moralesDev.dsForEveryone.ui.components.GlassTextArea
@@ -50,6 +49,22 @@ import com.moralesDev.dsForEveryone.ui.theme.Neutral800
 import com.moralesDev.dsForEveryone.ui.theme.ScrimColor
 import com.moralesDev.dsForEveryone.ui.theme.Surface
 import com.moralesDev.dsForEveryone.ui.theme.textAlpha
+import com.moralesDev.dsForEveryone.resources.Res
+import com.moralesDev.dsForEveryone.resources.cd_close
+import com.moralesDev.dsForEveryone.resources.cd_delete_cheat
+import com.moralesDev.dsForEveryone.resources.ch_add
+import com.moralesDev.dsForEveryone.resources.ch_cancel
+import com.moralesDev.dsForEveryone.resources.ch_code_placeholder
+import com.moralesDev.dsForEveryone.resources.ch_empty
+import com.moralesDev.dsForEveryone.resources.ch_limit_reached
+import com.moralesDev.dsForEveryone.resources.ch_name_fallback
+import com.moralesDev.dsForEveryone.resources.ch_name_placeholder
+import com.moralesDev.dsForEveryone.resources.ch_notice_backup_cta
+import com.moralesDev.dsForEveryone.resources.ch_notice_compact
+import com.moralesDev.dsForEveryone.resources.ch_notice_full_body
+import com.moralesDev.dsForEveryone.resources.ch_notice_full_title
+import com.moralesDev.dsForEveryone.resources.ch_submit
+import com.moralesDev.dsForEveryone.resources.ch_title
 
 /**
  * Hoja de claves, con el mismo esqueleto que [SaveStateSheet]: sube desde
@@ -133,13 +148,13 @@ fun CheatsSheet(
                 verticalAlignment = Alignment.Top,
             ) {
                 Text(
-                    text = stringResource(R.string.ch_title),
+                    text = stringResource(Res.string.ch_title),
                     style = MaterialTheme.typography.titleLarge,
                     color = MaterialTheme.colorScheme.onSurface,
                 )
                 Icon(
                     imageVector = Icons.Filled.Close,
-                    contentDescription = stringResource(R.string.cd_close),
+                    contentDescription = stringResource(Res.string.cd_close),
                     tint = textAlpha(0.45f),
                     modifier = Modifier
                         .clip(RoundedCornerShape(9.dp))
@@ -168,7 +183,7 @@ fun CheatsSheet(
             ) {
                 if (cheats.isEmpty() && !isAdding) {
                     Text(
-                        text = stringResource(R.string.ch_empty),
+                        text = stringResource(Res.string.ch_empty),
                         style = MaterialTheme.typography.bodySmall,
                         color = textAlpha(0.42f),
                     )
@@ -186,7 +201,7 @@ fun CheatsSheet(
                     // stringResource sólo se puede llamar en contexto @Composable,
                     // y el ViewModel no puede construir texto traducido por su
                     // cuenta (ver CLAUDE.md).
-                    val fallbackLabel = stringResource(R.string.ch_name_fallback, cheats.size + 1)
+                    val fallbackLabel = stringResource(Res.string.ch_name_fallback, cheats.size + 1)
                     AddCheatForm(
                         code = draftCode,
                         label = draftLabel,
@@ -202,7 +217,7 @@ fun CheatsSheet(
                     AddCheatButton(onClick = { isAdding = true })
                 } else {
                     Text(
-                        text = stringResource(R.string.ch_limit_reached, maxEntries),
+                        text = stringResource(Res.string.ch_limit_reached, maxEntries),
                         style = MaterialTheme.typography.labelMedium,
                         color = textAlpha(0.40f),
                     )
@@ -239,13 +254,13 @@ private fun BackupNotice(
                     modifier = Modifier.size(16.dp),
                 )
                 Text(
-                    text = stringResource(R.string.ch_notice_full_title),
+                    text = stringResource(Res.string.ch_notice_full_title),
                     style = MaterialTheme.typography.titleSmall,
                     color = MaterialTheme.colorScheme.onSurface,
                 )
             }
             Text(
-                text = stringResource(R.string.ch_notice_full_body),
+                text = stringResource(Res.string.ch_notice_full_body),
                 style = MaterialTheme.typography.bodySmall,
                 color = textAlpha(0.60f),
                 modifier = Modifier.padding(top = 4.dp),
@@ -264,7 +279,7 @@ private fun BackupNotice(
             horizontalArrangement = Arrangement.SpaceBetween,
         ) {
             Text(
-                text = stringResource(R.string.ch_notice_compact),
+                text = stringResource(Res.string.ch_notice_compact),
                 style = MaterialTheme.typography.labelMedium,
                 color = textAlpha(0.55f),
                 modifier = Modifier.weight(1f),
@@ -287,7 +302,7 @@ private fun BackupNowButton(onClick: () -> Unit, modifier: Modifier = Modifier) 
         contentAlignment = Alignment.Center,
     ) {
         Text(
-            text = stringResource(R.string.ch_notice_backup_cta),
+            text = stringResource(Res.string.ch_notice_backup_cta),
             style = MaterialTheme.typography.bodySmall,
             color = Accent200,
         )
@@ -317,7 +332,7 @@ private fun CheatRow(entry: CheatEntry, onToggle: (Boolean) -> Unit, onDelete: (
         )
         Icon(
             imageVector = Icons.Filled.DeleteOutline,
-            contentDescription = stringResource(R.string.cd_delete_cheat, entry.label),
+            contentDescription = stringResource(Res.string.cd_delete_cheat, entry.label),
             tint = textAlpha(0.38f),
             modifier = Modifier
                 .clip(RoundedCornerShape(9.dp))
@@ -349,7 +364,7 @@ private fun AddCheatButton(onClick: () -> Unit) {
             modifier = Modifier.size(16.dp),
         )
         Text(
-            text = stringResource(R.string.ch_add),
+            text = stringResource(Res.string.ch_add),
             style = MaterialTheme.typography.titleSmall,
             color = MaterialTheme.colorScheme.onSurface,
             modifier = Modifier.padding(start = 8.dp),
@@ -370,13 +385,13 @@ private fun AddCheatForm(
         GlassTextArea(
             value = code,
             onValueChange = onCodeChange,
-            placeholder = stringResource(R.string.ch_code_placeholder),
+            placeholder = stringResource(Res.string.ch_code_placeholder),
             minLines = 3,
         )
         GlassTextArea(
             value = label,
             onValueChange = onLabelChange,
-            placeholder = stringResource(R.string.ch_name_placeholder),
+            placeholder = stringResource(Res.string.ch_name_placeholder),
             singleLine = true,
         )
         Row(
@@ -384,14 +399,14 @@ private fun AddCheatForm(
             horizontalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             FormButton(
-                label = stringResource(R.string.ch_cancel),
+                label = stringResource(Res.string.ch_cancel),
                 tint = MaterialTheme.colorScheme.onSurface,
                 filled = false,
                 onClick = onCancel,
                 modifier = Modifier.weight(1f),
             )
             FormButton(
-                label = stringResource(R.string.ch_submit),
+                label = stringResource(Res.string.ch_submit),
                 tint = Accent200,
                 filled = true,
                 enabled = code.isNotBlank(),

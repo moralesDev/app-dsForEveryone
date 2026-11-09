@@ -37,12 +37,11 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.res.stringResource
+import org.jetbrains.compose.resources.stringResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
-import com.moralesDev.dsForEveryone.R
 import com.moralesDev.dsForEveryone.ui.components.AppLogo
 import com.moralesDev.dsForEveryone.ui.components.BrandWordmark
 import com.moralesDev.dsForEveryone.ui.theme.Accent
@@ -51,6 +50,9 @@ import com.moralesDev.dsForEveryone.ui.theme.Inter
 import com.moralesDev.dsForEveryone.ui.theme.Neutral900
 import com.moralesDev.dsForEveryone.ui.theme.textAlpha
 import kotlinx.coroutines.delay
+import com.moralesDev.dsForEveryone.resources.Res
+import com.moralesDev.dsForEveryone.resources.splash_credit
+import com.moralesDev.dsForEveryone.resources.splash_tagline
 
 /**
  * Pantalla de arranque.
@@ -142,7 +144,7 @@ fun SplashScreen(onFinished: () -> Unit) {
             ) {
                 BrandWordmark(fontSize = 22.sp)
                 Text(
-                    text = stringResource(R.string.splash_tagline).uppercase(),
+                    text = stringResource(Res.string.splash_tagline).uppercase(),
                     style = TextStyle(
                         fontFamily = Inter,
                         fontSize = 11.sp,
@@ -176,7 +178,7 @@ fun SplashScreen(onFinished: () -> Unit) {
                 )
             }
             Text(
-                text = stringResource(R.string.splash_credit),
+                text = stringResource(Res.string.splash_credit),
                 style = TextStyle(fontFamily = Inter, fontSize = 10.5f.sp),
                 color = textAlpha(0.32f),
             )
