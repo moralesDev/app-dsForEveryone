@@ -384,18 +384,19 @@ object ControlLayout {
      *
      * ```
      * [ L ]                          [ R ]
-     * (soplar)
+     *
      * ( DIRECCIÓN )             ( A·B·X·Y )
-     *          [select] [start]           (>)
+     * (soplar) [select] [start]           (>)
      * ```
      *
      * Por qué así:
      *
      * - Es la forma de la consola: L arriba a la izquierda y R arriba a la
      *   derecha, encima de la mano que ya está en la dirección o en el rombo.
-     *   Soplar va justo debajo de L porque también es de la mano izquierda y
-     *   se usa poco. El botón de apartar los mandos va abajo a la derecha,
-     *   a la altura de Start ([hideToggleBounds]).
+     *   Soplar va abajo a la izquierda, a la altura de Select, cuando Select
+     *   y Start bajan bajo la pantalla ([systemTop]); si no, justo debajo de
+     *   L. El botón de apartar los mandos va abajo a la derecha, a la altura
+     *   de Start ([hideToggleBounds]): los dos se miran.
      * - Select y Start quedan abajo, a cada lado del centro. Si el teléfono
      *   es tan estrecho que la dirección o el rombo llegarían a pisarlos, los
      *   dos racimos suben una fila en vez de encoger.
@@ -496,7 +497,11 @@ object ControlLayout {
         ).mapValues { (_, bounds) ->
             LayoutRect(bounds.left, bounds.top - lift, bounds.right, bounds.bottom - lift)
         }
-        val placed = if (systemTop != null) withSystemButtonsAt(groups, systemTop, usable, gap) else groups
+        val placed = if (systemTop != null) {
+            withBlowBesideSystemButtons(withSystemButtonsAt(groups, systemTop, usable, gap), usable, gap)
+        } else {
+            groups
+        }
         return ControlLayoutProfile(placed.mapValues { (_, bounds) -> ControlGroupPlacement(bounds, opacity) })
     }
 
@@ -535,6 +540,39 @@ object ControlLayout {
     }
 
     /**
+     * Lleva soplar abajo a la izquierda: pegado al borde izquierdo de los
+     * mandos (el de L) y a la altura de Select y Start, simétrico al botón de
+     * apartar los mandos ([hideToggleBounds]) al otro lado. Así no tapa la
+     * pantalla inferior y queda siempre a mano.
+     *
+     * Si ahí pisara algún grupo —un teléfono tan estrecho que la dirección
+     * comparte fila con Select—, baja justo por debajo de lo que pisa. Si
+     * tampoco cabe ahí, se queda debajo de L, donde iba.
+     */
+    private fun withBlowBesideSystemButtons(
+        groups: Map<ControlGroup, LayoutRect>,
+        usable: LayoutRect,
+        gap: Float,
+    ): Map<ControlGroup, LayoutRect> {
+        val blow = groups.getValue(ControlGroup.BLOW)
+        val left = groups.getValue(ControlGroup.L).left
+        val side = blow.height
+        val others = (groups - ControlGroup.BLOW).values
+        fun at(top: Float) = LayoutRect(left, top, left + blow.width, top + side)
+        fun fits(rect: LayoutRect) =
+            rect.bottom <= usable.bottom && others.none { LayoutEngine.overlaps(rect, it) }
+
+        val aligned = at(groups.getValue(ControlGroup.SELECT).centerY - side / 2f)
+        val candidate = if (fits(aligned)) {
+            aligned
+        } else {
+            val below = others.filter { LayoutEngine.overlaps(aligned, it) }.maxOf { it.bottom } + gap
+            at(below).takeIf(::fits)
+        }
+        return if (candidate != null) groups + (ControlGroup.BLOW to candidate) else groups
+    }
+
+    /**
      * El techo de [overlayProfile]: lo más bajo de dos límites.
      *
      * - El borde de abajo de la pantalla que queda físicamente arriba, cuando
@@ -558,12 +596,19 @@ object ControlLayout {
      * y Start bajo la pantalla inferior, o todos cuando las pantallas van en
      * la mitad de arriba— se quedan donde están: apartarlos no destaparía
      * nada y sólo obligaría a devolverlos para pulsarlos.
+     *
+     * Soplar no se aparta nunca, tape o no: hay juegos que lo piden en mitad
+     * de una escena (apagar una vela), y tener que sacar los mandos antes
+     * llega tarde.
      */
     fun groupsCoveringScreens(profile: ControlLayoutProfile, placement: ScreenPlacement): Set<ControlGroup> =
         profile.groups.filterValues { group ->
             LayoutEngine.overlaps(group.bounds, placement.topScreen) ||
                 LayoutEngine.overlaps(group.bounds, placement.touchScreen)
-        }.keys
+        }.keys - NEVER_HIDDEN
+
+    /** Los grupos que se quedan siempre a la vista, ver [groupsCoveringScreens]. */
+    private val NEVER_HIDDEN = setOf(ControlGroup.BLOW)
 
     /**
      * El borde de abajo de la pantalla que queda físicamente abajo, cuando
