@@ -1,14 +1,12 @@
 package com.moralesDev.dsForEveryone.di
 
-import javax.inject.Qualifier
+import org.koin.core.qualifier.named
 
 /**
  * Marca el dispatcher de entrada/salida. Se inyecta en vez de usar
  * `Dispatchers.IO` directamente para poder sustituirlo por uno de pruebas.
  */
-@Qualifier
-@Retention(AnnotationRetention.BINARY)
-annotation class IoDispatcher
+val IoDispatcher = named("IoDispatcher")
 
 /**
  * Ámbito que vive lo que vive la aplicación.
@@ -18,6 +16,4 @@ annotation class IoDispatcher
  * juego, momento en el que el `viewModelScope` de la pantalla ya está
  * cancelado.
  */
-@Qualifier
-@Retention(AnnotationRetention.BINARY)
-annotation class ApplicationScope
+val ApplicationScope = named("ApplicationScope")

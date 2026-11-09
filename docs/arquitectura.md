@@ -40,7 +40,7 @@ que mantiene la familia de `EmuladorForEveryone`.
 ```
 com.moralesDev.dsForEveryone
 ├── MainActivity            Activity única
-├── DsEmuApplication        Punto de entrada de Hilt
+├── DsEmuApplication        Arranca Koin
 │
 ├── emulator/
 │   ├── DsButton            Los doce botones y su máscara (del core, no del hardware)
@@ -68,7 +68,7 @@ com.moralesDev.dsForEveryone
 │   ├── storage/            Rutas en disco y escritura atómica
 │   └── settings/           DataStore
 │
-├── di/                     Módulo de Hilt
+├── di/                     Módulo de Koin (AppModule)
 └── ui/
     ├── MainViewModel       Idioma y onboarding
     ├── UiMessage           Mensajes sin traducir, resueltos en Compose
@@ -182,7 +182,8 @@ Estas decisiones ya están tomadas, probadas en dispositivo y documentadas en
   app.
 - **Los ViewModel guardan `UiMessage`**, no texto traducido.
 - **Cambio de idioma en caliente** con `ContextThemeWrapper`, no con
-  `createConfigurationContext`, que rompe la cadena de Hilt.
+  `createConfigurationContext`, que rompe la cadena de `ContextWrapper` hasta
+  la Activity.
 - **Los mandos no son `clickable`**: `pressable` con `awaitEachGesture` por id
   de puntero.
 - **Sin permisos en el manifiesto.**

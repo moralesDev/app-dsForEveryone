@@ -7,12 +7,10 @@ import com.moralesDev.dsForEveryone.data.settings.SettingsRepository
 import com.moralesDev.dsForEveryone.emulator.layout.ControlGroup
 import com.moralesDev.dsForEveryone.emulator.layout.ControlGroupFraction
 import com.moralesDev.dsForEveryone.emulator.layout.LayoutMode
-import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
-import javax.inject.Inject
 
 /**
  * Estado y persistencia del editor de disposición (entregable 2.7).
@@ -23,8 +21,7 @@ import javax.inject.Inject
  * detenida» se cumple por construcción del grafo y no hace falta comprobarlo
  * aquí con una bandera.
  */
-@HiltViewModel
-class LayoutEditorViewModel @Inject constructor(
+class LayoutEditorViewModel(
     private val settingsRepository: SettingsRepository,
 ) : ViewModel() {
 

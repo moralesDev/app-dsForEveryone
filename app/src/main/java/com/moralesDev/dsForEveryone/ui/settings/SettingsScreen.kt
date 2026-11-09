@@ -31,7 +31,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.moralesDev.dsForEveryone.R
 import com.moralesDev.dsForEveryone.data.settings.AppLanguage
@@ -54,6 +53,7 @@ import com.moralesDev.dsForEveryone.ui.theme.Danger
 import com.moralesDev.dsForEveryone.ui.theme.Glass
 import com.moralesDev.dsForEveryone.ui.theme.textAlpha
 import java.time.LocalDate
+import org.koin.compose.viewmodel.koinViewModel
 
 /**
  * Los ajustes de la aplicación: lo que no depende de la partida que se esté
@@ -78,7 +78,7 @@ fun SettingsScreen(
     onOpenLayoutEditor: () -> Unit,
     onOpenGamepadMapping: () -> Unit,
 ) {
-    val viewModel: SettingsViewModel = hiltViewModel()
+    val viewModel: SettingsViewModel = koinViewModel()
     val settings by viewModel.settings.collectAsStateWithLifecycle()
     val archiveMessage by viewModel.message.collectAsStateWithLifecycle()
     val pendingArchiveImport by viewModel.pendingArchiveImport.collectAsStateWithLifecycle()

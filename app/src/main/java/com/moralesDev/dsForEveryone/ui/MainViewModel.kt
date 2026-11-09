@@ -4,12 +4,10 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.moralesDev.dsForEveryone.data.settings.EmulatorSettings
 import com.moralesDev.dsForEveryone.data.settings.SettingsRepository
-import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
-import javax.inject.Inject
 
 /**
  * Estado que necesita la aplicación entera antes de pintar nada: el idioma
@@ -18,8 +16,7 @@ import javax.inject.Inject
  * Mientras vale `null` no se dibuja ninguna pantalla, para no mostrar un
  * fotograma en el idioma equivocado ni la biblioteca antes del onboarding.
  */
-@HiltViewModel
-class MainViewModel @Inject constructor(
+class MainViewModel(
     private val settingsRepository: SettingsRepository,
 ) : ViewModel() {
 

@@ -58,7 +58,6 @@ import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
-import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
@@ -99,6 +98,7 @@ import com.moralesDev.dsForEveryone.ui.theme.GlassOverVideo
 import com.moralesDev.dsForEveryone.ui.theme.Surface
 import com.moralesDev.dsForEveryone.ui.theme.textAlpha
 import kotlin.math.roundToInt
+import org.koin.compose.viewmodel.koinViewModel
 
 /**
  * Pantalla de juego (entregable 2.6): las dos pantallas con [DsGLRenderer],
@@ -125,7 +125,7 @@ import kotlin.math.roundToInt
  */
 @Composable
 fun GameScreen(onExit: () -> Unit) {
-    val viewModel: GameViewModel = hiltViewModel()
+    val viewModel: GameViewModel = koinViewModel()
     val settings by viewModel.settings.collectAsStateWithLifecycle()
     val pressedMask by viewModel.pressedMask.collectAsStateWithLifecycle()
     val micActive by viewModel.micNoiseActive.collectAsStateWithLifecycle()

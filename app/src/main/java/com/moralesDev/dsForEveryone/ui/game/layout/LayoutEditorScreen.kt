@@ -47,7 +47,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
-import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.moralesDev.dsForEveryone.R
 import com.moralesDev.dsForEveryone.emulator.layout.ControlGroup
@@ -74,6 +73,7 @@ import com.moralesDev.dsForEveryone.ui.theme.GlassBorder
 import com.moralesDev.dsForEveryone.ui.theme.GlassStrong
 import com.moralesDev.dsForEveryone.ui.theme.Surface
 import com.moralesDev.dsForEveryone.ui.theme.textAlpha
+import org.koin.compose.viewmodel.koinViewModel
 
 /**
  * Editor de disposición (entregable 2.7): arrastra a mano las dos pantallas
@@ -94,7 +94,7 @@ import com.moralesDev.dsForEveryone.ui.theme.textAlpha
  */
 @Composable
 fun LayoutEditorScreen(onBack: () -> Unit) {
-    val viewModel: LayoutEditorViewModel = hiltViewModel()
+    val viewModel: LayoutEditorViewModel = koinViewModel()
     val settings by viewModel.settings.collectAsStateWithLifecycle()
     val density = LocalDensity.current
 

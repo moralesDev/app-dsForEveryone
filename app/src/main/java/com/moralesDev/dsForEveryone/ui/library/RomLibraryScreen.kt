@@ -74,7 +74,6 @@ import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.moralesDev.dsForEveryone.R
 import com.moralesDev.dsForEveryone.data.rom.DsBanner
@@ -103,6 +102,7 @@ import java.time.temporal.ChronoUnit
 import java.util.Locale
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import org.koin.compose.viewmodel.koinViewModel
 
 /** Juegos que se muestran por página de la biblioteca. */
 private const val PAGE_SIZE = 5
@@ -122,7 +122,7 @@ private const val PAGE_SIZE = 5
 fun RomLibraryScreen(
     onOpen: (RomInfo) -> Unit,
     onOpenSettings: () -> Unit,
-    viewModel: RomLibraryViewModel = hiltViewModel(),
+    viewModel: RomLibraryViewModel = koinViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val contentResolver = LocalContext.current.contentResolver

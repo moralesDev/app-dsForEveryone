@@ -242,7 +242,7 @@ Android y se mueve con los textos.
 
 | Hoy | Mañana | Nota |
 |---|---|---|
-| Hilt | Koin, o inyección a mano | Hilt no existe fuera de Android |
+| Hilt | **Koin** (hecho) | Hilt no existe fuera de Android |
 | Room | Room KMP | Room ya soporta iOS; mismo esquema |
 | DataStore | DataStore KMP | Mismo formato de preferencias |
 | ViewModel, Navigation | Sus versiones KMP de JetBrains | |
@@ -255,6 +255,23 @@ renderizador, la vibración y los mandos físicos.
 
 **Está hecho cuando** Android sigue igual y la app de iOS arranca, muestra
 la biblioteca vacía y navega por los ajustes, en el simulador.
+
+Se hace en cinco pasos; tras cada uno Android sigue igual:
+
+1. **Inyección de dependencias** — ✅ (2026-11-09). Hilt sustituido por
+   Koin 4.2.2 en `:app`: `di/AppModule.kt` es un `module { }` con las mismas
+   construcciones; los ViewModels se declaran con `viewModel { }` y las
+   pantallas los piden con `koinViewModel()` (el de `koin-compose-viewmodel`,
+   el mismo que se usará en `commonMain`); `GameViewModel` sigue recibiendo
+   el `SavedStateHandle` de su entrada de navegación. Hilt comprobaba las
+   dependencias al compilar y Koin no: `AppModuleTest` verifica el módulo
+   entero en la JVM (comprobado que falla si se quita una definición).
+2. **Datos**: Room KMP, DataStore KMP y los repositorios a `:shared`.
+3. **Textos**: los 282 de `strings.xml` (es/en) a los recursos de Compose
+   Multiplatform, sin perder el cambio de idioma dentro de la app.
+4. **Pantallas** a `commonMain`; vídeo, mandos físicos, archivos y
+   vibración detrás de `expect`/`actual`.
+5. **Arranque en iOS**: la app abre en el simulador.
 
 ### iOS-4 · El juego en iOS
 

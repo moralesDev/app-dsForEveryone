@@ -28,7 +28,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.moralesDev.dsForEveryone.R
 import com.moralesDev.dsForEveryone.emulator.DsButton
@@ -40,6 +39,7 @@ import com.moralesDev.dsForEveryone.ui.theme.Background
 import com.moralesDev.dsForEveryone.ui.theme.Divider
 import com.moralesDev.dsForEveryone.ui.theme.Surface
 import com.moralesDev.dsForEveryone.ui.theme.textAlpha
+import org.koin.compose.viewmodel.koinViewModel
 
 /**
  * Mapeo de botones del primer mando conectado: una fila por cada uno de los
@@ -50,7 +50,7 @@ import com.moralesDev.dsForEveryone.ui.theme.textAlpha
  */
 @Composable
 fun GamepadMappingScreen(onBack: () -> Unit) {
-    val viewModel: GamepadMappingViewModel = hiltViewModel()
+    val viewModel: GamepadMappingViewModel = koinViewModel()
     val device by viewModel.connectedDevice.collectAsStateWithLifecycle()
     val mapping by viewModel.mapping.collectAsStateWithLifecycle()
     val capturingTarget by viewModel.capturingTarget.collectAsStateWithLifecycle()

@@ -15,7 +15,6 @@ import com.moralesDev.dsForEveryone.data.settings.TouchMode
 import com.moralesDev.dsForEveryone.ui.UiMessage
 import com.moralesDev.dsForEveryone.ui.archive.PendingArchiveImport
 import com.moralesDev.dsForEveryone.ui.archive.SaveArchiveCoordinator
-import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -23,7 +22,6 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
-import javax.inject.Inject
 
 /**
  * Los ajustes que no pertenecen a una partida concreta.
@@ -34,8 +32,7 @@ import javax.inject.Inject
  * lo que leerá el próximo juego que se abra —y el que esté abierto, si lo
  * está—, porque todos observan el mismo `SettingsRepository`.
  */
-@HiltViewModel
-class SettingsViewModel @Inject constructor(
+class SettingsViewModel(
     private val settingsRepository: SettingsRepository,
     private val romRepository: RomRepository,
     saveArchive: SaveArchive,

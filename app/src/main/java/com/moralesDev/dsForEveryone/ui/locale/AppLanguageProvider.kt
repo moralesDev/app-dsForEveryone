@@ -36,9 +36,10 @@ val LocalSystemLocale = compositionLocalOf<Locale> { Locale.getDefault() }
  *
  * Se envuelve el contexto en un [ContextThemeWrapper] en lugar de usar
  * `createConfigurationContext`, que devuelve un `ContextImpl` suelto. La
- * diferencia importa: Hilt y `ViewModelProvider` localizan la Activity subiendo
- * por la cadena de `ContextWrapper`, y con el contexto suelto esa cadena se
- * rompe y `hiltViewModel()` falla.
+ * diferencia importa: `ViewModelProvider` y lo que cuelga de la Activity se
+ * localizan subiendo por la cadena de `ContextWrapper`, y con el contexto
+ * suelto esa cadena se rompe. (Lo descubrió `hiltViewModel()`, que fallaba;
+ * hoy los ViewModels los da Koin, pero la cadena tiene que seguir entera.)
  *
  * La configuración de partida para el `ContextThemeWrapper` es la del sistema
  * ([LocalConfiguration] ambiental, la que Compose actualiza sola), no la del

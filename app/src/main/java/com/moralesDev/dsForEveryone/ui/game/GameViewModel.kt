@@ -20,7 +20,6 @@ import com.moralesDev.dsForEveryone.data.settings.EmulatorSettings
 import com.moralesDev.dsForEveryone.data.settings.ImageFilter
 import com.moralesDev.dsForEveryone.data.settings.SettingsRepository
 import com.moralesDev.dsForEveryone.data.settings.TouchMode
-import com.moralesDev.dsForEveryone.di.ApplicationScope
 import com.moralesDev.dsForEveryone.emulator.DsButton
 import com.moralesDev.dsForEveryone.emulator.EmulatorController
 import com.moralesDev.dsForEveryone.emulator.EmulatorStatus
@@ -32,8 +31,6 @@ import com.moralesDev.dsForEveryone.emulator.gamepad.GamepadInputRouter
 import com.moralesDev.dsForEveryone.emulator.gamepad.GamepadManager
 import com.moralesDev.dsForEveryone.emulator.layout.LayoutMode
 import com.moralesDev.dsForEveryone.ui.UiMessage
-import dagger.hilt.android.lifecycle.HiltViewModel
-import javax.inject.Inject
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -74,8 +71,7 @@ sealed interface SlotConfirmation {
  * las fases 2.x. En ese caso no hay identidad de sesión y guardar o cargar un
  * estado no hace nada.
  */
-@HiltViewModel
-class GameViewModel @Inject constructor(
+class GameViewModel(
     private val controller: EmulatorController,
     private val settingsRepository: SettingsRepository,
     private val romRepository: RomRepository,
@@ -83,7 +79,7 @@ class GameViewModel @Inject constructor(
     private val cheatsManager: CheatsManager,
     private val gamepadManager: GamepadManager,
     private val gamepadInputRouter: GamepadInputRouter,
-    @param:ApplicationScope private val applicationScope: CoroutineScope,
+    private val applicationScope: CoroutineScope,
     savedStateHandle: SavedStateHandle,
 ) : ViewModel() {
 

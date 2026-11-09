@@ -7,7 +7,6 @@ import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.activity.viewModels
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -20,8 +19,8 @@ import com.moralesDev.dsForEveryone.ui.locale.ProvideAppLanguage
 import com.moralesDev.dsForEveryone.ui.navigation.AppNavHost
 import com.moralesDev.dsForEveryone.ui.theme.Background
 import com.moralesDev.dsForEveryone.ui.theme.DsEmuTheme
-import dagger.hilt.android.AndroidEntryPoint
-import javax.inject.Inject
+import org.koin.android.ext.android.inject
+import org.koin.androidx.viewmodel.ext.android.viewModel
 
 /**
  * Única Activity de la aplicación. El manifiesto fija vertical por defecto;
@@ -29,13 +28,11 @@ import javax.inject.Inject
  * ejecución para poder rotar durante la partida. El resto de la app —
  * biblioteca, ajustes, bienvenida— no está pensada para horizontal.
  */
-@AndroidEntryPoint
 class MainActivity : ComponentActivity() {
 
-    private val viewModel: MainViewModel by viewModels()
+    private val viewModel: MainViewModel by viewModel()
 
-    @Inject
-    lateinit var gamepadInputRouter: GamepadInputRouter
+    private val gamepadInputRouter: GamepadInputRouter by inject()
 
     /**
      * Punto más alto posible para interceptar un `KeyEvent` de mando, antes

@@ -1,12 +1,9 @@
 package com.moralesDev.dsForEveryone.di
 
-import android.content.ContentResolver
-import android.content.Context
 import androidx.room.Room
 import com.moralesDev.dsForEveryone.data.cheats.CheatsManager
 import com.moralesDev.dsForEveryone.data.cover.CoverRepository
 import com.moralesDev.dsForEveryone.data.db.DsEmuDatabase
-import com.moralesDev.dsForEveryone.data.db.RomDao
 import com.moralesDev.dsForEveryone.data.rom.ContentResolverDocumentAccess
 import com.moralesDev.dsForEveryone.data.rom.DocumentAccess
 import com.moralesDev.dsForEveryone.data.rom.RomRepository
@@ -21,124 +18,72 @@ import com.moralesDev.dsForEveryone.emulator.core.DsEmulatorCore
 import com.moralesDev.dsForEveryone.emulator.core.EmulatorCore
 import com.moralesDev.dsForEveryone.emulator.gamepad.GamepadInputRouter
 import com.moralesDev.dsForEveryone.emulator.gamepad.GamepadManager
-import dagger.Module
-import dagger.Provides
-import dagger.hilt.InstallIn
-import dagger.hilt.android.qualifiers.ApplicationContext
-import dagger.hilt.components.SingletonComponent
+import com.moralesDev.dsForEveryone.ui.MainViewModel
+import com.moralesDev.dsForEveryone.ui.game.GameViewModel
+import com.moralesDev.dsForEveryone.ui.game.gamepad.GamepadMappingViewModel
+import com.moralesDev.dsForEveryone.ui.game.layout.LayoutEditorViewModel
+import com.moralesDev.dsForEveryone.ui.library.RomLibraryViewModel
+import com.moralesDev.dsForEveryone.ui.settings.SettingsViewModel
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
-import javax.inject.Singleton
+import org.koin.android.ext.koin.androidContext
+import org.koin.core.module.dsl.viewModel
+import org.koin.dsl.module
 
-@Module
-@InstallIn(SingletonComponent::class)
-object AppModule {
+/**
+ * Todo lo que se inyecta en la aplicación, en un solo sitio.
+ *
+ * `single` es lo que en Hilt era `@Singleton`: una instancia para toda la
+ * aplicación. `factory` es lo que no lo era (una por petición). Los
+ * ViewModels se declaran con `viewModel` y las pantallas los piden con
+ * `koinViewModel()`: Koin los guarda en el `ViewModelStore` de la entrada de
+ * navegación, igual que hacía `hiltViewModel()`.
+ *
+ * A diferencia de Hilt, Koin resuelve en tiempo de ejecución: una
+ * dependencia sin declarar no rompe la compilación, rompe al abrir la
+ * pantalla. Por eso AppModuleTest verifica el módulo entero en la JVM.
+ */
+val appModule = module {
 
-    @Provides
-    @Singleton
-    @IoDispatcher
-    fun provideIoDispatcher(): CoroutineDispatcher = Dispatchers.IO
+    single<CoroutineDispatcher>(IoDispatcher) { Dispatchers.IO }
 
-    @Provides
-    @Singleton
-    @ApplicationScope
-    fun provideApplicationScope(
-        @IoDispatcher ioDispatcher: CoroutineDispatcher,
-    ): CoroutineScope = CoroutineScope(SupervisorJob() + ioDispatcher)
+    single<CoroutineScope>(ApplicationScope) {
+        CoroutineScope(SupervisorJob() + get<CoroutineDispatcher>(IoDispatcher))
+    }
 
-    @Provides
-    @Singleton
-    fun provideSettingsRepository(@ApplicationContext context: Context): SettingsRepository =
-        SettingsRepository(context)
+    single { SettingsRepository(androidContext()) }
 
-    @Provides
-    @Singleton
-    fun provideStorageManager(@ApplicationContext context: Context): StorageManager =
-        StorageManager(context.filesDir)
+    single { StorageManager(androidContext().filesDir) }
 
-    @Provides
-    @Singleton
-    fun provideGamepadManager(@ApplicationContext context: Context): GamepadManager =
-        GamepadManager(context)
+    single { GamepadManager(androidContext()) }
 
-    @Provides
-    @Singleton
-    fun provideGamepadInputRouter(
-        settingsRepository: SettingsRepository,
-        @ApplicationScope applicationScope: CoroutineScope,
-    ): GamepadInputRouter = GamepadInputRouter(settingsRepository, applicationScope)
+    single { GamepadInputRouter(get(), get(ApplicationScope)) }
 
-    @Provides
-    @Singleton
-    fun provideDatabase(@ApplicationContext context: Context): DsEmuDatabase =
-        Room.databaseBuilder(context, DsEmuDatabase::class.java, DsEmuDatabase.NAME).build()
+    single {
+        Room.databaseBuilder(androidContext(), DsEmuDatabase::class.java, DsEmuDatabase.NAME).build()
+    }
 
-    @Provides
-    fun provideRomDao(database: DsEmuDatabase): RomDao = database.romDao()
+    factory { get<DsEmuDatabase>().romDao() }
 
-    @Provides
-    fun provideContentResolver(@ApplicationContext context: Context): ContentResolver =
-        context.contentResolver
+    factory { androidContext().contentResolver }
 
-    @Provides
-    @Singleton
-    fun provideDocumentAccess(contentResolver: ContentResolver): DocumentAccess =
-        ContentResolverDocumentAccess(contentResolver)
+    single<DocumentAccess> { ContentResolverDocumentAccess(get()) }
 
-    @Provides
-    @Singleton
-    fun provideRomRepository(
-        documentAccess: DocumentAccess,
-        romDao: RomDao,
-        storageManager: StorageManager,
-        @IoDispatcher ioDispatcher: CoroutineDispatcher,
-    ): RomRepository = RomRepository(documentAccess, romDao, storageManager, ioDispatcher)
+    single { RomRepository(get(), get(), get(), get(IoDispatcher)) }
 
-    @Provides
-    @Singleton
-    fun provideCoverRepository(
-        contentResolver: ContentResolver,
-        storageManager: StorageManager,
-        @IoDispatcher ioDispatcher: CoroutineDispatcher,
-    ): CoverRepository = CoverRepository(contentResolver, storageManager, ioDispatcher)
+    single { CoverRepository(get(), get(), get(IoDispatcher)) }
 
-    @Provides
-    @Singleton
-    fun provideBatterySaveManager(
-        storageManager: StorageManager,
-        @IoDispatcher ioDispatcher: CoroutineDispatcher,
-    ): BatterySaveManager = BatterySaveManager(storageManager, ioDispatcher)
+    single { BatterySaveManager(get(), get(IoDispatcher)) }
 
-    @Provides
-    @Singleton
-    fun provideCheatsManager(
-        storageManager: StorageManager,
-        @IoDispatcher ioDispatcher: CoroutineDispatcher,
-    ): CheatsManager = CheatsManager(storageManager, ioDispatcher)
+    single { CheatsManager(get(), get(IoDispatcher)) }
 
-    @Provides
-    @Singleton
-    fun provideSaveStateManager(
-        storageManager: StorageManager,
-        @IoDispatcher ioDispatcher: CoroutineDispatcher,
-    ): SaveStateManager = SaveStateManager(storageManager, ioDispatcher)
+    single { SaveStateManager(get(), get(IoDispatcher)) }
 
-    @Provides
-    @Singleton
-    fun provideSaveManager(
-        batterySaveManager: BatterySaveManager,
-        saveStateManager: SaveStateManager,
-        storageManager: StorageManager,
-    ): SaveManager = SaveManager(batterySaveManager, saveStateManager, storageManager)
+    single { SaveManager(get(), get(), get()) }
 
-    @Provides
-    @Singleton
-    fun provideSaveArchive(
-        storageManager: StorageManager,
-        @IoDispatcher ioDispatcher: CoroutineDispatcher,
-    ): SaveArchive = SaveArchive(storageManager, ioDispatcher)
+    single { SaveArchive(get(), get(IoDispatcher)) }
 
     /**
      * Único punto donde se decide qué core usa la aplicación.
@@ -146,16 +91,34 @@ object AppModule {
      * `StubEmulatorCore` sigue en el proyecto tras llegar el core nativo: es
      * el doble con el que se prueba sin NDK.
      */
-    @Provides
-    @Singleton
-    fun provideEmulatorCore(): EmulatorCore = DsEmulatorCore()
+    single<EmulatorCore> { DsEmulatorCore() }
 
     /**
      * El controlador es único en la aplicación: la sesión de juego debe
      * sobrevivir a rotaciones y a que la pantalla se recomponga, y sólo puede
      * haber un hilo de emulación vivo.
      */
-    @Provides
-    @Singleton
-    fun provideEmulatorController(core: EmulatorCore): EmulatorController = EmulatorController(core)
+    single { EmulatorController(get()) }
+
+    viewModel { MainViewModel(get()) }
+    viewModel { SettingsViewModel(get(), get(), get()) }
+    viewModel { RomLibraryViewModel(get(), get(), get(), get()) }
+    viewModel { LayoutEditorViewModel(get()) }
+    viewModel { GamepadMappingViewModel(get(), get(), get()) }
+
+    // El último `get()` es el SavedStateHandle de la entrada de navegación:
+    // Koin lo saca de la misma entrada que guarda el ViewModel, como Hilt.
+    viewModel {
+        GameViewModel(
+            controller = get(),
+            settingsRepository = get(),
+            romRepository = get(),
+            saveManager = get(),
+            cheatsManager = get(),
+            gamepadManager = get(),
+            gamepadInputRouter = get(),
+            applicationScope = get(ApplicationScope),
+            savedStateHandle = get(),
+        )
+    }
 }

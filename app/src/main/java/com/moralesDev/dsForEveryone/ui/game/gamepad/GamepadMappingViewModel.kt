@@ -8,8 +8,6 @@ import com.moralesDev.dsForEveryone.emulator.gamepad.GamepadInputRouter
 import com.moralesDev.dsForEveryone.emulator.gamepad.GamepadManager
 import com.moralesDev.dsForEveryone.emulator.gamepad.GamepadMapping
 import com.moralesDev.dsForEveryone.emulator.gamepad.GamepadTarget
-import dagger.hilt.android.lifecycle.HiltViewModel
-import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -28,8 +26,7 @@ import kotlinx.coroutines.launch
  * admite más de un mando a la vez, esta pantalla es la que elige cuál mapear;
  * hoy sólo el proyecto vio nunca uno solo conectado, así que toma el primero.
  */
-@HiltViewModel
-class GamepadMappingViewModel @Inject constructor(
+class GamepadMappingViewModel(
     private val settingsRepository: SettingsRepository,
     private val gamepadManager: GamepadManager,
     private val gamepadInputRouter: GamepadInputRouter,

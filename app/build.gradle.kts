@@ -5,7 +5,6 @@ plugins {
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.ksp)
-    alias(libs.plugins.hilt)
     alias(libs.plugins.room)
 }
 
@@ -308,12 +307,17 @@ dependencies {
     implementation(libs.androidx.compose.material.icons.extended)
     debugImplementation(libs.androidx.compose.ui.tooling)
 
-    implementation(libs.hilt.android)
-    implementation(libs.androidx.hilt.navigation.compose)
-    implementation(libs.androidx.hilt.lifecycle.viewmodel.compose)
-    ksp(libs.hilt.compiler)
+    // Inyección de dependencias. Koin y no Hilt porque Hilt sólo existe en
+    // Android y Koin también en iOS (docs/ios.md, iOS-3). El módulo está en
+    // di/AppModule.kt; AppModuleTest comprueba en la JVM que se resuelve
+    // entero, lo que Hilt comprobaba al compilar.
+    implementation(platform(libs.koin.bom))
+    implementation(libs.koin.android)
+    implementation(libs.koin.compose.viewmodel)
 
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)
     testImplementation(libs.turbine)
+    testImplementation(platform(libs.koin.bom))
+    testImplementation(libs.koin.test.junit4)
 }
