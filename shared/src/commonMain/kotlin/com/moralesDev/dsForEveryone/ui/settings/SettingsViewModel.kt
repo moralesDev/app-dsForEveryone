@@ -1,10 +1,8 @@
 package com.moralesDev.dsForEveryone.ui.settings
 
-import android.content.ContentResolver
-import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.moralesDev.dsForEveryone.data.rom.RomRepository
+import com.moralesDev.dsForEveryone.data.rom.GameTitles
 import com.moralesDev.dsForEveryone.data.save.SaveArchive
 import com.moralesDev.dsForEveryone.data.settings.AppLanguage
 import com.moralesDev.dsForEveryone.data.settings.EmulatorSettings
@@ -15,15 +13,13 @@ import com.moralesDev.dsForEveryone.data.settings.TouchMode
 import com.moralesDev.dsForEveryone.ui.UiMessage
 import com.moralesDev.dsForEveryone.ui.archive.PendingArchiveImport
 import com.moralesDev.dsForEveryone.ui.archive.SaveArchiveCoordinator
+import com.moralesDev.dsForEveryone.ui.files.PickedDocument
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
-import okio.sink
-import okio.source
 
 /**
  * Los ajustes que no pertenecen a una partida concreta.
@@ -36,7 +32,7 @@ import okio.source
  */
 class SettingsViewModel(
     private val settingsRepository: SettingsRepository,
-    private val romRepository: RomRepository,
+    private val gameTitles: GameTitles,
     saveArchive: SaveArchive,
 ) : ViewModel() {
 
@@ -99,18 +95,17 @@ class SettingsViewModel(
      * Exporta las partidas de todos los juegos, también los que ya no están
      * en la biblioteca: siguen siendo del usuario. Ver `docs/copia-de-partidas.md`.
      */
-    fun exportAllSaves(contentResolver: ContentResolver, uri: Uri?) {
-        if (uri == null) return
+    fun exportAllSaves(document: PickedDocument?) {
+        if (document == null) return
         _message.value = null
         viewModelScope.launch {
-            val titles = romRepository.observeLibrary().first().associate { it.id to it.displayName }
-            archive.export(open = { contentResolver.openOutputStream(uri)?.sink() }, titles = titles)
+            archive.export(open = document::openSink, titles = gameTitles.byId())
         }
     }
 
-    fun onArchiveImportPicked(contentResolver: ContentResolver, uri: Uri?) {
+    fun onArchiveImportPicked(document: PickedDocument?) {
         _message.value = null
-        archive.onPicked(open = uri?.let { { contentResolver.openInputStream(it)?.source() } })
+        archive.onPicked(open = document?.let { it::openSource })
     }
 
     fun confirmArchiveImport() = archive.confirm()

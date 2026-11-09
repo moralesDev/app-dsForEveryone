@@ -347,8 +347,23 @@ Se hace en cinco pasos; tras cada uno Android sigue igual:
      con `.sink()`/`.source()`. 28 pruebas de `SaveArchiveTest` en verde con el
      zip nuevo; `ZipInteropTest` contra `java.util.zip` en las dos direcciones;
      `ZipRoundTripTest` también en el simulador de iOS.
-   - Pendiente: Ajustes (los selectores de archivos), biblioteca, juego,
-     editor de disposición, mapeo de mandos, navegación y el idioma.
+   - ✅ **Ajustes** (2026-11-09): `SettingsScreen` y `SettingsViewModel` a
+     común. Lo que tenían de Android:
+     - Los selectores de archivos pasan a `ui/files/DocumentPickers`
+       (`rememberCreateDocument`, `rememberOpenDocument`, que devuelven un
+       `PickedDocument` del que abrir un `Sink`/`Source`). En Android, SAF
+       como antes. **En iOS están pendientes** (no hacen nada y lo dicen en
+       el registro): exportar allí funciona al revés —se escribe el archivo y
+       luego se ofrece con `UIDocumentPickerViewController`—, y se hará con el
+       arranque de la app (paso 5), cuando se pueda probar.
+     - `RomRepository` (sólo para los títulos al exportar) pasa a una
+       interfaz pequeña, `GameTitles`, que en Android da `RomRepository`.
+     - `ViewModel`, `collectAsStateWithLifecycle` y `koinViewModel` en sus
+       versiones multiplataforma (Lifecycle de JetBrains 2.11.0, la misma
+       que la de AndroidX; Koin en `:shared`). `LocalDate.now()` pasa a
+       `kotlinx-datetime` 0.7.1.
+   - Pendiente: biblioteca, juego, editor de disposición, mapeo de mandos,
+     navegación y el idioma.
 5. **Arranque en iOS**: la app abre en el simulador.
 
 ### iOS-4 · El juego en iOS

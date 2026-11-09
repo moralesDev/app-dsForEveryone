@@ -1,7 +1,5 @@
 package com.moralesDev.dsForEveryone.ui.settings
 
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -28,7 +26,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
 import org.jetbrains.compose.resources.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -51,7 +48,11 @@ import com.moralesDev.dsForEveryone.ui.theme.Background
 import com.moralesDev.dsForEveryone.ui.theme.Danger
 import com.moralesDev.dsForEveryone.ui.theme.Glass
 import com.moralesDev.dsForEveryone.ui.theme.textAlpha
-import java.time.LocalDate
+import com.moralesDev.dsForEveryone.ui.files.rememberCreateDocument
+import com.moralesDev.dsForEveryone.ui.files.rememberOpenDocument
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.todayIn
+import kotlin.time.Clock
 import org.koin.compose.viewmodel.koinViewModel
 import com.moralesDev.dsForEveryone.resources.Res
 import com.moralesDev.dsForEveryone.resources.cd_back
@@ -128,15 +129,11 @@ fun SettingsScreen(
     val pendingArchiveImport by viewModel.pendingArchiveImport.collectAsStateWithLifecycle()
     val archiveBusy by viewModel.archiveBusy.collectAsStateWithLifecycle()
 
-    val contentResolver = LocalContext.current.contentResolver
-    val archiveExportPicker = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.CreateDocument("application/zip"),
-        onResult = { uri -> viewModel.exportAllSaves(contentResolver, uri) },
+    val archiveExportPicker = rememberCreateDocument(
+        mimeType = "application/zip",
+        onResult = viewModel::exportAllSaves,
     )
-    val archiveImportPicker = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.OpenDocument(),
-        onResult = { uri -> viewModel.onArchiveImportPicked(contentResolver, uri) },
-    )
+    val archiveImportPicker = rememberOpenDocument(onResult = viewModel::onArchiveImportPicked)
 
     Column(
         modifier = Modifier
@@ -308,7 +305,7 @@ fun SettingsScreen(
                     label = stringResource(Res.string.se_archive_export),
                     description = stringResource(Res.string.se_archive_export_hint),
                     onClick = {
-                        if (!archiveBusy) archiveExportPicker.launch(suggestedBackupFileName())
+                        if (!archiveBusy) archiveExportPicker(suggestedBackupFileName())
                     },
                 ) {
                     NavigationChevron()
@@ -318,7 +315,7 @@ fun SettingsScreen(
                     label = stringResource(Res.string.se_archive_import),
                     description = stringResource(Res.string.se_archive_import_hint),
                     // Cualquier tipo: los proveedores no siempre etiquetan un .zip como tal.
-                    onClick = { if (!archiveBusy) archiveImportPicker.launch(arrayOf("*/*")) },
+                    onClick = { if (!archiveBusy) archiveImportPicker() },
                 ) {
                     NavigationChevron()
                 }
@@ -449,7 +446,7 @@ private fun ConfirmationChip(text: String, color: Color, onClick: () -> Unit) {
 
 /** `dsforeveryone-saves-AAAA-MM-DD.zip`: la fecha distingue una copia de la siguiente. */
 private fun suggestedBackupFileName(): String =
-    "dsforeveryone-saves-${LocalDate.now()}.zip"
+    "dsforeveryone-saves-${Clock.System.todayIn(TimeZone.currentSystemDefault())}.zip"
 
 /** La punta de flecha de las filas que llevan a otra pantalla. */
 @Composable

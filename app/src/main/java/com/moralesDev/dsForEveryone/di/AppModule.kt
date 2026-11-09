@@ -8,6 +8,7 @@ import com.moralesDev.dsForEveryone.data.cover.CoverRepository
 import com.moralesDev.dsForEveryone.data.db.DsEmuDatabase
 import com.moralesDev.dsForEveryone.data.rom.ContentResolverDocumentAccess
 import com.moralesDev.dsForEveryone.data.rom.DocumentAccess
+import com.moralesDev.dsForEveryone.data.rom.GameTitles
 import com.moralesDev.dsForEveryone.data.rom.RomRepository
 import com.moralesDev.dsForEveryone.data.save.BatterySaveManager
 import com.moralesDev.dsForEveryone.data.save.BitmapThumbnailEncoder
@@ -31,6 +32,7 @@ import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.first
 import org.koin.android.ext.koin.androidContext
 import org.koin.core.module.dsl.viewModel
 import org.koin.dsl.module
@@ -120,6 +122,12 @@ val appModule = module {
     single { EmulatorController(get()) }
 
     viewModel { MainViewModel(get()) }
+    // Lo único que Ajustes necesita de la biblioteca: los títulos.
+    single {
+        val roms = get<RomRepository>()
+        GameTitles { roms.observeLibrary().first().associate { it.id to it.displayName } }
+    }
+
     viewModel { SettingsViewModel(get(), get(), get()) }
     viewModel { RomLibraryViewModel(get(), get(), get(), get()) }
     viewModel { LayoutEditorViewModel(get()) }

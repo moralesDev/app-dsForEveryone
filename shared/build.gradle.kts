@@ -60,8 +60,20 @@ kotlin {
             api(libs.compose.multiplatform.animation)
             api(libs.compose.multiplatform.material3)
             api(libs.compose.multiplatform.icons)
+            // ViewModels y su estado en pantalla, y koinViewModel(), en común.
+            // En Android se resuelven a los de AndroidX que ya usaba la app.
+            api(libs.jetbrains.lifecycle.viewmodel.compose)
+            api(libs.jetbrains.lifecycle.runtime.compose)
+            api(project.dependencies.platform(libs.koin.bom))
+            api(libs.koin.core)
+            api(libs.koin.compose.viewmodel)
+            implementation(libs.kotlinx.datetime)
             implementation(libs.kotlinx.serialization.json)
             implementation(libs.kotlinx.coroutines.core)
+        }
+        androidMain.dependencies {
+            // Los selectores de archivos de Android (DocumentPickers.android.kt).
+            implementation(libs.androidx.activity.compose)
         }
         iosMain.dependencies {
             // SQLite compilado dentro de la app: en iOS no hay uno del sistema
