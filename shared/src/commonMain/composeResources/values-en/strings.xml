@@ -345,4 +345,9 @@
     <string name="msg_cheat_deleted">Cheat deleted</string>
     <string name="msg_cheat_save_failed">Couldn't save the cheat</string>
     <string name="msg_cheats_corrupt">Couldn't read your saved cheats; the list was reset</string>
+
+    <!-- Provisional (docs/ios.md, iOS-3 paso 5): lo que enseña iOS en las pantallas que aún no tiene -->
+    <string name="ios_pending_title">Not on iOS yet</string>
+    <string name="ios_pending_body">The library and the game arrive in the next steps. Meanwhile, you can look around the settings.</string>
+    <string name="ios_pending_settings">Open settings</string>
 </resources>

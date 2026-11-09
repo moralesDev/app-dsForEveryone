@@ -7,21 +7,13 @@ import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.runtime.getValue
-import androidx.compose.ui.Modifier
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.navigation.compose.rememberNavController
 import com.moralesDev.dsForEveryone.emulator.gamepad.GamepadInputRouter
-import com.moralesDev.dsForEveryone.ui.MainViewModel
-import com.moralesDev.dsForEveryone.ui.locale.ProvideAppLanguage
-import com.moralesDev.dsForEveryone.ui.navigation.AppNavHost
-import com.moralesDev.dsForEveryone.ui.theme.Background
-import com.moralesDev.dsForEveryone.ui.theme.DsEmuTheme
+import com.moralesDev.dsForEveryone.ui.App
+import com.moralesDev.dsForEveryone.ui.game.GameScreen
+import com.moralesDev.dsForEveryone.ui.game.gamepad.GamepadMappingScreen
+import com.moralesDev.dsForEveryone.ui.library.RomLibraryScreen
+import com.moralesDev.dsForEveryone.ui.navigation.PlatformScreens
 import org.koin.android.ext.android.inject
-import org.koin.androidx.viewmodel.ext.android.viewModel
 
 /**
  * Única Activity de la aplicación. El manifiesto fija vertical por defecto;
@@ -30,8 +22,6 @@ import org.koin.androidx.viewmodel.ext.android.viewModel
  * biblioteca, ajustes, bienvenida— no está pensada para horizontal.
  */
 class MainActivity : ComponentActivity() {
-
-    private val viewModel: MainViewModel by viewModel()
 
     private val gamepadInputRouter: GamepadInputRouter by inject()
 
@@ -57,31 +47,15 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
 
         setContent {
-            DsEmuTheme {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(Background),
-                ) {
-                    val settings by viewModel.settings.collectAsStateWithLifecycle()
-                    // Por encima de ProvideAppLanguage a propósito: al cambiar de
-                    // idioma la interfaz se rehace (ver ProvideAppLanguage), y la
-                    // navegación —en qué pantalla se está— tiene que sobrevivir.
-                    val navController = rememberNavController()
-
-                    // Hasta que no se sabe el idioma y si toca el onboarding no
-                    // se pinta nada: sólo el fondo, que ya es el definitivo.
-                    settings?.let { current ->
-                        ProvideAppLanguage(current.language) {
-                            AppNavHost(
-                                navController = navController,
-                                skipWelcome = current.skipWelcome,
-                                onWelcomeFinished = viewModel::onWelcomeFinished,
-                            )
-                        }
-                    }
-                }
-            }
+            App(
+                screens = PlatformScreens(
+                    library = { onOpenSettings, onOpenGame ->
+                        RomLibraryScreen(onOpenSettings = onOpenSettings, onOpen = { rom -> onOpenGame(rom.id) })
+                    },
+                    game = { onExit -> GameScreen(onExit = onExit) },
+                    gamepadMapping = { onBack -> GamepadMappingScreen(onBack = onBack) },
+                ),
+            )
         }
     }
 }

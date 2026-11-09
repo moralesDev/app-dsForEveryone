@@ -15,6 +15,8 @@ lifecycle = "2.11.0"
 kotlinxDatetime = "0.7.1"
 activityCompose = "1.13.0"
 navigationCompose = "2.9.8"
+# Navigation de JetBrains (común). En Android se resuelve a la de AndroidX de arriba.
+jetbrainsNavigation = "2.9.2"
 composeBom = "2026.08.00"
 coroutines = "1.11.0"
 kotlinxSerialization = "1.7.3"
@@ -39,6 +41,8 @@ androidx-lifecycle-runtime-ktx = { group = "androidx.lifecycle", name = "lifecyc
 androidx-lifecycle-runtime-compose = { group = "androidx.lifecycle", name = "lifecycle-runtime-compose", version.ref = "lifecycle" }
 androidx-lifecycle-viewmodel-compose = { group = "androidx.lifecycle", name = "lifecycle-viewmodel-compose", version.ref = "lifecycle" }
 androidx-activity-compose = { group = "androidx.activity", name = "activity-compose", version.ref = "activityCompose" }
+jetbrains-navigation-compose = { group = "org.jetbrains.androidx.navigation", name = "navigation-compose", version.ref = "jetbrainsNavigation" }
+compose-multiplatform-backhandler = { group = "org.jetbrains.compose.ui", name = "ui-backhandler", version.ref = "composeMultiplatform" }
 androidx-navigation-compose = { group = "androidx.navigation", name = "navigation-compose", version.ref = "navigationCompose" }
 
 androidx-compose-bom = { group = "androidx.compose", name = "compose-bom", version.ref = "composeBom" }

@@ -390,6 +390,24 @@ Se hace en cinco pasos; tras cada uno Android sigue igual:
      `GamepadInputRouter`, que son el de Android.
    - Pendiente: biblioteca, juego, mapeo de mandos, navegación y el idioma.
 5. **Arranque en iOS**: la app abre en el simulador.
+   - ✅ **Arranca** (2026-11-09), en el simulador de iPad. Antes, en el
+     paso 4, la navegación y el idioma pasaron a común: `AppNavHost` (con
+     Navigation de JetBrains 2.9.2 y `ui-backhandler`), `MainViewModel`,
+     `ProvideAppLanguage` (una por plataforma: en iOS, `AppleLanguages` y una
+     `key`) y `App()`, que es lo que pintan `MainActivity` y el arranque de
+     iOS. Las pantallas aún no comunes (biblioteca, juego, mapeo de mandos)
+     son huecos de `PlatformScreens`: Android pone las suyas; iOS, un aviso.
+   - `shared` produce el framework dinámico `Shared`. En `iosMain`:
+     `MainViewController()` y su módulo de Koin (`di/IosModule.kt`): ajustes,
+     Room con `BundledSQLiteDriver` y partidas en `Application Support/files/`.
+   - La app de Xcode está en `ios/app/` (CMake, como `ios/spike/`; ver su
+     README). Dos cosas que no eran obvias: Gradle se lanza sin el perfil de
+     la terminal, así que hay que darle `JAVA_HOME`; y los recursos de Compose
+     hay que copiarlos a `DsForEveryone.app/compose-resources/` —sin ellos
+     falla al cargar la fuente—, con un script que use las variables de Xcode
+     (`TARGET_BUILD_DIR`), porque CMake no expande `EFFECTIVE_PLATFORM_NAME`.
+   - Pendiente: probarla en el iPad de verdad; los selectores de archivos de
+     iOS; y la biblioteca y el juego.
 
 ### iOS-4 · El juego en iOS
 

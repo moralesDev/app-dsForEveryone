@@ -41,7 +41,7 @@ import java.util.Locale
  * congelada para siempre.
  */
 @Composable
-fun ProvideAppLanguage(
+actual fun ProvideAppLanguage(
     language: AppLanguage,
     content: @Composable () -> Unit,
 ) {

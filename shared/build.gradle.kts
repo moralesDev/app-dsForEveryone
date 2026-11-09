@@ -37,8 +37,14 @@ kotlin {
         }
     }
 
-    iosArm64()
-    iosSimulatorArm64()
+    // El framework `Shared` que enlaza la app de iOS (ios/app/). Dinámico: se
+    // copia dentro de la app y trae enlazadas sus propias dependencias.
+    listOf(iosArm64(), iosSimulatorArm64()).forEach { target ->
+        target.binaries.framework {
+            baseName = "Shared"
+            isStatic = false
+        }
+    }
 
     sourceSets {
         commonMain.dependencies {
@@ -68,6 +74,9 @@ kotlin {
             api(libs.koin.core)
             api(libs.koin.compose.viewmodel)
             implementation(libs.kotlinx.datetime)
+            // La navegación y el botón atrás, comunes.
+            api(libs.jetbrains.navigation.compose)
+            implementation(libs.compose.multiplatform.backhandler)
             implementation(libs.kotlinx.serialization.json)
             implementation(libs.kotlinx.coroutines.core)
         }

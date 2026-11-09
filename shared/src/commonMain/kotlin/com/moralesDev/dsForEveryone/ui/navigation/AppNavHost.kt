@@ -1,6 +1,7 @@
 package com.moralesDev.dsForEveryone.ui.navigation
 
-import androidx.activity.compose.BackHandler
+import androidx.compose.ui.ExperimentalComposeUiApi
+import androidx.compose.ui.backhandler.BackHandler
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
@@ -14,10 +15,7 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.moralesDev.dsForEveryone.ui.about.AboutScreen
 import com.moralesDev.dsForEveryone.ui.components.LoadingVeil
-import com.moralesDev.dsForEveryone.ui.game.GameScreen
-import com.moralesDev.dsForEveryone.ui.game.gamepad.GamepadMappingScreen
 import com.moralesDev.dsForEveryone.ui.game.layout.LayoutEditorScreen
-import com.moralesDev.dsForEveryone.ui.library.RomLibraryScreen
 import com.moralesDev.dsForEveryone.ui.settings.SettingsScreen
 import com.moralesDev.dsForEveryone.ui.splash.SplashScreen
 import com.moralesDev.dsForEveryone.ui.welcome.WelcomeScreen
@@ -39,6 +37,18 @@ object Routes {
 }
 
 /**
+ * Las pantallas que todavía no son comunes (docs/ios.md, iOS-3 paso 4): las
+ * pone cada plataforma. En Android, las de verdad; en iOS, mientras no
+ * estén hechas, un aviso. Cuando pasen al módulo común, este hueco
+ * desaparece y [AppNavHost] las llama directamente, como al resto.
+ */
+class PlatformScreens(
+    val library: @Composable (onOpenSettings: () -> Unit, onOpenGame: (romId: String) -> Unit) -> Unit,
+    val game: @Composable (onExit: () -> Unit) -> Unit,
+    val gamepadMapping: @Composable (onBack: () -> Unit) -> Unit,
+)
+
+/**
  * Grafo de navegación.
  *
  * Siempre se arranca por el splash. Es él quien decide a dónde seguir según
@@ -58,8 +68,10 @@ object Routes {
  *
  * El resto sí, y sobre todo **salir del juego**, que es el caso caro (fase 2).
  */
+@OptIn(ExperimentalComposeUiApi::class)
 @Composable
 fun AppNavHost(
+    screens: PlatformScreens,
     skipWelcome: Boolean,
     onWelcomeFinished: (skipNextTime: Boolean) -> Unit,
     navController: NavHostController = rememberNavController(),
@@ -94,13 +106,13 @@ fun AppNavHost(
             }
 
             composable(Routes.LIBRARY) {
-                RomLibraryScreen(
-                    onOpenSettings = {
+                screens.library(
+                    {
                         transitions.navigateWithVeil { navController.navigate(Routes.SETTINGS) }
                     },
                     // Sin velo: la pantalla de juego trae su propio «Cargando
                     // ROM» (ver GameViewModel).
-                    onOpen = { rom -> navController.navigate(Routes.game(rom.id)) },
+                    { romId -> navController.navigate(Routes.game(romId)) },
                 )
             }
 
@@ -132,22 +144,18 @@ fun AppNavHost(
             }
 
             composable(Routes.GAMEPAD_MAPPING) {
-                GamepadMappingScreen(
-                    onBack = { transitions.navigateWithVeil { navController.popBackStack() } },
-                )
+                screens.gamepadMapping { transitions.navigateWithVeil { navController.popBackStack() } }
             }
 
             composable(
                 Routes.GAME,
                 arguments = listOf(navArgument("romId") { type = NavType.StringType; nullable = true }),
             ) {
-                GameScreen(
-                    onExit = {
-                        transitions.navigateWithVeil(ScreenTransitions.LEAVING_GAME_MS) {
-                            navController.popBackStack(Routes.LIBRARY, inclusive = false)
-                        }
-                    },
-                )
+                screens.game {
+                    transitions.navigateWithVeil(ScreenTransitions.LEAVING_GAME_MS) {
+                        navController.popBackStack(Routes.LIBRARY, inclusive = false)
+                    }
+                }
             }
         }
 
