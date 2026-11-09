@@ -348,6 +348,6 @@
 
     <!-- Provisional (docs/ios.md, iOS-3 paso 5): lo que enseña iOS en las pantallas que aún no tiene -->
     <string name="ios_pending_title">Not on iOS yet</string>
-    <string name="ios_pending_body">The library and the game arrive in the next steps. Meanwhile, you can look around the settings.</string>
-    <string name="ios_pending_settings">Open settings</string>
+    <string name="ios_pending_body">The game arrives in the next step: the library and the settings already work.</string>
+    <string name="ios_pending_back">Back</string>
 </resources>

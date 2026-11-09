@@ -433,8 +433,17 @@ Se hace en cinco pasos; tras cada uno Android sigue igual:
         `String.format` pasa a `ui/Formats` (una por plataforma), el icono del
         cartucho a `argbImageBitmap` (Bitmap en Android, Skia en iOS) y la
         portada se lee con Okio + `decodeToImageBitmap`.
-   - Pendiente: `RomLibrary` y `CoverStore` de iOS (para que la biblioteca
-     salga en el iPad), y el juego.
+   - ✅ **Biblioteca en iOS** (2026-11-09). `IosRomLibrary`: la ROM no se
+     copia; se guarda un marcador («bookmark») de la URL del selector en
+     `documentUri` (`bookmark:` + base64) y se resuelve para leerla en su
+     sitio; si deja de resolverse, el juego sale no disponible. `.zip` con las
+     reglas de Android (una `.nds`, 1 GB como mucho), leído con el zip común
+     sobre una copia temporal. `IosCoverStore`: abre con `UIImage` (entiende
+     HEIC y aplica la orientación) y recorta, escala y codifica en WebP con
+     Skia. Probado en un iPad Air M2: añadir ROMs, que sigan ahí al
+     reiniciar, portadas.
+   - Pendiente: el juego; el selector de la fototeca (PHPicker) para las
+     portadas.
 
 ### iOS-4 · El juego en iOS
 

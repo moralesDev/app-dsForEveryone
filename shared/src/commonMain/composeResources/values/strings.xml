@@ -354,6 +354,6 @@
 
     <!-- Provisional (docs/ios.md, iOS-3 paso 5): lo que enseña iOS en las pantallas que aún no tiene -->
     <string name="ios_pending_title">Esto todavía no está en iOS</string>
-    <string name="ios_pending_body">La biblioteca y el juego llegan en los próximos pasos. Mientras tanto, puedes recorrer los ajustes.</string>
-    <string name="ios_pending_settings">Abrir ajustes</string>
+    <string name="ios_pending_body">El juego llega en el próximo paso: la biblioteca y los ajustes ya funcionan.</string>
+    <string name="ios_pending_back">Volver</string>
 </resources>

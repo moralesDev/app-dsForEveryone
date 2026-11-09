@@ -18,10 +18,11 @@ import com.moralesDev.dsForEveryone.data.save.SaveArchive
 import com.moralesDev.dsForEveryone.di.startKoinIos
 import com.moralesDev.dsForEveryone.resources.Res
 import com.moralesDev.dsForEveryone.resources.ios_pending_body
-import com.moralesDev.dsForEveryone.resources.ios_pending_settings
+import com.moralesDev.dsForEveryone.resources.ios_pending_back
 import com.moralesDev.dsForEveryone.resources.ios_pending_title
 import com.moralesDev.dsForEveryone.ui.App
 import com.moralesDev.dsForEveryone.ui.components.AccentButton
+import com.moralesDev.dsForEveryone.ui.library.RomLibraryScreen
 import com.moralesDev.dsForEveryone.ui.navigation.PlatformScreens
 import com.moralesDev.dsForEveryone.ui.theme.Background
 import com.moralesDev.dsForEveryone.ui.theme.textAlpha
@@ -33,9 +34,8 @@ import platform.UIKit.UIViewController
  * La app de iOS: lo mismo que pinta `MainActivity` en Android, en un
  * `UIViewController` que la app de Xcode (ios/app/) pone como raíz.
  *
- * Las pantallas que todavía no son comunes —biblioteca, juego, mapeo de
- * mandos— enseñan un aviso; desde el de la biblioteca se puede ir a
- * Ajustes, que ya funciona entera salvo los selectores de archivos.
+ * Las pantallas que todavía no están en iOS —el juego y el mapeo de mandos—
+ * enseñan un aviso, con un botón para volver.
  */
 fun MainViewController(): UIViewController {
     startKoinIos()
@@ -44,7 +44,9 @@ fun MainViewController(): UIViewController {
     return ComposeUIViewController {
         App(
             screens = PlatformScreens(
-                library = { onOpenSettings, _ -> PendingOnIos(onOpenSettings) },
+                library = { onOpenSettings, onOpenGame ->
+                    RomLibraryScreen(onOpenSettings = onOpenSettings, onOpen = { rom -> onOpenGame(rom.id) })
+                },
                 game = { onExit -> PendingOnIos(onExit) },
                 gamepadMapping = { onBack -> PendingOnIos(onBack) },
             ),
@@ -73,6 +75,6 @@ private fun PendingOnIos(onAction: () -> Unit) {
             color = textAlpha(0.6f),
             textAlign = TextAlign.Center,
         )
-        AccentButton(text = stringResource(Res.string.ios_pending_settings), onClick = onAction)
+        AccentButton(text = stringResource(Res.string.ios_pending_back), onClick = onAction)
     }
 }

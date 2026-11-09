@@ -4,7 +4,15 @@ import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import androidx.room.Room
 import androidx.sqlite.driver.bundled.BundledSQLiteDriver
 import com.moralesDev.dsForEveryone.data.db.DsEmuDatabase
+import com.moralesDev.dsForEveryone.data.cover.CoverStore
+import com.moralesDev.dsForEveryone.data.cover.IosCoverStore
 import com.moralesDev.dsForEveryone.data.rom.GameTitles
+import com.moralesDev.dsForEveryone.data.rom.IosRomLibrary
+import com.moralesDev.dsForEveryone.data.rom.RomLibrary
+import com.moralesDev.dsForEveryone.data.save.BatterySaveManager
+import com.moralesDev.dsForEveryone.data.save.SaveManager
+import com.moralesDev.dsForEveryone.data.save.SaveStateManager
+import com.moralesDev.dsForEveryone.ui.library.RomLibraryViewModel
 import com.moralesDev.dsForEveryone.data.save.SaveArchive
 import com.moralesDev.dsForEveryone.data.settings.SettingsRepository
 import com.moralesDev.dsForEveryone.data.storage.StorageManager
@@ -71,6 +79,15 @@ private val iosModule = module {
 
     single { SaveArchive(get(), get(IoDispatcher)) }
 
+    single { BatterySaveManager(get(), get(IoDispatcher)) }
+    // Sin miniaturas en las ranuras hasta que llegue el juego a iOS.
+    single { SaveStateManager(get(), get(IoDispatcher)) }
+    single { SaveManager(get(), get(), get()) }
+
+    single { IosRomLibrary(get<DsEmuDatabase>().romDao(), get(), get(IoDispatcher)) }
+    single<RomLibrary> { get<IosRomLibrary>() }
+    single<CoverStore> { IosCoverStore(get(), get(IoDispatcher)) }
+
     // Ajustes sólo necesita los títulos para el manifiesto de una copia:
     // salen de la base de datos, sin pasar por el repositorio de ROMs.
     single {
@@ -81,6 +98,7 @@ private val iosModule = module {
     viewModel { MainViewModel(get()) }
     viewModel { SettingsViewModel(get(), get(), get()) }
     viewModel { LayoutEditorViewModel(get()) }
+    viewModel { RomLibraryViewModel(get(), get(), get(), get()) }
 }
 
 /** `Application Support/files/`, creada si no existe. */
