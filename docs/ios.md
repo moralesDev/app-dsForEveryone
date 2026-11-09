@@ -416,7 +416,25 @@ Se hace en cinco pasos; tras cada uno Android sigue igual:
      existe): así funciona como en Android, primero se elige dónde y después
      se escribe. Pendiente de probar con una copia de partidas real (importar
      en el iPad una exportada en Android).
-   - Pendiente: la biblioteca y el juego.
+   - ✅ **Biblioteca, en común** (2026-11-09), en tres pasos:
+     1. `RomLibrary` (interfaz común: listar, importar un `PickedDocument`,
+        renombrar, quitar, marcar jugado) y `RomImportResult`. En Android la
+        implementa `RomRepository` sin cambiar su lógica: la entrega de la ROM
+        al core (descriptores, `mmap`, lo aprendido de los `OutOfMemoryError`)
+        no se toca. `PickedDocument.reference`: el `Uri` en Android, la URL en
+        iOS.
+     2. Portadas: `CoverImage` a común (EXIF como los números del estándar),
+        `PickedImage` con un `ImageBitmap`, y la interfaz `CoverStore`, que en
+        Android implementa `CoverRepository` igual que antes.
+        `rememberPickImage`: en Android, el selector de fotos; en iOS, por
+        ahora, el de archivos filtrado a imágenes.
+     3. `RomLibraryScreen`, `RomLibraryViewModel` y `CoverSheets` a común,
+        con los selectores comunes. Lo que escribía `java.time` y
+        `String.format` pasa a `ui/Formats` (una por plataforma), el icono del
+        cartucho a `argbImageBitmap` (Bitmap en Android, Skia en iOS) y la
+        portada se lee con Okio + `decodeToImageBitmap`.
+   - Pendiente: `RomLibrary` y `CoverStore` de iOS (para que la biblioteca
+     salga en el iPad), y el juego.
 
 ### iOS-4 · El juego en iOS
 

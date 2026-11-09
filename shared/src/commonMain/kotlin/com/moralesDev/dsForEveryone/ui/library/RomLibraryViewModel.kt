@@ -1,22 +1,17 @@
 package com.moralesDev.dsForEveryone.ui.library
 
-import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.moralesDev.dsForEveryone.data.cover.CoverError
-import com.moralesDev.dsForEveryone.data.cover.CoverRepository
 import com.moralesDev.dsForEveryone.data.cover.PickResult
 import com.moralesDev.dsForEveryone.data.cover.PickedImage
-import android.content.ContentResolver
 import com.moralesDev.dsForEveryone.data.rom.RomImportResult
 import com.moralesDev.dsForEveryone.data.rom.RomInfo
-import com.moralesDev.dsForEveryone.data.rom.RomRepository
 import com.moralesDev.dsForEveryone.data.save.SaveArchive
 import com.moralesDev.dsForEveryone.data.save.SaveManager
 import com.moralesDev.dsForEveryone.ui.UiMessage
 import com.moralesDev.dsForEveryone.ui.archive.PendingArchiveImport
 import com.moralesDev.dsForEveryone.ui.archive.SaveArchiveCoordinator
-import java.util.Locale
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -24,7 +19,6 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import com.moralesDev.dsForEveryone.data.storage.coverFile
 import com.moralesDev.dsForEveryone.resources.Res
 import com.moralesDev.dsForEveryone.resources.cover_failed
 import com.moralesDev.dsForEveryone.resources.cover_removed
@@ -48,8 +42,11 @@ import com.moralesDev.dsForEveryone.resources.msg_zip_corrupt
 import com.moralesDev.dsForEveryone.resources.msg_zip_encrypted
 import com.moralesDev.dsForEveryone.resources.msg_zip_multiple
 import com.moralesDev.dsForEveryone.resources.msg_zip_no_rom
-import okio.sink
-import okio.source
+import okio.use
+import okio.buffer
+import com.moralesDev.dsForEveryone.ui.files.PickedDocument
+import com.moralesDev.dsForEveryone.data.rom.RomLibrary
+import com.moralesDev.dsForEveryone.data.cover.CoverStore
 
 data class LibraryUiState(
     /** Todos los juegos de la biblioteca, sin filtrar. */
@@ -128,8 +125,8 @@ sealed interface CoverAction {
 }
 
 class RomLibraryViewModel(
-    private val romRepository: RomRepository,
-    private val coverRepository: CoverRepository,
+    private val romRepository: RomLibrary,
+    private val coverRepository: CoverStore,
     private val saveManager: SaveManager,
     saveArchive: SaveArchive,
 ) : ViewModel() {
@@ -158,7 +155,7 @@ class RomLibraryViewModel(
         val items = roms.map { rom ->
             LibraryItem(
                 rom = rom,
-                coverPath = coverRepository.coverFile(rom.id).takeIf { it.exists() }?.absolutePath,
+                coverPath = coverRepository.coverPath(rom.id),
                 coverVersion = coverRepository.coverVersion(rom.id),
                 hasBatterySave = saveManager.hasBattery(rom.id),
             )
@@ -190,11 +187,11 @@ class RomLibraryViewModel(
      * Recibe el documento elegido en el selector del sistema. Un `null` sólo
      * significa que el usuario canceló.
      */
-    fun onRomPicked(uri: Uri?) {
-        if (uri == null) return
+    fun onRomPicked(document: PickedDocument?) {
+        if (document == null) return
         viewModelScope.launch {
             transient.value = TransientState(isImporting = true)
-            val message = when (val result = romRepository.import(uri.toString())) {
+            val message = when (val result = romRepository.import(document)) {
                 is RomImportResult.Imported ->
                     UiMessage(Res.string.msg_imported, result.rom.displayName)
 
@@ -251,9 +248,9 @@ class RomLibraryViewModel(
     // --------------------------------------------------- copia de partidas
 
     /** Exporta las partidas de un juego. Ver `docs/copia-de-partidas.md`. */
-    fun exportArchive(rom: RomInfo, contentResolver: ContentResolver, uri: Uri?) {
+    fun exportArchive(rom: RomInfo, document: PickedDocument?) {
         archive.export(
-            open = uri?.let { { contentResolver.openOutputStream(it)?.sink() } },
+            open = document?.let { it::openSink },
             titles = mapOf(rom.id to rom.displayName),
             onlyRomId = rom.id,
         )
@@ -263,8 +260,8 @@ class RomLibraryViewModel(
      * Importa desde la hoja de un juego: de la copia sólo se toma ese juego,
      * aunque traiga más. Si ya tenía partidas, se pide confirmación.
      */
-    fun onArchiveImportPicked(romId: String, contentResolver: ContentResolver, uri: Uri?) {
-        archive.onPicked(open = uri?.let { { contentResolver.openInputStream(it)?.source() } }, onlyRomId = romId)
+    fun onArchiveImportPicked(romId: String, document: PickedDocument?) {
+        archive.onPicked(open = document?.let { it::openSource }, onlyRomId = romId)
     }
 
     fun confirmArchiveImport() = archive.confirm()
@@ -279,16 +276,15 @@ class RomLibraryViewModel(
 
     /**
      * Vuelca la partida de batería al documento elegido en el selector del
-     * sistema. Un `uri` nulo sólo significa que el usuario cerró el selector
+     * sistema. Un documento nulo sólo significa que el usuario cerró el selector
      * sin elegir dónde guardarlo.
      */
-    fun exportSav(romId: String, contentResolver: ContentResolver, uri: Uri?) {
-        if (uri == null) return
+    fun exportSav(romId: String, document: PickedDocument?) {
+        if (document == null) return
         viewModelScope.launch {
             val data = saveManager.loadBattery(romId)
             val written = data != null && runCatching {
-                contentResolver.openOutputStream(uri)?.use { it.write(data) }
-                true
+                document.openSink()?.buffer()?.use { it.write(data) } != null
             }.getOrDefault(false)
             transient.update {
                 it.copy(
@@ -308,11 +304,11 @@ class RomLibraryViewModel(
      * una partida se pide confirmar antes de sobrescribirla; si no había
      * ninguna, se escribe directo porque no hay nada que perder.
      */
-    fun onSavImportPicked(romId: String, contentResolver: ContentResolver, uri: Uri?) {
-        if (uri == null) return
+    fun onSavImportPicked(romId: String, document: PickedDocument?) {
+        if (document == null) return
         viewModelScope.launch {
             val bytes = runCatching {
-                contentResolver.openInputStream(uri)?.use { it.readBytes() }
+                document.openSource()?.buffer()?.use { it.readByteArray() }
             }.getOrNull()
             when {
                 bytes == null -> transient.update {
@@ -398,18 +394,18 @@ class RomLibraryViewModel(
      * Si la imagen no sirve se avisa y **no se toca la portada actual**: quien
      * ya tenía una la conserva, y quien no tenía sigue con el icono del banner.
      */
-    fun onImagePicked(uri: Uri?) {
+    fun onImagePicked(document: PickedDocument?) {
         // De qué juego era se sabe por el estado, no por una variable de la
         // pantalla: el selector es otra aplicación y volver de ella puede
         // recomponer la biblioteca entera.
         val rom = (transient.value.coverAction as? CoverAction.Choose)?.rom
-        if (uri == null || rom == null) {
+        if (document == null || rom == null) {
             dismissCoverAction()
             return
         }
         viewModelScope.launch {
             transient.update { it.copy(isProcessingCover = true) }
-            when (val result = coverRepository.open(uri)) {
+            when (val result = coverRepository.open(document)) {
                 is PickResult.Ready -> transient.update {
                     it.copy(
                         coverAction = CoverAction.Crop(rom, result.image),
@@ -432,7 +428,7 @@ class RomLibraryViewModel(
         viewModelScope.launch {
             transient.update { it.copy(isProcessingCover = true) }
             val saved = coverRepository.save(rom.id, image, zoom, centerX, centerY)
-            image.bitmap.recycle()
+            image.release()
             transient.update {
                 it.copy(
                     coverAction = null,
@@ -466,9 +462,9 @@ class RomLibraryViewModel(
 
     private fun LibraryItem.matches(query: String): Boolean {
         if (query.isBlank()) return true
-        val needle = query.trim().lowercase(Locale.getDefault())
-        return rom.displayName.lowercase(Locale.getDefault()).contains(needle) ||
-            rom.internalTitle.lowercase(Locale.getDefault()).contains(needle)
+        val needle = query.trim().lowercase()
+        return rom.displayName.lowercase().contains(needle) ||
+            rom.internalTitle.lowercase().contains(needle)
     }
 
     private data class TransientState(

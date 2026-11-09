@@ -37,7 +37,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.FilterQuality
-import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import org.jetbrains.compose.resources.stringResource
@@ -157,7 +156,7 @@ fun CoverCropSheet(
     var centerX by remember(image) { mutableFloatStateOf(0.5f) }
     var centerY by remember(image) { mutableFloatStateOf(0.5f) }
 
-    val bitmap = remember(image) { image.bitmap.asImageBitmap() }
+    val bitmap = image.image
 
     CoverSheetFrame(
         title = stringResource(Res.string.cover_crop_title),

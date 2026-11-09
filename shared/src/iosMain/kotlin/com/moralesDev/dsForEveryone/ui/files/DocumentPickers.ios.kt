@@ -19,6 +19,7 @@ import platform.UIKit.UIDocumentPickerDelegateProtocol
 import platform.UIKit.UIDocumentPickerViewController
 import platform.UIKit.UIViewController
 import platform.UniformTypeIdentifiers.UTTypeFolder
+import platform.UniformTypeIdentifiers.UTTypeImage
 import platform.UniformTypeIdentifiers.UTTypeItem
 import platform.darwin.NSObject
 
@@ -61,6 +62,24 @@ actual fun rememberOpenDocument(
     return {
         presenter.present(
             UIDocumentPickerViewController(forOpeningContentTypes = listOf(UTTypeItem), asCopy = false),
+        ) { url -> callback(url?.let(::ExistingFile)) }
+    }
+}
+
+/**
+ * Por ahora, el selector de archivos filtrado a imágenes. El de la fototeca
+ * (PHPickerViewController) llegará con las portadas de iOS: entrega la foto de
+ * otra manera (un proveedor asíncrono, no una URL).
+ */
+@Composable
+actual fun rememberPickImage(
+    onResult: (PickedDocument?) -> Unit,
+): () -> Unit {
+    val callback by rememberUpdatedState(onResult)
+    val presenter = remember { PickerPresenter() }
+    return {
+        presenter.present(
+            UIDocumentPickerViewController(forOpeningContentTypes = listOf(UTTypeImage), asCopy = false),
         ) { url -> callback(url?.let(::ExistingFile)) }
     }
 }
@@ -110,7 +129,9 @@ private class PickerDelegate(
 }
 
 /** Un archivo que ya existe, elegido para leerlo. */
-private class ExistingFile(private val url: NSURL) : PickedDocument {
+internal class ExistingFile(val url: NSURL) : PickedDocument {
+    override val reference: String get() = url.absoluteString ?: ""
+
     override fun openSink(): Sink? = null
 
     override fun openSource(): Source? {
@@ -132,6 +153,8 @@ private class ExistingFile(private val url: NSURL) : PickedDocument {
 
 /** Un archivo nuevo, [name], dentro de la carpeta elegida. */
 private class NewFileInFolder(private val folder: NSURL, private val name: String) : PickedDocument {
+    override val reference: String get() = (folder.absoluteString ?: "") + name
+
     override fun openSource(): Source? = null
 
     override fun openSink(): Sink? {

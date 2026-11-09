@@ -5,10 +5,12 @@ import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import androidx.room.Room
 import com.moralesDev.dsForEveryone.data.cheats.CheatsManager
 import com.moralesDev.dsForEveryone.data.cover.CoverRepository
+import com.moralesDev.dsForEveryone.data.cover.CoverStore
 import com.moralesDev.dsForEveryone.data.db.DsEmuDatabase
 import com.moralesDev.dsForEveryone.data.rom.ContentResolverDocumentAccess
 import com.moralesDev.dsForEveryone.data.rom.DocumentAccess
 import com.moralesDev.dsForEveryone.data.rom.GameTitles
+import com.moralesDev.dsForEveryone.data.rom.RomLibrary
 import com.moralesDev.dsForEveryone.data.rom.RomRepository
 import com.moralesDev.dsForEveryone.data.save.BatterySaveManager
 import com.moralesDev.dsForEveryone.data.save.BitmapThumbnailEncoder
@@ -94,7 +96,13 @@ val appModule = module {
 
     single { RomRepository(get(), get(), get(), get(IoDispatcher)) }
 
+    // La misma instancia, vista como la biblioteca común (data/rom/RomLibrary).
+    single<RomLibrary> { get<RomRepository>() }
+
     single { CoverRepository(get(), get(), get(IoDispatcher)) }
+
+    // La misma instancia, vista como las portadas comunes (data/cover/CoverStore).
+    single<CoverStore> { get<CoverRepository>() }
 
     single { BatterySaveManager(get(), get(IoDispatcher)) }
 

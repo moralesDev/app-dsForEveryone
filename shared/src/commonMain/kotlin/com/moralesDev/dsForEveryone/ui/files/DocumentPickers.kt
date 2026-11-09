@@ -10,6 +10,13 @@ import okio.Source
  * con permisos de acceso propios; lo único que la app hace con él es abrirlo.
  */
 interface PickedDocument {
+    /**
+     * Lo que identifica al documento para volver a él más tarde: en Android,
+     * el `Uri` de SAF; en iOS, la URL del archivo. Sólo lo interpreta la
+     * plataforma que lo dio.
+     */
+    val reference: String
+
     /** Para escribir en él (lo que se acaba de crear). `null` si el sistema no lo da. */
     fun openSink(): Sink?
 
@@ -29,6 +36,15 @@ expect fun rememberCreateDocument(
     mimeType: String,
     onResult: (PickedDocument?) -> Unit,
 ): (suggestedName: String) -> Unit
+
+/**
+ * El selector de **imágenes** (portadas): en Android, el selector de fotos
+ * del sistema; en iOS, por ahora, el de archivos filtrado a imágenes.
+ */
+@Composable
+expect fun rememberPickImage(
+    onResult: (PickedDocument?) -> Unit,
+): () -> Unit
 
 /**
  * El selector para **abrir** un documento existente, de cualquier tipo: la

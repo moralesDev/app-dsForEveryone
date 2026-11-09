@@ -1,6 +1,5 @@
 package com.moralesDev.dsForEveryone.data.cover
 
-import androidx.exifinterface.media.ExifInterface
 import kotlin.math.max
 import kotlin.math.roundToInt
 
@@ -96,11 +95,22 @@ object CoverImage {
      * aporta nada y el caso es rarísimo.
      */
     fun rotationFor(exifOrientation: Int): Int = when (exifOrientation) {
-        ExifInterface.ORIENTATION_ROTATE_90, ExifInterface.ORIENTATION_TRANSPOSE -> 90
-        ExifInterface.ORIENTATION_ROTATE_180, ExifInterface.ORIENTATION_FLIP_VERTICAL -> 180
-        ExifInterface.ORIENTATION_ROTATE_270, ExifInterface.ORIENTATION_TRANSVERSE -> 270
+        EXIF_ROTATE_90, EXIF_TRANSPOSE -> 90
+        EXIF_ROTATE_180, EXIF_FLIP_VERTICAL -> 180
+        EXIF_ROTATE_270, EXIF_TRANSVERSE -> 270
         else -> 0
     }
+
+    // Los valores de la etiqueta Orientation del estándar EXIF (1 a 8), los
+    // mismos que las constantes ORIENTATION_* de `ExifInterface` en Android:
+    // aquí como números porque esto es código común.
+    const val EXIF_NORMAL = 1
+    private const val EXIF_ROTATE_180 = 3
+    private const val EXIF_FLIP_VERTICAL = 4
+    private const val EXIF_TRANSPOSE = 5
+    private const val EXIF_ROTATE_90 = 6
+    private const val EXIF_TRANSVERSE = 7
+    private const val EXIF_ROTATE_270 = 8
 
     /** Si el giro intercambia ancho y alto. */
     fun swapsAxes(rotationDegrees: Int): Boolean = rotationDegrees == 90 || rotationDegrees == 270

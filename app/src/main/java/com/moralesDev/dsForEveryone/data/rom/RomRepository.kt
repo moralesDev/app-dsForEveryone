@@ -6,6 +6,7 @@ import com.moralesDev.dsForEveryone.data.db.RomEntity
 import com.moralesDev.dsForEveryone.data.db.toIconBytes
 import com.moralesDev.dsForEveryone.data.db.toRomInfo
 import com.moralesDev.dsForEveryone.data.storage.StorageManager
+import com.moralesDev.dsForEveryone.ui.files.PickedDocument
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -38,14 +39,14 @@ class RomRepository(
     private val romDao: RomDao,
     private val storageManager: StorageManager,
     private val ioDispatcher: CoroutineDispatcher,
-) {
+) : RomLibrary {
 
-    fun observeLibrary(): Flow<List<RomInfo>> =
+    override fun observeLibrary(): Flow<List<RomInfo>> =
         romDao.observeAll().map { entities ->
             entities.map { entity -> entity.toRomInfo(isAvailable = documentAccess.hasReadPermission(entity.documentUri)) }
         }
 
-    suspend fun findById(romId: String): RomInfo? = withContext(ioDispatcher) {
+    override suspend fun findById(romId: String): RomInfo? = withContext(ioDispatcher) {
         romDao.findById(romId)?.let { entity ->
             entity.toRomInfo(isAvailable = documentAccess.hasReadPermission(entity.documentUri))
         }
@@ -58,6 +59,9 @@ class RomRepository(
      * Calcula el hash leyendo el archivo una sola vez: identificar la ROM y
      * validar su cabecera comparten el mismo recorrido.
      */
+    override suspend fun import(document: PickedDocument): RomImportResult = import(document.reference)
+
+    /** Ver [import]: el `Uri` de SAF como texto. */
     suspend fun import(uri: String): RomImportResult = withContext(ioDispatcher) {
         try {
             documentAccess.takePersistableReadPermission(uri)
@@ -227,11 +231,11 @@ class RomRepository(
         documentAccess.openInputStream(rom.documentUri)
     }
 
-    suspend fun markPlayed(romId: String) = withContext(ioDispatcher) {
+    override suspend fun markPlayed(romId: String) = withContext(ioDispatcher) {
         romDao.markPlayed(romId, System.currentTimeMillis())
     }
 
-    suspend fun rename(romId: String, displayName: String) = withContext(ioDispatcher) {
+    override suspend fun rename(romId: String, displayName: String) = withContext(ioDispatcher) {
         romDao.rename(romId, displayName)
     }
 
@@ -240,7 +244,7 @@ class RomRepository(
      * del usuario: por defecto las partidas se conservan, para que volver a
      * añadir la misma ROM las recupere intactas.
      */
-    suspend fun remove(romId: String, deleteSaves: Boolean) = withContext(ioDispatcher) {
+    override suspend fun remove(romId: String, deleteSaves: Boolean) = withContext(ioDispatcher) {
         romDao.findById(romId)?.let { documentAccess.releasePersistableReadPermission(it.documentUri) }
         romDao.delete(romId)
         if (deleteSaves) storageManager.deleteRomData(romId)
@@ -320,27 +324,6 @@ class RomRepository(
         /** Tamaño de la firma local de un `.zip`: 4 bytes bastan para reconocerla. */
         const val ZIP_SIGNATURE_SIZE = 4
     }
-}
-
-sealed interface RomImportResult {
-    data class Imported(val rom: RomInfo) : RomImportResult
-    data class AlreadyInLibrary(val rom: RomInfo) : RomImportResult
-
-    /** El archivo se pudo leer pero su cabecera no es la de un cartucho de DS reconocible. */
-    data object UnrecognizedRom : RomImportResult
-    data object Unreadable : RomImportResult
-
-    /** El `.zip` no trae ninguna entrada `.nds` reconocible. */
-    data object NoRomInZip : RomImportResult
-
-    /** El `.zip` trae más de una ROM; no se elige por el usuario, se rechaza. */
-    data class MultipleRomsInZip(val count: Int) : RomImportResult
-
-    data object EncryptedZip : RomImportResult
-    data object CorruptZip : RomImportResult
-
-    /** La ROM descomprimida supera [RomZipReader.MAX_UNCOMPRESSED_BYTES]. */
-    data object RomTooLarge : RomImportResult
 }
 
 /** Lo que devuelve [RomRepository.openRomForCore]: la vía más barata disponible para esta ROM. */

@@ -17,23 +17,10 @@ import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.IOException
 import com.moralesDev.dsForEveryone.data.storage.coverFile
-
-/** La imagen elegida, ya lista para encuadrar. */
-class PickedImage(
-    val uri: Uri,
-    val bitmap: Bitmap,
-) {
-    val width: Int get() = bitmap.width
-    val height: Int get() = bitmap.height
-
-    /** Ya es cuadrada: no hay nada que recortar, sólo confirmar. */
-    val isSquare: Boolean get() = width == height
-}
-
-sealed interface PickResult {
-    data class Ready(val image: PickedImage) : PickResult
-    data class Failed(val error: CoverError) : PickResult
-}
+import com.moralesDev.dsForEveryone.ui.files.PickedDocument
+import androidx.core.net.toUri
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.asAndroidBitmap
 
 /**
  * Portadas elegidas por el usuario, para sustituir la que sale del banner de
@@ -53,11 +40,15 @@ class CoverRepository(
     private val contentResolver: ContentResolver,
     private val storageManager: StorageManager,
     private val ioDispatcher: CoroutineDispatcher,
-) {
+) : CoverStore {
 
     fun coverFile(romId: String): File = storageManager.coverFile(romId)
 
     fun hasCover(romId: String): Boolean = coverFile(romId).exists()
+
+    override fun coverPath(romId: String): String? = coverFile(romId).takeIf { it.exists() }?.absolutePath
+
+    override suspend fun open(document: PickedDocument): PickResult = open(document.reference.toUri())
 
     /**
      * Momento del último cambio de la portada, o 0 si no hay.
@@ -65,7 +56,7 @@ class CoverRepository(
      * La biblioteca lo usa como clave al pintar: sin él, cambiar la portada
      * dejaría en pantalla la anterior, porque la ruta del archivo no cambia.
      */
-    fun coverVersion(romId: String): Long = coverFile(romId).let {
+    override fun coverVersion(romId: String): Long = coverFile(romId).let {
         if (it.exists()) it.lastModified() else 0L
     }
 
@@ -117,7 +108,8 @@ class CoverRepository(
                 return@withContext PickResult.Failed(CoverError.UNREADABLE)
             }
 
-            PickResult.Ready(PickedImage(uri, upright(uri, decoded)))
+            val upright = upright(uri, decoded)
+            PickResult.Ready(PickedImage(upright.asImageBitmap(), onRelease = upright::recycle))
         } catch (error: IOException) {
             Log.w(TAG, "No se pudo leer la imagen elegida", error)
             PickResult.Failed(CoverError.UNREADABLE)
@@ -135,7 +127,7 @@ class CoverRepository(
      * Recorta, escala y guarda. La escritura es atómica: un fallo a mitad deja
      * la portada anterior intacta en lugar de media imagen.
      */
-    suspend fun save(
+    override suspend fun save(
         romId: String,
         image: PickedImage,
         zoom: Float,
@@ -145,7 +137,7 @@ class CoverRepository(
         try {
             val window = CoverImage.cropWindow(image.width, image.height, zoom, centerX, centerY)
             val cropped = Bitmap.createBitmap(
-                image.bitmap, window.left, window.top, window.side, window.side,
+                image.image.asAndroidBitmap(), window.left, window.top, window.side, window.side,
             )
             val scaled = cropped.scale(CoverImage.SIZE)
             if (cropped !== scaled) cropped.recycle()
@@ -175,7 +167,7 @@ class CoverRepository(
      * mostrar la extraída del banner de la ROM. La partida del juego, las
      * ranuras, el respaldo automático y sus miniaturas no se tocan.
      */
-    suspend fun delete(romId: String): Boolean = withContext(ioDispatcher) {
+    override suspend fun delete(romId: String): Boolean = withContext(ioDispatcher) {
         storageManager.coverFile(romId).delete()
     }
 
@@ -199,13 +191,13 @@ class CoverRepository(
             contentResolver.openInputStream(uri)?.use { stream ->
                 ExifInterface(stream).getAttributeInt(
                     ExifInterface.TAG_ORIENTATION,
-                    ExifInterface.ORIENTATION_NORMAL,
+                    CoverImage.EXIF_NORMAL,
                 )
-            } ?: ExifInterface.ORIENTATION_NORMAL
+            } ?: CoverImage.EXIF_NORMAL
         } catch (error: IOException) {
             // Un PNG o un WebP sin EXIF no es un problema: no hay nada que girar.
             Log.d(TAG, "Sin datos EXIF utilizables", error)
-            ExifInterface.ORIENTATION_NORMAL
+            CoverImage.EXIF_NORMAL
         }
 
         val degrees = CoverImage.rotationFor(orientation)

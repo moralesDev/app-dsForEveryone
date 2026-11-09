@@ -1,10 +1,5 @@
 package com.moralesDev.dsForEveryone.ui.library
 
-import android.graphics.Bitmap
-import android.graphics.BitmapFactory
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.PickVisualMediaRequest
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -63,10 +58,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.FilterQuality
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.SolidColor
-import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
 import org.jetbrains.compose.resources.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -92,13 +85,6 @@ import com.moralesDev.dsForEveryone.ui.theme.Neutral700
 import com.moralesDev.dsForEveryone.ui.theme.ScrimColor
 import com.moralesDev.dsForEveryone.ui.theme.Surface
 import com.moralesDev.dsForEveryone.ui.theme.textAlpha
-import java.time.Instant
-import java.time.LocalDate
-import java.time.ZoneId
-import java.time.format.DateTimeFormatter
-import java.time.format.FormatStyle
-import java.time.temporal.ChronoUnit
-import java.util.Locale
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.koin.compose.viewmodel.koinViewModel
@@ -141,6 +127,23 @@ import com.moralesDev.dsForEveryone.resources.when_last_week
 import com.moralesDev.dsForEveryone.resources.when_never
 import com.moralesDev.dsForEveryone.resources.when_today
 import com.moralesDev.dsForEveryone.resources.when_yesterday
+import org.jetbrains.compose.resources.decodeToImageBitmap
+import okio.Path.Companion.toPath
+import okio.FileSystem
+import kotlin.time.Instant
+import kotlin.time.Clock
+import kotlinx.datetime.todayIn
+import kotlinx.datetime.toLocalDateTime
+import kotlinx.datetime.daysUntil
+import kotlinx.datetime.TimeZone
+import kotlinx.coroutines.IO
+import com.moralesDev.dsForEveryone.ui.files.rememberPickImage
+import com.moralesDev.dsForEveryone.ui.files.rememberOpenDocument
+import com.moralesDev.dsForEveryone.ui.files.rememberCreateDocument
+import com.moralesDev.dsForEveryone.ui.formatShortTime
+import com.moralesDev.dsForEveryone.ui.formatMediumDate
+import com.moralesDev.dsForEveryone.ui.formatDecimal
+import com.moralesDev.dsForEveryone.ui.argbImageBitmap
 
 /** Juegos que se muestran por página de la biblioteca. */
 private const val PAGE_SIZE = 5
@@ -163,58 +166,38 @@ fun RomLibraryScreen(
     viewModel: RomLibraryViewModel = koinViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
-    val contentResolver = LocalContext.current.contentResolver
-
-    // Los proveedores de documentos rara vez declaran un MIME para .nds, así
+    // Los proveedores de documentos rara vez declaran un tipo para .nds, así
     // que se aceptan todos y es la cabecera del archivo la que decide si vale.
-    val romPicker = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.OpenDocument(),
-        onResult = viewModel::onRomPicked,
-    )
-    val pickRom = { romPicker.launch(arrayOf("*/*")) }
+    val pickRom = rememberOpenDocument(onResult = viewModel::onRomPicked)
 
     // Selector de fotos del sistema. Da acceso **sólo** a la imagen elegida y
     // por eso la aplicación sigue sin declarar ni un permiso de almacenamiento:
     // no hace falta pedir la galería entera para poner una portada.
-    val imagePicker = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.PickVisualMedia(),
-        onResult = viewModel::onImagePicked,
-    )
-    val pickCover = {
-        imagePicker.launch(
-            PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly),
-        )
-    }
+    val pickCover = rememberPickImage(onResult = viewModel::onImagePicked)
 
     // A qué juego pertenece el resultado lo dice el estado del ViewModel
     // ([RomOptionsState]), no una variable de esta pantalla: el selector de
     // documentos es otra aplicación y puede recomponer la biblioteca al volver.
-    val savExportPicker = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.CreateDocument("application/octet-stream"),
-        onResult = { uri ->
-            uiState.romOptions?.rom?.id?.let { romId -> viewModel.exportSav(romId, contentResolver, uri) }
+    val savExportPicker = rememberCreateDocument(
+        mimeType = "application/octet-stream",
+        onResult = { document ->
+            uiState.romOptions?.rom?.id?.let { romId -> viewModel.exportSav(romId, document) }
         },
     )
-    val savImportPicker = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.OpenDocument(),
-        onResult = { uri ->
-            uiState.romOptions?.rom?.id?.let { romId ->
-                viewModel.onSavImportPicked(romId, contentResolver, uri)
-            }
+    val savImportPicker = rememberOpenDocument(
+        onResult = { document ->
+            uiState.romOptions?.rom?.id?.let { romId -> viewModel.onSavImportPicked(romId, document) }
         },
     )
-    val archiveExportPicker = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.CreateDocument("application/zip"),
-        onResult = { uri ->
-            uiState.romOptions?.rom?.let { rom -> viewModel.exportArchive(rom, contentResolver, uri) }
+    val archiveExportPicker = rememberCreateDocument(
+        mimeType = "application/zip",
+        onResult = { document ->
+            uiState.romOptions?.rom?.let { rom -> viewModel.exportArchive(rom, document) }
         },
     )
-    val archiveImportPicker = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.OpenDocument(),
-        onResult = { uri ->
-            uiState.romOptions?.rom?.id?.let { romId ->
-                viewModel.onArchiveImportPicked(romId, contentResolver, uri)
-            }
+    val archiveImportPicker = rememberOpenDocument(
+        onResult = { document ->
+            uiState.romOptions?.rom?.id?.let { romId -> viewModel.onArchiveImportPicked(romId, document) }
         },
     )
 
@@ -295,19 +278,19 @@ fun RomLibraryScreen(
             pendingSavDelete = uiState.pendingSavDelete,
             pendingArchiveImport = uiState.pendingArchiveImport != null,
             onExtractSav = {
-                savExportPicker.launch(suggestedSavFileName(options.rom.fileName))
+                savExportPicker(suggestedSavFileName(options.rom.fileName))
             },
-            onImportSav = { savImportPicker.launch(arrayOf("*/*")) },
+            onImportSav = savImportPicker,
             onConfirmSavImport = viewModel::confirmSavImport,
             onCancelSavImport = viewModel::cancelSavImport,
             onDeleteSav = viewModel::requestSavDeletion,
             onConfirmSavDelete = viewModel::confirmSavDelete,
             onCancelSavDelete = viewModel::cancelSavDelete,
             onExportArchive = {
-                archiveExportPicker.launch(suggestedArchiveFileName(options.rom.fileName))
+                archiveExportPicker(suggestedArchiveFileName(options.rom.fileName))
             },
             // Cualquier tipo: los proveedores no siempre etiquetan un .zip como tal.
-            onImportArchive = { archiveImportPicker.launch(arrayOf("*/*")) },
+            onImportArchive = archiveImportPicker,
             onConfirmArchiveImport = viewModel::confirmArchiveImport,
             onCancelArchiveImport = viewModel::cancelArchiveImport,
             onKeep = { viewModel.remove(options.rom.id, deleteSaves = false) },
@@ -692,7 +675,7 @@ private fun Cover(
     val customCover by produceState<ImageBitmap?>(null, coverPath, coverVersion) {
         value = coverPath?.let {
             withContext(Dispatchers.IO) {
-                runCatching { BitmapFactory.decodeFile(it)?.asImageBitmap() }.getOrNull()
+                runCatching { FileSystem.SYSTEM.read(it.toPath()) { readByteArray() }.decodeToImageBitmap() }.getOrNull()
             }
         }
     }
@@ -700,8 +683,7 @@ private fun Cover(
         rom.icon
             ?.takeIf { it.size == DsBanner.ICON_SIZE * DsBanner.ICON_SIZE }
             ?.let { pixels ->
-                Bitmap.createBitmap(pixels, DsBanner.ICON_SIZE, DsBanner.ICON_SIZE, Bitmap.Config.ARGB_8888)
-                    .asImageBitmap()
+                argbImageBitmap(pixels, DsBanner.ICON_SIZE)
             }
     }
 
@@ -1046,30 +1028,25 @@ private fun SheetAction(
 private fun relativeWhen(timestamp: Long?): String {
     if (timestamp == null) return stringResource(Res.string.when_never)
 
-    val zone = ZoneId.systemDefault()
-    val moment = Instant.ofEpochMilli(timestamp).atZone(zone)
-    val days = ChronoUnit.DAYS.between(moment.toLocalDate(), LocalDate.now(zone))
+    val timeZone = TimeZone.currentSystemDefault()
+    val day = Instant.fromEpochMilliseconds(timestamp).toLocalDateTime(timeZone).date
+    val days = day.daysUntil(Clock.System.todayIn(timeZone)).toLong()
 
     return when {
-        days <= 0L -> stringResource(Res.string.when_today, TIME_FORMATTER.format(moment))
+        days <= 0L -> stringResource(Res.string.when_today, formatShortTime(timestamp))
         days == 1L -> stringResource(Res.string.when_yesterday)
         days < 7L -> stringResource(Res.string.when_days_ago, days.toInt())
         days < 14L -> stringResource(Res.string.when_last_week)
-        else -> DATE_FORMATTER.format(moment)
+        else -> formatMediumDate(timestamp)
     }
 }
 
 /** Las ROMs de DS pueden pasar de 1 GB (cartuchos DSi); MB solo se queda corto rápido. */
 private fun formatSize(bytes: Long): String {
-    val megabytes = bytes / (1024f * 1024f)
-    return if (megabytes >= 1024f) {
-        String.format(Locale.getDefault(), "%.1f GB", megabytes / 1024f)
+    val megabytes = bytes / (1024.0 * 1024.0)
+    return if (megabytes >= 1024.0) {
+        "${formatDecimal(megabytes / 1024.0, 1)} GB"
     } else {
-        String.format(Locale.getDefault(), "%.0f MB", megabytes)
+        "${formatDecimal(megabytes, 0)} MB"
     }
 }
-
-private val TIME_FORMATTER: DateTimeFormatter =
-    DateTimeFormatter.ofLocalizedTime(FormatStyle.SHORT)
-private val DATE_FORMATTER: DateTimeFormatter =
-    DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM)

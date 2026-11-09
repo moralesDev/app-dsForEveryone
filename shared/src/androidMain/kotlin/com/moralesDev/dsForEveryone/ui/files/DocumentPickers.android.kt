@@ -3,6 +3,7 @@ package com.moralesDev.dsForEveryone.ui.files
 import android.content.ContentResolver
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.platform.LocalContext
@@ -16,6 +17,8 @@ private class SafDocument(
     private val contentResolver: ContentResolver,
     private val uri: Uri,
 ) : PickedDocument {
+    override val reference: String get() = uri.toString()
+
     override fun openSink(): Sink? = contentResolver.openOutputStream(uri)?.sink()
 
     override fun openSource(): Source? = contentResolver.openInputStream(uri)?.source()
@@ -44,4 +47,16 @@ actual fun rememberOpenDocument(
         onResult = { uri -> onResult(uri?.let { SafDocument(contentResolver, it) }) },
     )
     return { launcher.launch(arrayOf("*/*")) }
+}
+
+@Composable
+actual fun rememberPickImage(
+    onResult: (PickedDocument?) -> Unit,
+): () -> Unit {
+    val contentResolver = LocalContext.current.contentResolver
+    val launcher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.PickVisualMedia(),
+        onResult = { uri -> onResult(uri?.let { SafDocument(contentResolver, it) }) },
+    )
+    return { launcher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) }
 }
