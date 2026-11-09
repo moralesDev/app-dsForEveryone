@@ -1,14 +1,15 @@
 package com.moralesDev.dsForEveryone.data.cheats
 
-import android.util.Log
 import com.moralesDev.dsForEveryone.data.storage.StorageManager
 import com.moralesDev.dsForEveryone.data.storage.writeAtomically
 import com.moralesDev.dsForEveryone.emulator.core.CheatEntry
+import com.moralesDev.dsForEveryone.util.AppLog
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.json.Json
-import java.io.IOException
+import okio.FileSystem
+import okio.IOException
 
 /** Resultado de leer las claves guardadas de una ROM. */
 sealed interface CheatsLoadResult {
@@ -41,19 +42,19 @@ class CheatsManager(
 ) {
 
     suspend fun read(romId: String): CheatsLoadResult = withContext(ioDispatcher) {
-        val file = storageManager.cheatsFile(romId)
-        if (!file.exists() || file.length() == 0L) {
+        val path = storageManager.cheatsPath(romId)
+        if ((FileSystem.SYSTEM.metadataOrNull(path)?.size ?: 0L) == 0L) {
             return@withContext CheatsLoadResult.Loaded(emptyList())
         }
 
         try {
-            val dto = Json.decodeFromString(CheatsFileDto.serializer(), file.readText())
+            val dto = Json.decodeFromString(CheatsFileDto.serializer(), FileSystem.SYSTEM.read(path) { readUtf8() })
             CheatsLoadResult.Loaded(dto.entries.map(CheatEntryDto::toDomain))
         } catch (error: SerializationException) {
-            Log.e(TAG, "cheats.json de $romId no es JSON válido", error)
+            AppLog.e(TAG, "cheats.json de $romId no es JSON válido", error)
             CheatsLoadResult.Corrupt
         } catch (error: IOException) {
-            Log.e(TAG, "No se pudo leer cheats.json de $romId", error)
+            AppLog.e(TAG, "No se pudo leer cheats.json de $romId", error)
             CheatsLoadResult.Corrupt
         }
     }
@@ -65,20 +66,20 @@ class CheatsManager(
      */
     suspend fun write(romId: String, entries: List<CheatEntry>): Boolean = withContext(ioDispatcher) {
         if (entries.size > MAX_ENTRIES || !entries.all(::fitsWithinCaps)) {
-            Log.e(TAG, "Claves de $romId exceden el tope permitido, no se escriben")
+            AppLog.e(TAG, "Claves de $romId exceden el tope permitido, no se escriben")
             return@withContext false
         }
 
         try {
             val dto = CheatsFileDto(entries.map(CheatEntry::toDto))
-            val bytes = Json.encodeToString(CheatsFileDto.serializer(), dto).toByteArray()
-            storageManager.cheatsFile(romId).writeAtomically(bytes)
+            val bytes = Json.encodeToString(CheatsFileDto.serializer(), dto).encodeToByteArray()
+            writeAtomically(storageManager.cheatsPath(romId), bytes)
             true
         } catch (error: IOException) {
-            Log.e(TAG, "No se pudieron escribir las claves de $romId", error)
+            AppLog.e(TAG, "No se pudieron escribir las claves de $romId", error)
             false
         } catch (error: IllegalStateException) {
-            Log.e(TAG, "No se pudo reemplazar cheats.json de $romId", error)
+            AppLog.e(TAG, "No se pudo reemplazar cheats.json de $romId", error)
             false
         }
     }

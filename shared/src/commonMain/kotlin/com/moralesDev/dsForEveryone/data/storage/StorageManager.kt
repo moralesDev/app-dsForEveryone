@@ -1,6 +1,8 @@
 package com.moralesDev.dsForEveryone.data.storage
 
-import java.io.File
+import okio.FileSystem
+import okio.Path
+import kotlin.random.Random
 
 /**
  * Única autoridad sobre dónde vive cada archivo de la aplicación.
@@ -12,6 +14,11 @@ import java.io.File
  * Recibe la carpeta ya resuelta en lugar del `Context` del que sale. Es lo que
  * permite ejercitar el sistema de partidas completo en pruebas de JVM, sobre
  * una carpeta temporal y sin emulador de Android de por medio.
+ *
+ * Vive en el módulo común desde iOS-3 (docs/ios.md) y trabaja con rutas de
+ * Okio (`*Path`). En Android, el código que aún usa `java.io.File` —y las
+ * pruebas— entra por las funciones de siempre (`batteryFile`, `stateFile`…),
+ * que están en `StorageFiles.android.kt` y convierten la ruta.
  *
  * La disposición en disco es:
  *
@@ -45,20 +52,22 @@ import java.io.File
  * juego, los usa el core con cualquier ROM, y por eso viven fuera de `saves/`
  * y no se tocan al borrar los datos de un juego concreto.
  */
-class StorageManager(filesDirectory: File) {
+class StorageManager(filesDirectory: Path) {
 
-    private val savesRoot = File(filesDirectory, "saves")
-    private val coversRoot = File(filesDirectory, "covers")
-    private val systemRoot = File(filesDirectory, "system")
-    private val scratchRoot = File(filesDirectory, "scratch")
-    private val importStagingRoot = File(filesDirectory, "import-staging")
+    private val fileSystem = FileSystem.SYSTEM
+
+    private val savesRoot = filesDirectory / "saves"
+    private val coversRoot = filesDirectory / "covers"
+    private val systemRoot = filesDirectory / "system"
+    private val scratchRoot = filesDirectory / "scratch"
+    private val importStagingRoot = filesDirectory / "import-staging"
 
     /**
      * La carpeta que contiene una carpeta por juego. Sólo la recorre la copia
      * de partidas (`SaveArchive`), que necesita ver todos los juegos a la vez;
      * el resto del código entra siempre por el id de una ROM concreta.
      */
-    fun savesDirectory(): File = savesRoot
+    fun savesPath(): Path = savesRoot
 
     /**
      * Dónde se prepara una importación antes de confirmarla. Cuelga de
@@ -66,29 +75,26 @@ class StorageManager(filesDirectory: File) {
      * permite reemplazar la carpeta de un juego con un `rename` y no con una
      * copia que podría quedarse a medias.
      */
-    fun importStagingDirectory(): File = importStagingRoot
+    fun importStagingPath(): Path = importStagingRoot
 
     /** Si el juego tiene algún archivo guardado, sin crear su carpeta para averiguarlo. */
-    fun hasRomData(romId: String): Boolean =
-        File(savesRoot, romId).walkBottomUp().any(File::isFile)
+    fun hasRomData(romId: String): Boolean = filesUnder(savesRoot / romId).any()
 
-    fun romDirectory(romId: String): File =
-        File(savesRoot, romId).also { it.mkdirs() }
+    fun romPath(romId: String): Path =
+        (savesRoot / romId).also(fileSystem::createDirectories)
 
-    fun batteryFile(romId: String): File =
-        File(romDirectory(romId), BATTERY_FILE)
+    fun batteryPath(romId: String): Path = romPath(romId) / BATTERY_FILE
 
-    fun cheatsFile(romId: String): File =
-        File(romDirectory(romId), CHEATS_FILE)
+    fun cheatsPath(romId: String): Path = romPath(romId) / CHEATS_FILE
 
-    fun statesDirectory(romId: String): File =
-        File(romDirectory(romId), STATES_DIR).also { it.mkdirs() }
+    fun statesPath(romId: String): Path =
+        (romPath(romId) / STATES_DIR).also(fileSystem::createDirectories)
 
-    fun stateFile(romId: String, slot: Int): File =
-        File(statesDirectory(romId), "${slotName(slot)}.state")
+    fun statePath(romId: String, slot: Int): Path =
+        statesPath(romId) / "${slotName(slot)}.state"
 
-    fun stateThumbnailFile(romId: String, slot: Int): File =
-        File(statesDirectory(romId), "${slotName(slot)}.png")
+    fun stateThumbnailPath(romId: String, slot: Int): Path =
+        statesPath(romId) / "${slotName(slot)}.png"
 
     /**
      * El respaldo automático es la ranura 0 y se llama `auto`, no `slot_0`.
@@ -110,8 +116,8 @@ class StorageManager(filesDirectory: File) {
      * se borra. Cuelga del hash de la ROM igual que todo lo demás, así que
      * renombrar el archivo no separa al juego de su portada.
      */
-    fun coverFile(romId: String): File =
-        File(coversRoot.also { it.mkdirs() }, "$romId.webp")
+    fun coverPath(romId: String): Path =
+        coversRoot.also(fileSystem::createDirectories) / "$romId.webp"
 
     /**
      * Archivo de sistema (BIOS o firmware) que el core elegido necesite.
@@ -120,8 +126,8 @@ class StorageManager(filesDirectory: File) {
      * depende del core (fase 4). Compartido entre todas las ROMs, así que
      * [deleteRomData] nunca lo toca.
      */
-    fun systemFile(name: String): File =
-        File(systemRoot.also { it.mkdirs() }, name)
+    fun systemPath(name: String): Path =
+        systemRoot.also(fileSystem::createDirectories) / name
 
     /**
      * Borra todos los datos de una ROM. Se usa al quitarla de la biblioteca
@@ -130,12 +136,12 @@ class StorageManager(filesDirectory: File) {
      * se tocan.
      */
     fun deleteRomData(romId: String) {
-        File(savesRoot, romId).deleteRecursively()
-        coverFile(romId).delete()
+        fileSystem.deleteRecursively(savesRoot / romId, mustExist = false)
+        fileSystem.delete(coverPath(romId), mustExist = false)
     }
 
     fun usedBytes(romId: String): Long =
-        File(savesRoot, romId).walkBottomUp().filter(File::isFile).sumOf(File::length)
+        filesUnder(savesRoot / romId).sumOf { fileSystem.metadataOrNull(it)?.size ?: 0L }
 
     /**
      * Archivo temporal para la copia de emergencia de una ROM suelta cuando
@@ -144,11 +150,31 @@ class StorageManager(filesDirectory: File) {
      * borra apenas abre un `ParcelFileDescriptor` sobre él —el inodo sigue
      * vivo mientras ese descriptor esté abierto—, así que esta carpeta no
      * guarda ninguna copia duradera de ninguna ROM.
+     *
+     * Como `File.createTempFile`: un nombre que no existía, y el archivo ya
+     * creado (vacío) al volver, para que dos llamadas no se pisen.
      */
-    fun newRomScratchFile(): File {
-        scratchRoot.mkdirs()
-        return File.createTempFile("rom_scratch", ".nds", scratchRoot)
+    fun newRomScratchPath(): Path {
+        fileSystem.createDirectories(scratchRoot)
+        while (true) {
+            val candidate = scratchRoot / "rom_scratch${Random.nextLong().toULong()}.nds"
+            try {
+                fileSystem.write(candidate, mustCreate = true) {}
+                return candidate
+            } catch (_: okio.IOException) {
+                // Ya existía (o lo creó otro a la vez): otro nombre.
+                if (!fileSystem.exists(candidate)) throw IllegalStateException("No se pudo crear $candidate")
+            }
+        }
     }
+
+    /** Los archivos (no carpetas) bajo [directory], a cualquier profundidad; nada si no existe. */
+    private fun filesUnder(directory: Path): Sequence<Path> =
+        if (!fileSystem.exists(directory)) {
+            emptySequence()
+        } else {
+            fileSystem.listRecursively(directory).filter { fileSystem.metadataOrNull(it)?.isRegularFile == true }
+        }
 
     companion object {
         /**

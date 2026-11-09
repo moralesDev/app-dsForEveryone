@@ -11,6 +11,7 @@ import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TemporaryFolder
+import com.moralesDev.dsForEveryone.data.storage.cheatsFile
 
 /**
  * `cheats.json` sobre disco de verdad, con el mismo motivo que

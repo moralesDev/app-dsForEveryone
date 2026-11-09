@@ -16,6 +16,7 @@ import kotlinx.coroutines.withContext
 import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.IOException
+import com.moralesDev.dsForEveryone.data.storage.coverFile
 
 /** La imagen elegida, ya lista para encuadrar. */
 class PickedImage(

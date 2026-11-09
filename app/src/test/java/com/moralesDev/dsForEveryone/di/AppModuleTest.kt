@@ -2,7 +2,9 @@ package com.moralesDev.dsForEveryone.di
 
 import android.content.Context
 import androidx.lifecycle.SavedStateHandle
+import com.moralesDev.dsForEveryone.data.save.ThumbnailEncoder
 import java.io.File
+import okio.Path
 import org.junit.Test
 import org.koin.core.annotation.KoinExperimentalAPI
 import org.koin.test.verify.verify
@@ -18,7 +20,9 @@ import org.koin.test.verify.verify
  * lo da `androidContext()`, el `File` es `filesDir`, y el `SavedStateHandle`
  * lo pone la entrada de navegación de cada ViewModel. `Function0` es el
  * `systemLanguageTag` de SettingsRepository, una lambda escrita en el propio
- * módulo y no algo que se pida a Koin.
+ * módulo y no algo que se pida a Koin. `Path` es `filesDir` en la forma de
+ * Okio con la que trabaja StorageManager, y `ThumbnailEncoder` es el
+ * codificador de miniaturas de Android, que el módulo pone tal cual.
  */
 class AppModuleTest {
 
@@ -31,6 +35,8 @@ class AppModuleTest {
                 File::class,
                 SavedStateHandle::class,
                 Function0::class,
+                Path::class,
+                ThumbnailEncoder::class,
             ),
         )
     }

@@ -1,11 +1,12 @@
 package com.moralesDev.dsForEveryone.data.save
 
-import android.util.Log
 import com.moralesDev.dsForEveryone.data.storage.StorageManager
 import com.moralesDev.dsForEveryone.data.storage.writeAtomically
+import com.moralesDev.dsForEveryone.util.AppLog
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.withContext
-import java.io.IOException
+import okio.FileSystem
+import okio.IOException
 
 /**
  * Partida propia del juego (EEPROM o Flash del cartucho).
@@ -23,32 +24,34 @@ class BatterySaveManager(
     private val ioDispatcher: CoroutineDispatcher,
 ) {
 
+    private val fileSystem = FileSystem.SYSTEM
+
     /** Contenido guardado para esa ROM, o `null` si todavía no ha guardado nunca. */
     suspend fun read(romId: String): ByteArray? = withContext(ioDispatcher) {
-        val file = storageManager.batteryFile(romId)
-        if (!file.exists() || file.length() == 0L) return@withContext null
+        val path = storageManager.batteryPath(romId)
+        if (sizeOf(path) == 0L) return@withContext null
         try {
-            file.readBytes()
+            fileSystem.read(path) { readByteArray() }
         } catch (error: IOException) {
-            Log.e(TAG, "No se pudo leer la partida de $romId", error)
+            AppLog.e(TAG, "No se pudo leer la partida de $romId", error)
             null
         }
     }
 
     suspend fun write(romId: String, data: ByteArray): Boolean = withContext(ioDispatcher) {
         try {
-            storageManager.batteryFile(romId).writeAtomically(data)
+            writeAtomically(storageManager.batteryPath(romId), data)
             true
         } catch (error: IOException) {
-            Log.e(TAG, "No se pudo escribir la partida de $romId", error)
+            AppLog.e(TAG, "No se pudo escribir la partida de $romId", error)
             false
         } catch (error: IllegalStateException) {
-            Log.e(TAG, "No se pudo reemplazar la partida de $romId", error)
+            AppLog.e(TAG, "No se pudo reemplazar la partida de $romId", error)
             false
         }
     }
 
-    fun exists(romId: String): Boolean = storageManager.batteryFile(romId).length() > 0
+    fun exists(romId: String): Boolean = sizeOf(storageManager.batteryPath(romId)) > 0
 
     /**
      * Borra la partida de batería, dejando el juego como si nunca se hubiera
@@ -57,9 +60,16 @@ class BatterySaveManager(
      * en vez de quedarse con datos corruptos para siempre.
      */
     suspend fun delete(romId: String): Boolean = withContext(ioDispatcher) {
-        val file = storageManager.batteryFile(romId)
-        !file.exists() || file.delete()
+        try {
+            fileSystem.delete(storageManager.batteryPath(romId), mustExist = false)
+            true
+        } catch (_: IOException) {
+            false
+        }
     }
+
+    /** Tamaño del archivo, o 0 si no existe: lo que daba `File.length()`. */
+    private fun sizeOf(path: okio.Path): Long = fileSystem.metadataOrNull(path)?.size ?: 0L
 
     private companion object {
         const val TAG = "BatterySaveManager"

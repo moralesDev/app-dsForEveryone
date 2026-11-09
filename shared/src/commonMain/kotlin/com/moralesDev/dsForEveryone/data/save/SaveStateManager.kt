@@ -1,16 +1,23 @@
 package com.moralesDev.dsForEveryone.data.save
 
-import android.graphics.Bitmap
-import android.util.Log
 import com.moralesDev.dsForEveryone.data.storage.StorageManager
 import com.moralesDev.dsForEveryone.data.storage.writeAtomically
 import com.moralesDev.dsForEveryone.emulator.DsVideo
+import com.moralesDev.dsForEveryone.util.AppLog
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.withContext
-import java.io.ByteArrayOutputStream
-import java.io.File
-import java.io.IOException
-import java.io.RandomAccessFile
+import okio.FileSystem
+import okio.IOException
+import okio.Path
+import kotlin.time.Clock
+
+/**
+ * Convierte un fotograma ARGB_8888 en un PNG, para las miniaturas de las
+ * ranuras. Cada plataforma pone el suyo (ver SaveStateManager).
+ */
+fun interface ThumbnailEncoder {
+    fun encodePng(argb: IntArray, width: Int, height: Int): ByteArray?
+}
 
 /** Una de las ranuras de guardado rápido de una ROM. */
 data class SaveStateSlot(
@@ -83,7 +90,15 @@ sealed interface StateReadResult {
 class SaveStateManager(
     private val storageManager: StorageManager,
     private val ioDispatcher: CoroutineDispatcher,
+    /**
+     * Convierte el último fotograma en la miniatura de la ranura (PNG). Lo
+     * pone cada plataforma —en Android, con `Bitmap`—; sin él no se escriben
+     * miniaturas, que es lo que pasa en las pruebas de JVM.
+     */
+    private val thumbnailEncoder: ThumbnailEncoder? = null,
 ) {
+
+    private val fileSystem = FileSystem.SYSTEM
 
     /**
      * @param identity sesión contra la que se contrasta cada ranura, o `null`
@@ -125,9 +140,9 @@ class SaveStateManager(
     }
 
     private fun parsedHeader(romId: String, slot: Int): SaveStateHeader? {
-        val file = storageManager.stateFile(romId, slot)
-        if (!file.exists()) return null
-        return (peek(file, file.length()) as? PeekResult.Parsed)?.header
+        val path = storageManager.statePath(romId, slot)
+        val length = fileSystem.metadataOrNull(path)?.size ?: return null
+        return (peek(path, length) as? PeekResult.Parsed)?.header
     }
 
     /**
@@ -139,17 +154,20 @@ class SaveStateManager(
      */
     suspend fun read(romId: String, slot: Int, identity: StateIdentity): StateReadResult =
         withContext(ioDispatcher) {
-            val file = storageManager.stateFile(romId, slot)
-            if (!file.exists()) return@withContext StateReadResult.Empty
+            val path = storageManager.statePath(romId, slot)
+            val length = fileSystem.metadataOrNull(path)?.size ?: return@withContext StateReadResult.Empty
 
-            val bytes = try {
-                file.readBytes()
-            } catch (error: IOException) {
-                Log.e(TAG, "No se pudo leer la ranura $slot de $romId", error)
+            // Un archivo absurdamente grande no debe tumbar la aplicación. Antes
+            // se leía y se capturaba el OutOfMemoryError, que es de la JVM; en
+            // común se mira el tamaño antes de reservar nada.
+            if (length > MAX_READ_BYTES) {
+                AppLog.e(TAG, "Ranura $slot de $romId demasiado grande ($length bytes)")
                 return@withContext StateReadResult.Unreadable
-            } catch (error: OutOfMemoryError) {
-                // Un archivo absurdamente grande no debe tumbar la aplicación.
-                Log.e(TAG, "Ranura $slot de $romId demasiado grande", error)
+            }
+            val bytes = try {
+                fileSystem.read(path) { readByteArray() }
+            } catch (error: IOException) {
+                AppLog.e(TAG, "No se pudo leer la ranura $slot de $romId", error)
                 return@withContext StateReadResult.Unreadable
             }
 
@@ -177,7 +195,7 @@ class SaveStateManager(
         payload: ByteArray,
         frame: IntArray?,
         identity: StateIdentity,
-        savedAt: Long = System.currentTimeMillis(),
+        savedAt: Long = Clock.System.now().toEpochMilliseconds(),
     ): Boolean = withContext(ioDispatcher) {
         require(slot == AUTO_SLOT || slot in 1..SLOT_COUNT) { "Ranura fuera de rango: $slot" }
 
@@ -197,17 +215,16 @@ class SaveStateManager(
             // La escritura es atómica: o queda el estado anterior o queda el
             // nuevo. Un cierre a mitad no puede dejar media ranura, que sería
             // indistinguible de una partida perdida.
-            storageManager.stateFile(romId, slot)
-                .writeAtomically(SaveStateContainer.encode(header, payload))
+            writeAtomically(storageManager.statePath(romId, slot), SaveStateContainer.encode(header, payload))
             // La miniatura va después y su fallo no invalida la ranura: es
             // decoración, y perderla no impide restaurar.
             frame?.let { runCatching { writeThumbnail(romId, slot, it) } }
             true
         } catch (error: IOException) {
-            Log.e(TAG, "No se pudo escribir la ranura $slot de $romId", error)
+            AppLog.e(TAG, "No se pudo escribir la ranura $slot de $romId", error)
             false
         } catch (error: IllegalStateException) {
-            Log.e(TAG, "No se pudo reemplazar la ranura $slot de $romId", error)
+            AppLog.e(TAG, "No se pudo reemplazar la ranura $slot de $romId", error)
             false
         }
     }
@@ -215,28 +232,26 @@ class SaveStateManager(
     /** Borra una ranura y sólo esa: ni la ROM, ni la partida, ni las demás. */
     suspend fun delete(romId: String, slot: Int) = withContext(ioDispatcher) {
         require(slot == AUTO_SLOT || slot in 1..SLOT_COUNT) { "Ranura fuera de rango: $slot" }
-        storageManager.stateFile(romId, slot).delete()
-        storageManager.stateThumbnailFile(romId, slot).delete()
-        Unit
+        fileSystem.delete(storageManager.statePath(romId, slot), mustExist = false)
+        fileSystem.delete(storageManager.stateThumbnailPath(romId, slot), mustExist = false)
     }
 
     private fun readSlot(romId: String, index: Int, identity: StateIdentity?): SaveStateSlot {
-        val stateFile = storageManager.stateFile(romId, index)
-        if (!stateFile.exists()) {
-            return SaveStateSlot(index, savedAt = null, sizeBytes = 0, null, null, null)
-        }
+        val statePath = storageManager.statePath(romId, index)
+        val metadata = fileSystem.metadataOrNull(statePath)
+            ?: return SaveStateSlot(index, savedAt = null, sizeBytes = 0, null, null, null)
 
-        val thumbnail = storageManager.stateThumbnailFile(romId, index)
-            .takeIf(File::exists)?.absolutePath
-        val length = stateFile.length()
+        val thumbnail = storageManager.stateThumbnailPath(romId, index)
+            .takeIf(fileSystem::exists)?.toString()
+        val length = metadata.size ?: 0L
 
-        return when (val peeked = peek(stateFile, length)) {
+        return when (val peeked = peek(statePath, length)) {
             // Un archivo ilegible o ajeno se muestra ocupado y averiado, nunca
             // vacío: si apareciera vacío, el primer guardado lo pisaría sin
             // preguntar y el usuario nunca sabría que hubo algo ahí.
             is PeekResult.Rejected -> SaveStateSlot(
                 index = index,
-                savedAt = stateFile.lastModified(),
+                savedAt = metadata.lastModifiedAtMillis ?: 0L,
                 sizeBytes = length,
                 thumbnailPath = thumbnail,
                 core = null,
@@ -260,25 +275,21 @@ class SaveStateManager(
      * pesar varios megas: cargarlos enteros para enseñar una fecha sería
      * absurdo.
      */
-    private fun peek(file: File, length: Long): PeekResult = try {
-        val head = ByteArray(minOf(length, SaveStateContainer.MAX_HEADER_BYTES.toLong()).toInt())
-        RandomAccessFile(file, "r").use { it.readFully(head) }
+    private fun peek(path: Path, length: Long): PeekResult = try {
+        val headSize = minOf(length, SaveStateContainer.MAX_HEADER_BYTES.toLong())
+        // Como RandomAccessFile.readFully: o se leen headSize bytes o falla.
+        val head = fileSystem.read(path) { readByteArray(headSize) }
         SaveStateContainer.peek(head, length)
     } catch (error: IOException) {
-        Log.w(TAG, "Cabecera ilegible en ${file.name}", error)
+        AppLog.w(TAG, "Cabecera ilegible en ${path.name}", error)
         PeekResult.Rejected(StateRejection.Truncated)
     }
 
     /** El único tamaño de fotograma que existe en este proyecto: las dos pantallas apiladas. */
     private fun writeThumbnail(romId: String, slot: Int, frame: IntArray) {
         if (frame.size != DsVideo.WIDTH * DsVideo.HEIGHT) return
-        val bitmap = Bitmap.createBitmap(frame, DsVideo.WIDTH, DsVideo.HEIGHT, Bitmap.Config.ARGB_8888)
-        val encoded = ByteArrayOutputStream().use { output ->
-            bitmap.compress(Bitmap.CompressFormat.PNG, 100, output)
-            output.toByteArray()
-        }
-        bitmap.recycle()
-        storageManager.stateThumbnailFile(romId, slot).writeAtomically(encoded)
+        val encoded = thumbnailEncoder?.encodePng(frame, DsVideo.WIDTH, DsVideo.HEIGHT) ?: return
+        writeAtomically(storageManager.stateThumbnailPath(romId, slot), encoded)
     }
 
     companion object {
@@ -292,5 +303,13 @@ class SaveStateManager(
         const val AUTO_SLOT = StorageManager.AUTO_SLOT
 
         private const val TAG = "SaveStateManager"
+
+        /**
+         * Por encima de esto no se intenta leer una ranura. Un estado válido no
+         * pasa de [SaveStateContainer.MAX_STATE_BYTES] más su cabecera; esto
+         * deja margen de sobra para que un archivo algo mayor se lea y se
+         * rechace como corrupto, igual que antes.
+         */
+        private const val MAX_READ_BYTES = 256L * 1024 * 1024
     }
 }

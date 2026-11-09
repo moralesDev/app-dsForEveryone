@@ -279,10 +279,32 @@ Se hace en cinco pasos; tras cada uno Android sigue igual:
      con los códigos de tecla de `KeyEvent` copiados como números en
      `GamepadKeyCodes` (GamepadKeyCodesTest comprueba en `:app` que
      coinciden).
-   - Pendiente: los archivos (`StorageManager`, escritura atómica, partidas,
-     trucos), con Okio; el zip de exportar/importar y de las ROMs
-     comprimidas, que no tiene equivalente común; las portadas y
-     miniaturas (`Bitmap`); y `RomRepository`/`DocumentAccess`.
+   - ✅ **Archivos, partidas y trucos** (2026-11-09), con Okio 3.9.1:
+     `StorageManager`, `BatterySaveManager`, `SaveStateManager`,
+     `SaveManager`, `CheatsManager` (+ DTO y `CheatEntry`) y `DsVideo` a
+     `commonMain`. `StorageManager` da rutas de Okio (`batteryPath`…); en
+     Android, `StorageFiles.android.kt` conserva los nombres de antes
+     (`batteryFile`…) devolviendo `File`, para el código que sigue siendo sólo
+     de Android y para las pruebas de `:app`. Es un puente temporal.
+     - **Escritura atómica:** Okio no sirve tal cual. Su `FileHandle.flush()`
+       hace `fsync` en la JVM pero sólo `fflush` en iOS (comprobado en sus
+       fuentes 3.9.1), y sin `fsync` el `rename` puede llegar al disco antes
+       que los datos. Por eso el temporal se escribe con `writeDurably`, una
+       por plataforma: en Android, el `FileOutputStream` + `fd.sync()` de
+       siempre; en iOS, POSIX con `F_FULLFSYNC` (en Apple, `fsync` deja los
+       datos en la caché de la unidad). Okio hace el resto: carpetas y
+       `atomicMove`.
+     - La miniatura de las ranuras pasa a un `ThumbnailEncoder` inyectado
+       (en Android, `Bitmap` → PNG como antes). `android.util.Log` pasa a
+       `AppLog` (logcat en Android, `NSLog` en iOS).
+     - `StorageOnDiskTest` (común, sobre una carpeta temporal real) ejecuta
+       la escritura atómica, `StorageManager` y una ida y vuelta de un save
+       state **también en el simulador de iOS**. 143 pruebas en verde en la
+       JVM y en iOS; `:app`, 209.
+   - Pendiente: el zip de exportar/importar partidas (`SaveArchive`) y de
+     las ROMs comprimidas (`RomZipReader`), que no tiene equivalente común;
+     las portadas (`CoverRepository`, `Bitmap`); y
+     `RomRepository`/`DocumentAccess` (SAF).
 3. **Textos**: los 282 de `strings.xml` (es/en) a los recursos de Compose
    Multiplatform, sin perder el cambio de idioma dentro de la app.
 4. **Pantallas** a `commonMain`; vídeo, mandos físicos, archivos y

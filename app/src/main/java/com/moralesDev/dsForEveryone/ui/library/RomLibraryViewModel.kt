@@ -25,6 +25,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import com.moralesDev.dsForEveryone.data.storage.coverFile
 
 data class LibraryUiState(
     /** Todos los juegos de la biblioteca, sin filtrar. */

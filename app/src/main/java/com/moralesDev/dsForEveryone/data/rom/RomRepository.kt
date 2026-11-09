@@ -16,6 +16,7 @@ import java.io.FileOutputStream
 import java.io.IOException
 import java.io.InputStream
 import java.io.PushbackInputStream
+import com.moralesDev.dsForEveryone.data.storage.newRomScratchFile
 
 /**
  * Biblioteca de juegos: alta, consulta y lectura de ROMs.

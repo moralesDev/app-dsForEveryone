@@ -10,6 +10,7 @@ import com.moralesDev.dsForEveryone.data.rom.ContentResolverDocumentAccess
 import com.moralesDev.dsForEveryone.data.rom.DocumentAccess
 import com.moralesDev.dsForEveryone.data.rom.RomRepository
 import com.moralesDev.dsForEveryone.data.save.BatterySaveManager
+import com.moralesDev.dsForEveryone.data.save.BitmapThumbnailEncoder
 import com.moralesDev.dsForEveryone.data.save.SaveArchive
 import com.moralesDev.dsForEveryone.data.save.SaveManager
 import com.moralesDev.dsForEveryone.data.save.SaveStateManager
@@ -97,7 +98,7 @@ val appModule = module {
 
     single { CheatsManager(get(), get(IoDispatcher)) }
 
-    single { SaveStateManager(get(), get(IoDispatcher)) }
+    single { SaveStateManager(get(), get(IoDispatcher), BitmapThumbnailEncoder) }
 
     single { SaveManager(get(), get(), get()) }
 

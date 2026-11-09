@@ -15,6 +15,7 @@ plugins {
     alias(libs.plugins.android.kotlin.multiplatform.library)
     alias(libs.plugins.ksp)
     alias(libs.plugins.room)
+    alias(libs.plugins.kotlin.serialization)
 }
 
 kotlin {
@@ -35,6 +36,11 @@ kotlin {
             // así que necesita ver Room y DataStore.
             api(libs.androidx.room.runtime)
             api(libs.androidx.datastore.preferences.core)
+            // Archivos (StorageManager, partidas, trucos). `api` porque :app
+            // convierte sus rutas a java.io.File (StorageFiles.android.kt).
+            api(libs.okio)
+            implementation(libs.kotlinx.serialization.json)
+            implementation(libs.kotlinx.coroutines.core)
         }
         iosMain.dependencies {
             // SQLite compilado dentro de la app: en iOS no hay uno del sistema
@@ -43,6 +49,7 @@ kotlin {
         }
         commonTest.dependencies {
             implementation(kotlin("test"))
+            implementation(libs.kotlinx.coroutines.test)
         }
     }
 }

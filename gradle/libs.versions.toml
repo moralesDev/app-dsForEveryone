@@ -11,6 +11,8 @@ navigationCompose = "2.9.8"
 composeBom = "2026.08.00"
 coroutines = "1.11.0"
 kotlinxSerialization = "1.7.3"
+# La que ya traía DataStore; ahora se usa directamente en :shared.
+okio = "3.9.1"
 datastore = "1.2.1"
 room = "2.8.4"
 # La que pide Room 2.8.4; sólo se usa en iOS (en Android, el SQLite del sistema).
@@ -49,8 +51,10 @@ androidx-room-compiler = { group = "androidx.room", name = "room-compiler", vers
 
 androidx-exifinterface = { group = "androidx.exifinterface", name = "exifinterface", version.ref = "exifinterface" }
 
+kotlinx-coroutines-core = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-core", version.ref = "coroutines" }
 kotlinx-coroutines-android = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-android", version.ref = "coroutines" }
 kotlinx-coroutines-test = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-test", version.ref = "coroutines" }
+okio = { group = "com.squareup.okio", name = "okio", version.ref = "okio" }
 kotlinx-serialization-json = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-json", version.ref = "kotlinxSerialization" }
 
 junit = { group = "junit", name = "junit", version.ref = "junit" }
