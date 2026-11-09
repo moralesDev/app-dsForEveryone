@@ -1,8 +1,6 @@
 package com.moralesDev.dsForEveryone.ui.game
 
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
-import androidx.compose.ui.platform.LocalContext
 
 /**
  * Píxeles por milímetro **real** de la pantalla, en horizontal y en vertical.
@@ -17,15 +15,13 @@ import androidx.compose.ui.platform.LocalContext
  */
 data class PxPerMm(val x: Float, val y: Float)
 
+/**
+ * Lo calcula cada plataforma: en Android con `xdpi`/`ydpi`; en iOS, que no
+ * da los píxeles por pulgada, con los puntos por pulgada de cada tipo de
+ * aparato y la escala de la pantalla (ver PhysicalUnits.ios.kt).
+ */
 @Composable
-fun rememberPxPerMm(): PxPerMm {
-    val metrics = LocalContext.current.resources.displayMetrics
-    return remember(metrics.xdpi, metrics.ydpi, metrics.densityDpi) {
-        val fallback = metrics.densityDpi.toFloat()
-        fun sane(dpi: Float) = if (dpi in fallback * 0.5f..fallback * 1.5f) dpi else fallback
-        PxPerMm(x = sane(metrics.xdpi) / MM_PER_INCH, y = sane(metrics.ydpi) / MM_PER_INCH)
-    }
-}
+expect fun rememberPxPerMm(): PxPerMm
 
 /** Cuánto se acercan al centro la dirección y el rombo en vertical. */
 const val CONTROLS_INWARD_SHIFT_MM = 3f
@@ -36,4 +32,5 @@ const val CONTROLS_CEILING_BELOW_CENTER_MM = 5f
 /** A cuánto por debajo de la pantalla inferior van Select y Start en vertical. */
 const val SYSTEM_BUTTONS_BELOW_SCREEN_MM = 5f
 
-private const val MM_PER_INCH = 25.4f
+/** Milímetros por pulgada, para las dos plataformas. */
+const val MM_PER_INCH = 25.4f

@@ -353,7 +353,7 @@ private fun MenuRow(
 
 /** `internal`: la reutiliza también el editor de disposición (fase 2.7), en `ui.game.layout`. */
 @Composable
-internal fun LayoutModeChips(selected: LayoutMode, onSelect: (LayoutMode) -> Unit) {
+fun LayoutModeChips(selected: LayoutMode, onSelect: (LayoutMode) -> Unit) {
     Row(
         modifier = Modifier.horizontalScroll(rememberScrollState()),
         horizontalArrangement = Arrangement.spacedBy(6.dp),
@@ -410,7 +410,7 @@ private fun SwapScreensChip(swapped: Boolean, onToggle: () -> Unit) {
 
 /** Las tres velocidades, con la misma forma de chip que [LayoutModeChips]. */
 @Composable
-internal fun SpeedChips(selected: EmulationSpeed, onSelect: (EmulationSpeed) -> Unit) {
+fun SpeedChips(selected: EmulationSpeed, onSelect: (EmulationSpeed) -> Unit) {
     Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
         EmulationSpeed.entries.forEach { speed ->
             val isSelected = speed == selected
@@ -431,13 +431,13 @@ internal fun SpeedChips(selected: EmulationSpeed, onSelect: (EmulationSpeed) -> 
     }
 }
 
-internal fun EmulationSpeed.labelRes(): StringResource = when (this) {
+fun EmulationSpeed.labelRes(): StringResource = when (this) {
     EmulationSpeed.NORMAL -> Res.string.speed_normal
     EmulationSpeed.FAST_1_5X -> Res.string.speed_1_5x
     EmulationSpeed.FAST_2X -> Res.string.speed_2x
 }
 
-internal fun LayoutMode.labelRes(): StringResource = when (this) {
+fun LayoutMode.labelRes(): StringResource = when (this) {
     LayoutMode.STACKED -> Res.string.layout_stacked
     LayoutMode.SIDE_BY_SIDE -> Res.string.layout_side_by_side
     LayoutMode.TOP_ONLY -> Res.string.layout_top_only

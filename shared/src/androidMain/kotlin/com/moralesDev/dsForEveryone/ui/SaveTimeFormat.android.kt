@@ -74,7 +74,7 @@ object SaveTimeFormat {
  * garantizaría volver a pintar esto.
  */
 @Composable
-fun rememberSaveTimeFormatter(): (Long) -> String {
+actual fun rememberSaveTimeFormatter(): (Long) -> String {
     val appLocale = ConfigurationCompat.getLocales(LocalConfiguration.current)[0]!!
     val locale = SaveTimeFormat.resolveLocale(appLocale, LocalSystemLocale.current)
     val formatter = remember(locale) { SaveTimeFormat.formatter(locale, ZoneId.systemDefault()) }

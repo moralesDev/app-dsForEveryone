@@ -1,6 +1,5 @@
 package com.moralesDev.dsForEveryone.ui.game
 
-import android.graphics.BitmapFactory
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -38,7 +37,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
-import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import org.jetbrains.compose.resources.stringResource
 import androidx.compose.ui.text.style.TextOverflow
@@ -83,6 +81,10 @@ import com.moralesDev.dsForEveryone.resources.st_replace
 import com.moralesDev.dsForEveryone.resources.st_save
 import com.moralesDev.dsForEveryone.resources.st_save_title
 import com.moralesDev.dsForEveryone.resources.st_slot
+import kotlinx.coroutines.IO
+import org.jetbrains.compose.resources.decodeToImageBitmap
+import okio.Path.Companion.toPath
+import okio.FileSystem
 
 /**
  * Hoja inferior de ranuras de estado.
@@ -568,7 +570,9 @@ private fun SlotThumbnail(slot: SaveStateSlot) {
     val bitmap by produceState<ImageBitmap?>(initialValue = null, path) {
         value = path?.let {
             withContext(Dispatchers.IO) {
-                runCatching { BitmapFactory.decodeFile(it)?.asImageBitmap() }.getOrNull()
+                // Leída con Okio y decodificada por Compose Multiplatform: lo mismo
+                // en Android (por debajo, BitmapFactory) que en iOS.
+                runCatching { FileSystem.SYSTEM.read(it.toPath()) { readByteArray() }.decodeToImageBitmap() }.getOrNull()
             }
         }
     }

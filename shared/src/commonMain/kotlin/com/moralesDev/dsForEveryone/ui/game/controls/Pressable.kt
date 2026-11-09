@@ -1,6 +1,5 @@
 package com.moralesDev.dsForEveryone.ui.game.controls
 
-import android.view.HapticFeedbackConstants
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.runtime.Composable
@@ -9,7 +8,8 @@ import androidx.compose.ui.composed
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 
 /**
  * Convierte un composable en un botón físico: se pulsa al bajar el dedo y se
@@ -29,14 +29,14 @@ fun Modifier.pressable(
     haptic: Boolean = true,
     onPressChange: (Boolean) -> Unit,
 ): Modifier = composed {
-    val view = LocalView.current
+    val hapticFeedback = LocalHapticFeedback.current
     pointerInput(haptic) {
         awaitEachGesture {
             val down = awaitFirstDown(requireUnconsumed = false)
             down.consume()
             onPressChange(true)
             if (haptic) {
-                view.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
+                hapticFeedback.performHapticFeedback(HapticFeedbackType.VirtualKey)
             }
             try {
                 while (true) {
@@ -62,7 +62,7 @@ fun Modifier.pressableWithPosition(
     haptic: Boolean = true,
     onPositionChange: (Offset?, Size) -> Unit,
 ): Modifier {
-    val view = LocalView.current
+    val hapticFeedback = LocalHapticFeedback.current
     return this.pointerInput(haptic) {
         awaitEachGesture {
             val bounds = Size(size.width.toFloat(), size.height.toFloat())
@@ -70,7 +70,7 @@ fun Modifier.pressableWithPosition(
             down.consume()
             onPositionChange(down.position, bounds)
             if (haptic) {
-                view.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
+                hapticFeedback.performHapticFeedback(HapticFeedbackType.VirtualKey)
             }
             try {
                 while (true) {

@@ -362,6 +362,24 @@ Se hace en cinco pasos; tras cada uno Android sigue igual:
        versiones multiplataforma (Lifecycle de JetBrains 2.11.0, la misma
        que la de AndroidX; Koin en `:shared`). `LocalDate.now()` pasa a
        `kotlinx-datetime` 0.7.1.
+   - ✅ **Mandos en pantalla y hojas del juego** (2026-11-09):
+     `ui/game/controls/*` (botones fantasma, cruceta, joystick, rombo,
+     `pressable`), `SaveStateSheet`, `PauseMenu`, `CheatsSheet`,
+     `StateRejectionText`, `PhysicalUnits` y `SlotAction`/`SlotConfirmation`
+     (sacados de `GameViewModel`). Lo que tenían de Android:
+     - La vibración de los mandos pasa a `LocalHapticFeedback` con
+       `HapticFeedbackType.VirtualKey`, que en Android es el mismo
+       `VIRTUAL_KEY` de la vista.
+     - La miniatura de las ranuras se lee con Okio y se decodifica con
+       `decodeToImageBitmap()` de Compose Multiplatform, en vez de
+       `BitmapFactory`.
+     - `rememberPxPerMm()`, una por plataforma: `xdpi`/`ydpi` en Android; en
+       iOS, que no da los píxeles por pulgada, puntos por pulgada del tipo de
+       aparato (163 iPhone, 132 iPad) por la escala. Aproximado.
+     - `rememberSaveTimeFormatter()`, una por plataforma: `java.time` en
+       Android (como antes), `NSDateFormatter` en iOS. `LocalSystemLocale`
+       pasa a `:shared` (androidMain), mismo paquete.
+     - `CheatsCoordinator` se queda en `:app`: habla con `EmulatorController`.
    - Pendiente: biblioteca, juego, editor de disposición, mapeo de mandos,
      navegación y el idioma.
 5. **Arranque en iOS**: la app abre en el simulador.
