@@ -53,6 +53,13 @@ kotlin {
             // stringResource(): `api` porque las pantallas de :app los usan.
             api(libs.compose.multiplatform.runtime)
             api(libs.compose.multiplatform.resources)
+            // Las pantallas comunes (docs/ios.md, iOS-3 paso 4). En Android
+            // estas dependencias se resuelven a las de AndroidX.
+            api(libs.compose.multiplatform.foundation)
+            api(libs.compose.multiplatform.ui)
+            api(libs.compose.multiplatform.animation)
+            api(libs.compose.multiplatform.material3)
+            api(libs.compose.multiplatform.icons)
             implementation(libs.kotlinx.serialization.json)
             implementation(libs.kotlinx.coroutines.core)
         }

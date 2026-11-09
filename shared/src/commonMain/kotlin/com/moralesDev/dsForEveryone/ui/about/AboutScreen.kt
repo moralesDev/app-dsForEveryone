@@ -1,6 +1,5 @@
 package com.moralesDev.dsForEveryone.ui.about
 
-import android.content.Intent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -17,10 +16,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalUriHandler
 import org.jetbrains.compose.resources.stringResource
 import androidx.compose.ui.unit.dp
-import androidx.core.net.toUri
 import com.moralesDev.dsForEveryone.ui.components.AccentButton
 import com.moralesDev.dsForEveryone.ui.components.GlassIconButton
 import com.moralesDev.dsForEveryone.ui.theme.Background
@@ -52,7 +50,7 @@ private const val APP_SOURCE_URL = "https://github.com/moralesDev/app-dsForEvery
  */
 @Composable
 fun AboutScreen(onBack: () -> Unit) {
-    val context = LocalContext.current
+    val uriHandler = LocalUriHandler.current
 
     Column(
         modifier = Modifier
@@ -85,12 +83,12 @@ fun AboutScreen(onBack: () -> Unit) {
         AccentButton(
             text = stringResource(Res.string.ab_source_link),
             icon = Icons.AutoMirrored.Filled.OpenInNew,
-            onClick = { context.startActivity(Intent(Intent.ACTION_VIEW, APP_SOURCE_URL.toUri())) },
+            onClick = { uriHandler.openUri(APP_SOURCE_URL) },
         )
         AccentButton(
             text = stringResource(Res.string.ab_core_link),
             icon = Icons.AutoMirrored.Filled.OpenInNew,
-            onClick = { context.startActivity(Intent(Intent.ACTION_VIEW, MELONDS_SOURCE_URL.toUri())) },
+            onClick = { uriHandler.openUri(MELONDS_SOURCE_URL) },
         )
     }
 }

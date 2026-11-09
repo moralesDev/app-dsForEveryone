@@ -12,6 +12,7 @@ import com.moralesDev.dsForEveryone.ui.components.LOADING_VEIL_FADE_MS
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlin.time.TimeSource
 
 /**
  * Quién decide cuándo se ve la pantalla de carga y cuánto dura.
@@ -56,14 +57,14 @@ class ScreenTransitions internal constructor(private val scope: CoroutineScope) 
         scope.launch {
             try {
                 awaitDrawnFrames()
-                val startedAt = System.nanoTime()
+                val startedAt = TimeSource.Monotonic.markNow()
 
                 // El velo ya está en pantalla, pero todavía translúcido.
                 delay(LOADING_VEIL_FADE_MS.toLong())
                 navigate()
 
                 awaitDrawnFrames()
-                val elapsedMillis = (System.nanoTime() - startedAt) / 1_000_000
+                val elapsedMillis = startedAt.elapsedNow().inWholeMilliseconds
                 delay((minimumMillis - elapsedMillis).coerceAtLeast(0))
             } finally {
                 // En `finally` para que una cancelación no deje la aplicación

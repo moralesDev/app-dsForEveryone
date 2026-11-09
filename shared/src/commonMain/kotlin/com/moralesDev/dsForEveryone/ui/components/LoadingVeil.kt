@@ -154,7 +154,7 @@ fun LoadingVeil(modifier: Modifier = Modifier) {
  * que el fundido no termina el velo es translúcido, y lo que ocurra debajo se
  * ve. Ver `ScreenTransitions`.
  */
-internal const val LOADING_VEIL_FADE_MS = 180
+const val LOADING_VEIL_FADE_MS = 180
 
 private val RING_SIZE = 78.dp
 private val RING_STROKE = 2.dp

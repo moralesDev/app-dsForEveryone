@@ -327,6 +327,20 @@ Se hace en cinco pasos; tras cada uno Android sigue igual:
      idiomas.
 4. **Pantallas** a `commonMain`; vídeo, mandos físicos, archivos y
    vibración detrás de `expect`/`actual`.
+   - ✅ **Tema, componentes y pantallas simples** (2026-11-09): `ui/theme`,
+     `ui/components` (AppLogo, LoadingVeil, Nocturne), splash, bienvenida,
+     Acerca de, `ScreenTransitions` y `UiMessage`, con Compose
+     Multiplatform: foundation/ui/animation 1.12.2, Material 3 1.9.0 (la
+     que fija el plugin 1.12.2) y `material-icons-extended` 1.7.3 (congelada
+     por JetBrains, pero sirve en iOS y deja `Icons.Filled.X` igual). La
+     fuente Inter pasa a `composeResources/font/`; como cargarla es
+     composable, `Inter` y `DsEmuTypography` son propiedades `@Composable`.
+     Acerca de abre los enlaces con `LocalUriHandler` en vez de un `Intent`;
+     `System.nanoTime()` pasa a `TimeSource.Monotonic`. Lo `internal` de
+     esos archivos pasa a público mientras haya pantallas en `:app` que lo
+     usen.
+   - Pendiente: Ajustes, biblioteca, juego, editor de disposición, mapeo de
+     mandos, navegación y el idioma.
 5. **Arranque en iOS**: la app abre en el simulador.
 
 ### iOS-4 · El juego en iOS
