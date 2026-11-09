@@ -101,8 +101,8 @@ fun SystemButton(
 
 /**
  * El botón de soplar: mientras está pulsado, [onBlow] recibe `true` e
- * [com.moralesDev.dsForEveryone.emulator.InputManager.setMicNoise] inyecta
- * ruido blanco en la entrada de micrófono simulada del core. Sin
+ * [com.moralesDev.dsForEveryone.emulator.InputManager.setMicNoise] hace que
+ * el micrófono simulado del core oiga la grabación de un soplido. Sin
  * `RECORD_AUDIO`: ver docs/entrada.md.
  */
 @Composable

@@ -429,11 +429,19 @@ caen dentro de rango y se mueven de forma consistente con el dedo.
 
 ### Micrófono
 
-`Mic_ReadInput` rellena el búfer con ruido blanco a (casi) plena escala
-mientras el botón de soplar esté activo, y devuelve 0 muestras si no —sin
-`RECORD_AUDIO`, como en toda la aplicación—. El nivel es deliberadamente
-alto: los juegos que comprueban un umbral de soplido no siempre lo cruzan
-con un ruido tibio.
+`Mic_ReadInput` rellena el búfer con la grabación de un soplido real
+(`frontend/mic_blow.h`, la misma que usa el frontend de referencia) en bucle
+mientras el botón de soplar esté activo, y con silencio si no —sin
+`RECORD_AUDIO`, como en toda la aplicación—.
+
+Dos cosas que no funcionaban en la primera versión:
+
+- **Ruido blanco aleatorio** en lugar de la grabación: Zelda: Phantom
+  Hourglass no lo reconoce como soplido. No todos los juegos miden sólo
+  amplitud.
+- **Devolver 0 muestras** sin soplido en lugar de silencio: el búfer del
+  micrófono del core se queda sin rellenar y la última muestra se congela.
+  El frontend de referencia siempre entrega `maxlength` muestras.
 
 ### Audio: AAudio con el mismo anillo sin cerrojos que `app-emulador`
 

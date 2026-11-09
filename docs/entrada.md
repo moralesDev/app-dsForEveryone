@@ -113,11 +113,14 @@ El manifiesto de `app-emulador` **no declara ni un permiso**, y esa es una
 propiedad del proyecto que merece defenderse. La solución estándar y sin
 permisos:
 
-> **Un botón de «soplar»** que, mientras está pulsado, inyecta ruido blanco en
-> la entrada de micrófono del core.
+> **Un botón de «soplar»** que, mientras está pulsado, mete en la entrada de
+> micrófono del core la grabación de un soplido de verdad, en bucle.
 
-Funciona en prácticamente todos los juegos que lo piden, porque casi ninguno
-analiza el sonido: sólo mide amplitud. Es un botón más en la disposición de
+Al principio era ruido blanco aleatorio a plena escala, y no bastaba: Zelda:
+Phantom Hourglass no apagaba las velas con él. Hay juegos que analizan algo
+más que la amplitud. La grabación es la misma que usa el frontend de
+referencia de melonDS (`third_party/melonDS/src/frontend/mic_blow.h`), que
+existe precisamente por eso. Es un botón más en la disposición de
 controles, activable por juego.
 
 El micrófono real (`RECORD_AUDIO`) queda como **decisión expresa y aplazada**.

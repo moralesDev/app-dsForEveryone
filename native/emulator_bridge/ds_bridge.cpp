@@ -51,6 +51,9 @@
 #include <Savestate.h>
 #include <AREngine.h>
 #include <ARCodeFile.h>
+// La grabación de un soplido real que usa el frontend de referencia de
+// melonDS (frontend/, mismo árbol GPL). Ver Mic_ReadInput.
+#include <frontend/mic_blow.h>
 
 #define TAG "ds-bridge"
 #define LOGE(...) __android_log_print(ANDROID_LOG_ERROR, TAG, __VA_ARGS__)
@@ -91,6 +94,9 @@ struct Emulator {
     bool loaded = false;
 
     std::atomic<bool> micNoiseActive{false};
+    // Por dónde va la grabación del soplido. Sólo la toca Mic_ReadInput, que
+    // corre dentro de RunFrame en el hilo de emulación: no necesita ser atómico.
+    size_t micBlowReadPos = 0;
     std::atomic<bool> batteryDirty{false};
 
     // Avance rápido: a 1,5x o 2x el SPU produce muestras más deprisa de lo
@@ -538,11 +544,25 @@ void Mic_Stop(void*) {}
 
 int Mic_ReadInput(s16* data, int maxlength, void* userdata) {
     auto* emu = static_cast<::Emulator*>(userdata);
-    if (!emu || !emu->micNoiseActive.load(std::memory_order_relaxed)) return 0;
-    // Ruido blanco a (casi) plena escala: los juegos que esperan un soplido
-    // comprueban un umbral de nivel, y un ruido tibio no siempre lo cruza.
+    if (maxlength <= 0) return 0;
+
+    // Sin soplido se entrega silencio, no «nada». Devolver 0 deja el búfer
+    // del micrófono del core sin rellenar y su última muestra congelada: si
+    // era de un soplido, el juego seguiría oyéndolo después de soltar.
+    if (!emu || !emu->micNoiseActive.load(std::memory_order_relaxed)) {
+        if (emu) emu->micBlowReadPos = 0;
+        memset(data, 0, static_cast<size_t>(maxlength) * sizeof(s16));
+        return maxlength;
+    }
+
+    // Con soplido, la grabación de un soplido de verdad en bucle, igual que
+    // el frontend de referencia. Ruido blanco aleatorio no vale: hay juegos
+    // —Zelda: Phantom Hourglass y sus velas, por ejemplo— que no lo
+    // reconocen como soplido, y éste sí.
+    constexpr size_t kBlowLength = sizeof(mic_blow) / sizeof(mic_blow[0]);
     for (int i = 0; i < maxlength; ++i) {
-        data[i] = static_cast<s16>((rand() % 65536) - 32768);
+        data[i] = mic_blow[emu->micBlowReadPos];
+        if (++emu->micBlowReadPos >= kBlowLength) emu->micBlowReadPos = 0;
     }
     return maxlength;
 }

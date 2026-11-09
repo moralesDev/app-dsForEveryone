@@ -100,8 +100,8 @@ interface EmulatorCore {
     fun setTouch(x: Int, y: Int, down: Boolean)
 
     /**
-     * Ruido blanco simulado en la entrada de micrófono, mientras el botón de
-     * soplar esté pulsado. Sin `RECORD_AUDIO`: ver docs/entrada.md.
+     * Soplido simulado en la entrada de micrófono —una grabación de un
+     * soplido real, en bucle— mientras el botón de soplar esté pulsado. Sin `RECORD_AUDIO`: ver docs/entrada.md.
      */
     fun setMicNoise(active: Boolean)
 
