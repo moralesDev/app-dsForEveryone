@@ -447,6 +447,20 @@ Se hace en cinco pasos; tras cada uno Android sigue igual:
 
 ### iOS-4 · El juego en iOS
 
+**Paso 1 — ✅ el core llega a Kotlin/Native** (2026-11-09). Las tareas
+`configureDsCore*`/`buildDsCore*` de `shared/build.gradle.kts` compilan
+`native/ds_core` (con melonDS, sin JIT) con CMake para `iosArm64` e
+`iosSimulatorArm64`: `libds_core.a`, `libcore.a` y `libteakra.a`. El
+`cinterop` `dsCore` (`shared/src/nativeInterop/cinterop/dsCore.def`) genera
+los enlaces a `ds_core.h` en el paquete
+`com.moralesDev.dsForEveryone.emulator.core.native`, mete las tres
+bibliotecas en el framework y enlaza `libc++`. CMake con ruta absoluta,
+porque Xcode lanza Gradle sin el `PATH` de Homebrew. `DsCoreInteropTest`
+(iosTest) carga una ROM mínima y corre 60 fotogramas en el simulador.
+Descubierto de paso: melonDS acepta como cartucho hasta 16 bytes de basura
+(rellena lo que falta); en la app no importa, porque la biblioteca valida la
+cabecera antes.
+
 Los `actual` de iOS: el core por `cinterop`, el hilo con su reloj absoluto,
 el audio, el vídeo con `Canvas`, el selector de documentos, la vibración y
 `GameController`.

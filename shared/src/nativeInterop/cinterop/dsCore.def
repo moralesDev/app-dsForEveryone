@@ -1,0 +1,10 @@
+# ds_core (native/ds_core/ds_core.h) para Kotlin/Native: la misma frontera
+# con melonDS que usa Android por JNI. Las bibliotecas estáticas las compila
+# CMake desde Gradle (tareas buildDsCore* de shared/build.gradle.kts) y se
+# meten aquí, dentro del framework Shared. Ver docs/ios.md, fase iOS-4.
+package = com.moralesDev.dsForEveryone.emulator.core.native
+headers = ds_core.h
+headerFilter = ds_core.h
+staticLibraries = libds_core.a libcore.a libteakra.a
+# melonDS es C++: hace falta su biblioteca estándar al enlazar.
+linkerOpts = -lc++

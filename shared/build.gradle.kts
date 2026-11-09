@@ -39,10 +39,23 @@ kotlin {
 
     // El framework `Shared` que enlaza la app de iOS (ios/app/). Dinámico: se
     // copia dentro de la app y trae enlazadas sus propias dependencias.
+    //
+    // Cada destino trae además el core: ds_core + melonDS, compilados con
+    // CMake por las tareas buildDsCore* (abajo) y enlazados por cinterop.
     listOf(iosArm64(), iosSimulatorArm64()).forEach { target ->
         target.binaries.framework {
             baseName = "Shared"
             isStatic = false
+        }
+        val coreDir = dsCoreBuildDir(target.name)
+        target.compilations.getByName("main").cinterops.create("dsCore") {
+            definitionFile.set(file("src/nativeInterop/cinterop/dsCore.def"))
+            includeDirs(rootProject.file("native/ds_core"))
+            extraOpts(
+                "-libraryPath", coreDir.absolutePath,
+                "-libraryPath", coreDir.resolve("melonDS/src").absolutePath,
+                "-libraryPath", coreDir.resolve("melonDS/src/teakra/src").absolutePath,
+            )
         }
     }
 
@@ -115,4 +128,51 @@ compose.resources {
     publicResClass = true
     packageOfResClass = "com.moralesDev.dsForEveryone.resources"
     generateResClass = always
+}
+
+// ---------------------------------------------------------------------------
+// El core de iOS: native/ds_core (con melonDS dentro) como bibliotecas
+// estáticas, una compilación por destino. Es el mismo ds_core que Android
+// compila con el NDK, pero sin JIT: Apple no deja ejecutar código generado
+// en tiempo de ejecución (ver docs/ios.md). Sólo en un Mac.
+// ---------------------------------------------------------------------------
+
+fun dsCoreBuildDir(target: String): File = layout.buildDirectory.dir("ds_core/$target").get().asFile
+
+/**
+ * CMake con ruta absoluta: Xcode lanza Gradle sin el PATH de la terminal, y
+ * el de Homebrew no estaría.
+ */
+val cmakeExecutable: String = listOf("/opt/homebrew/bin/cmake", "/usr/local/bin/cmake")
+    .firstOrNull { File(it).canExecute() } ?: "cmake"
+
+mapOf("iosArm64" to "iphoneos", "iosSimulatorArm64" to "iphonesimulator").forEach { (target, sdk) ->
+    val suffix = target.replaceFirstChar(Char::uppercaseChar)
+    val buildDir = dsCoreBuildDir(target)
+
+    val configure = tasks.register<Exec>("configureDsCore$suffix") {
+        description = "Configura ds_core (CMake) para $target"
+        onlyIf { System.getProperty("os.name").startsWith("Mac") }
+        inputs.file(rootProject.file("native/ds_core/CMakeLists.txt"))
+        outputs.file(buildDir.resolve("CMakeCache.txt"))
+        commandLine(
+            cmakeExecutable, "-S", rootProject.file("native/ds_core").absolutePath, "-B", buildDir.absolutePath,
+            "-G", "Unix Makefiles",
+            "-DCMAKE_SYSTEM_NAME=iOS", "-DCMAKE_OSX_SYSROOT=$sdk", "-DCMAKE_OSX_ARCHITECTURES=arm64",
+            "-DCMAKE_OSX_DEPLOYMENT_TARGET=16.0", "-DCMAKE_BUILD_TYPE=Release",
+            "-DBUILD_QT_SDL=OFF", "-DENABLE_JIT=OFF", "-DENABLE_OGLRENDERER=OFF",
+            "-DENABLE_GDBSTUB=OFF", "-DENABLE_LTO_RELEASE=OFF",
+        )
+    }
+
+    val build = tasks.register<Exec>("buildDsCore$suffix") {
+        description = "Compila ds_core y melonDS para $target"
+        dependsOn(configure)
+        onlyIf { System.getProperty("os.name").startsWith("Mac") }
+        // CMake ya compila sólo lo que cambió; aquí no se intenta adivinarlo.
+        outputs.upToDateWhen { false }
+        commandLine(cmakeExecutable, "--build", buildDir.absolutePath, "--target", "ds_core", "-j", "8")
+    }
+
+    tasks.matching { it.name == "cinteropDsCore$suffix" }.configureEach { dependsOn(build) }
 }
