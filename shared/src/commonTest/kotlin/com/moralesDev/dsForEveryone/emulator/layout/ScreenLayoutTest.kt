@@ -1,9 +1,9 @@
 package com.moralesDev.dsForEveryone.emulator.layout
 
-import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
-import org.junit.Assert.assertTrue
-import org.junit.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertTrue
+import kotlin.test.Test
 
 /**
  * Las seis propiedades que tiene que cumplir cualquier disposición de las
@@ -25,14 +25,14 @@ class ScreenLayoutTest {
     // ---------------------------- no solapar
 
     @Test
-    fun `las dos pantallas nunca se solapan, salvo en principal y secundaria`() {
+    fun `las dos pantallas nunca se solapan — salvo en principal y secundaria`() {
         for ((label, size) in sizes) {
             for (mode in modesWithoutOverlap) {
                 for (swapped in listOf(false, true)) {
                     val placement = ScreenLayout.resolve(mode, size, gap = 0.05f, swapped = swapped)
                     assertFalse(
-                        "$mode en $label (swapped=$swapped) no debería solapar",
                         LayoutEngine.overlaps(placement.topScreen, placement.touchScreen),
+                        "$mode en $label (swapped=$swapped) no debería solapar",
                     )
                 }
             }
@@ -66,12 +66,12 @@ class ScreenLayoutTest {
                         swapped = swapped,
                     )
                     assertTrue(
-                        "$mode en $label: topScreen se sale (${placement.topScreen})",
                         LayoutEngine.isWithin(placement.topScreen, area),
+                        "$mode en $label: topScreen se sale (${placement.topScreen})",
                     )
                     assertTrue(
-                        "$mode en $label: touchScreen se sale (${placement.touchScreen})",
                         LayoutEngine.isWithin(placement.touchScreen, area),
+                        "$mode en $label: touchScreen se sale (${placement.touchScreen})",
                     )
                 }
             }
@@ -92,10 +92,10 @@ class ScreenLayoutTest {
                     .filter { it.width > 0f || it.height > 0f }
                     .forEach { rect ->
                         assertEquals(
-                            "$mode en $label: $rect no es 4:3",
                             ScreenLayout.SCREEN_ASPECT_RATIO,
                             rect.width / rect.height,
                             0.01f,
+                            "$mode en $label: $rect no es 4:3",
                         )
                     }
             }
@@ -131,7 +131,7 @@ class ScreenLayoutTest {
     // ---------------------------- la táctil es siempre la lógica inferior
 
     @Test
-    fun `intercambiar cambia la posicion fisica pero no cual es la tactil, en apiladas`() {
+    fun `intercambiar cambia la posicion fisica pero no cual es la tactil — en apiladas`() {
         val size = LayoutSize(1080f, 2200f)
         val normal = ScreenLayout.resolve(LayoutMode.STACKED, size, gap = 0.05f, swapped = false)
         val swapped = ScreenLayout.resolve(LayoutMode.STACKED, size, gap = 0.05f, swapped = true)
@@ -146,7 +146,7 @@ class ScreenLayoutTest {
     }
 
     @Test
-    fun `intercambiar cambia la posicion fisica pero no cual es la tactil, en lado a lado`() {
+    fun `intercambiar cambia la posicion fisica pero no cual es la tactil — en lado a lado`() {
         val size = LayoutSize(2200f, 1080f)
         val normal = ScreenLayout.resolve(LayoutMode.SIDE_BY_SIDE, size, gap = 0.05f, swapped = false)
         val swapped = ScreenLayout.resolve(LayoutMode.SIDE_BY_SIDE, size, gap = 0.05f, swapped = true)
@@ -232,12 +232,12 @@ class ScreenLayoutTest {
                         insets = insets,
                     )
                     assertTrue(
-                        "$mode en $label: topScreen pisa una barra (${placement.topScreen})",
                         LayoutEngine.isWithin(placement.topScreen, usable),
+                        "$mode en $label: topScreen pisa una barra (${placement.topScreen})",
                     )
                     assertTrue(
-                        "$mode en $label: touchScreen pisa una barra (${placement.touchScreen})",
                         LayoutEngine.isWithin(placement.touchScreen, usable),
+                        "$mode en $label: touchScreen pisa una barra (${placement.touchScreen})",
                     )
                 }
             }
@@ -254,10 +254,10 @@ class ScreenLayoutTest {
                     .filter { it.width > 0f || it.height > 0f }
                     .forEach { rect ->
                         assertEquals(
-                            "$mode en $label: $rect no es 4:3",
                             ScreenLayout.SCREEN_ASPECT_RATIO,
                             rect.width / rect.height,
                             0.01f,
+                            "$mode en $label: $rect no es 4:3",
                         )
                     }
             }
@@ -293,7 +293,7 @@ class ScreenLayoutTest {
     }
 
     @Test
-    fun `apiladas, las dos pantallas quedan centradas a lo alto en el hueco`() {
+    fun `apiladas — las dos pantallas quedan centradas a lo alto en el hueco`() {
         val insets = LayoutInsets(top = 66f, bottom = 48f)
         val area = LayoutRect(0f, 0f, 1080f, 2400f).inset(insets)
 
@@ -306,7 +306,7 @@ class ScreenLayoutTest {
     }
 
     @Test
-    fun `en la mitad de arriba, el bloque de pantallas se apoya en el centro y crece hacia arriba`() {
+    fun `en la mitad de arriba — el bloque de pantallas se apoya en el centro y crece hacia arriba`() {
         val size = LayoutSize(1080f, 2400f)
         val insets = LayoutInsets(top = 66f, bottom = 48f)
         val area = LayoutRect(0f, 0f, size.width, size.height).inset(insets)
@@ -316,10 +316,10 @@ class ScreenLayoutTest {
                 val placement = ScreenLayout.resolve(mode, size, gap = 0.03f, swapped = swapped, insets = insets, upperHalf = true)
                 val visible = listOf(placement.topScreen, placement.touchScreen).filter { it.width > 0f && it.height > 0f }
 
-                assertEquals("$mode", area.centerY, visible.maxOf { it.bottom }, 0.01f)
+                assertEquals(area.centerY, visible.maxOf { it.bottom }, 0.01f, "$mode")
                 visible.forEach {
-                    assertTrue("$mode: $it", it.top >= area.top - 0.01f)
-                    assertEquals("$mode: $it", ScreenLayout.SCREEN_ASPECT_RATIO, it.width / it.height, 0.01f)
+                    assertTrue(it.top >= area.top - 0.01f, "$mode: $it")
+                    assertEquals(ScreenLayout.SCREEN_ASPECT_RATIO, it.width / it.height, 0.01f, "$mode: $it")
                 }
             }
         }

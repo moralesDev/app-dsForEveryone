@@ -1,12 +1,7 @@
 package com.moralesDev.dsForEveryone.data.save
 
-import java.io.ByteArrayInputStream
-import java.io.ByteArrayOutputStream
-import java.io.DataInputStream
-import java.io.DataOutputStream
-import java.io.EOFException
-import java.io.IOException
-import java.security.MessageDigest
+import com.moralesDev.dsForEveryone.data.hash.sha256Hex
+import com.moralesDev.dsForEveryone.data.hash.toHex
 
 /**
  * Formato de archivo de los save states de DsForEveryone.
@@ -36,9 +31,12 @@ import java.security.MessageDigest
  *  headerBytes    payload            (estado del core, stateSize bytes)
  * ```
  *
- * Los enteros van en orden de red (big-endian), que es lo que escriben `DataOutputStream`
- * y `DataInputStream` sin configurar nada, así que no hay forma de que las dos
- * mitades del código discrepen.
+ * Los enteros van en orden de red (big-endian). Era lo que escribían
+ * `DataOutputStream` y `DataInputStream` cuando esto vivía sólo en Android;
+ * desde que está en el módulo común (docs/ios.md, iOS-2) lo escriben y leen
+ * [BigEndianWriter] y [BigEndianReader], que hacen exactamente lo mismo. Los
+ * archivos de antes y de después son idénticos byte a byte: lo vigila
+ * GoldenSaveStateTest con un archivo congelado.
  *
  * `headerBytes` es la pieza que permite que el formato crezca: una versión
  * futura puede añadir campos al final de la cabecera y el payload se seguirá
@@ -77,33 +75,31 @@ object SaveStateContainer {
             "El payload mide ${payload.size} y la cabecera declara ${header.stateSize}"
         }
 
-        val coreName = header.coreName.toByteArray(Charsets.UTF_8)
-        val coreVersion = header.coreVersion.toByteArray(Charsets.UTF_8)
+        val coreName = header.coreName.encodeToByteArray()
+        val coreVersion = header.coreVersion.encodeToByteArray()
         require(coreName.size <= 0xFF && coreVersion.size <= 0xFF) {
             "El identificador del core no cabe en el contenedor"
         }
         val headerBytes = FIXED_HEADER_BYTES + 1 + coreName.size + 1 + coreVersion.size
 
-        val output = ByteArrayOutputStream(headerBytes + payload.size)
-        DataOutputStream(output).use { out ->
-            out.write(MAGIC)
-            out.writeShort(header.containerVersion)
-            out.writeShort(headerBytes)
-            out.writeLong(header.savedAt)
-            out.writeByte(header.slot)
-            out.writeByte(0) // flags
-            out.writeShort(0) // reservado
-            out.writeInt(header.romCrc32.toInt())
-            out.writeInt(header.stateSize)
-            out.write(header.romSha256.hexToBytes(DIGEST_BYTES))
-            out.write(header.payloadSha256.hexToBytes(DIGEST_BYTES))
-            out.writeByte(coreName.size)
-            out.write(coreName)
-            out.writeByte(coreVersion.size)
-            out.write(coreVersion)
-            out.write(payload)
-        }
-        return output.toByteArray()
+        val out = BigEndianWriter(headerBytes + payload.size)
+        out.write(MAGIC)
+        out.writeShort(header.containerVersion)
+        out.writeShort(headerBytes)
+        out.writeLong(header.savedAt)
+        out.writeByte(header.slot)
+        out.writeByte(0) // flags
+        out.writeShort(0) // reservado
+        out.writeInt(header.romCrc32.toInt())
+        out.writeInt(header.stateSize)
+        out.write(header.romSha256.hexToBytes(DIGEST_BYTES))
+        out.write(header.payloadSha256.hexToBytes(DIGEST_BYTES))
+        out.writeByte(coreName.size)
+        out.write(coreName)
+        out.writeByte(coreVersion.size)
+        out.write(coreVersion)
+        out.write(payload)
+        return out.toByteArray()
     }
 
     /**
@@ -167,7 +163,7 @@ object SaveStateContainer {
         if (bytes.size < MAGIC.size || !bytes.startsWith(MAGIC)) return null
 
         return try {
-            DataInputStream(ByteArrayInputStream(bytes)).use { input ->
+            BigEndianReader(bytes).let { input ->
                 input.readInt() // la firma, ya comprobada
 
                 val containerVersion = input.readUnsignedShort()
@@ -198,8 +194,8 @@ object SaveStateContainer {
                 // La cabecera debe medir exactamente lo que declaró, y el archivo
                 // exactamente cabecera + payload. Cualquier otra cosa es un
                 // archivo alterado o escrito a medias.
-                val consumed = FIXED_HEADER_BYTES + 1 + coreName.toByteArray(Charsets.UTF_8).size +
-                    1 + coreVersion.toByteArray(Charsets.UTF_8).size
+                val consumed = FIXED_HEADER_BYTES + 1 + coreName.encodeToByteArray().size +
+                    1 + coreVersion.encodeToByteArray().size
                 if (consumed != headerBytes) {
                     return HeaderResult.Rejected(StateRejection.Corrupt)
                 }
@@ -226,31 +222,104 @@ object SaveStateContainer {
                     headerBytes = headerBytes,
                 )
             }
-        } catch (_: EOFException) {
+        } catch (_: EndOfData) {
             HeaderResult.Rejected(StateRejection.Truncated)
-        } catch (_: IOException) {
-            HeaderResult.Rejected(StateRejection.Corrupt)
         }
     }
 
-    fun sha256(bytes: ByteArray): String =
-        MessageDigest.getInstance("SHA-256").digest(bytes).toHex()
+    fun sha256(bytes: ByteArray): String = sha256Hex(bytes)
 
-    private fun DataInputStream.readShortString(): String {
+    private fun BigEndianReader.readShortString(): String {
         val length = readUnsignedByte()
         val raw = ByteArray(length)
         readFully(raw)
-        return String(raw, Charsets.UTF_8)
+        // Como `String(raw, Charsets.UTF_8)`: lo que no sea UTF-8 válido se
+        // sustituye, no lanza. Una cadena así ya no mide lo mismo al volver a
+        // codificarla, y la comprobación de `consumed` la rechaza.
+        return raw.decodeToString()
     }
 
     private fun ByteArray.startsWith(prefix: ByteArray): Boolean =
         prefix.indices.all { this[it] == prefix[it] }
 
-    private fun ByteArray.toHex(): String = joinToString("") { "%02x".format(it) }
-
     private fun String.hexToBytes(expectedBytes: Int): ByteArray {
         require(length == expectedBytes * 2) { "Se esperaba un hash de $expectedBytes bytes" }
         return ByteArray(expectedBytes) { substring(it * 2, it * 2 + 2).toInt(16).toByte() }
+    }
+
+    /** El archivo se acabó antes de lo que dice su cabecera: lo que antes era `EOFException`. */
+    private class EndOfData : Exception()
+
+    /**
+     * Lector big-endian sobre un array: lo poco de `DataInputStream` que hace
+     * falta aquí, con su misma semántica (enteros con signo en orden de red,
+     * `readUnsigned*` sin signo, y fin de datos si no queda bastante).
+     */
+    private class BigEndianReader(private val bytes: ByteArray) {
+        private var position = 0
+
+        private fun next(): Int {
+            if (position >= bytes.size) throw EndOfData()
+            return bytes[position++].toInt() and 0xFF
+        }
+
+        fun readUnsignedByte(): Int = next()
+
+        fun readUnsignedShort(): Int = (next() shl 8) or next()
+
+        fun readInt(): Int = (next() shl 24) or (next() shl 16) or (next() shl 8) or next()
+
+        fun readLong(): Long = (readInt().toLong() shl 32) or (readInt().toLong() and 0xFFFFFFFFL)
+
+        fun readFully(target: ByteArray) {
+            if (bytes.size - position < target.size) throw EndOfData()
+            bytes.copyInto(target, 0, position, position + target.size)
+            position += target.size
+        }
+    }
+
+    /** Escritor big-endian a un array, con la semántica de `DataOutputStream`. */
+    private class BigEndianWriter(capacity: Int) {
+        private var bytes = ByteArray(capacity)
+        private var size = 0
+
+        private fun ensure(extra: Int) {
+            if (size + extra > bytes.size) bytes = bytes.copyOf(maxOf(size + extra, bytes.size * 2))
+        }
+
+        private fun put(value: Int) {
+            ensure(1)
+            bytes[size++] = value.toByte()
+        }
+
+        /** El byte bajo de [value], como `DataOutputStream.writeByte`. */
+        fun writeByte(value: Int) = put(value)
+
+        /** Los dos bytes bajos de [value], como `DataOutputStream.writeShort`. */
+        fun writeShort(value: Int) {
+            put(value ushr 8)
+            put(value)
+        }
+
+        fun writeInt(value: Int) {
+            put(value ushr 24)
+            put(value ushr 16)
+            put(value ushr 8)
+            put(value)
+        }
+
+        fun writeLong(value: Long) {
+            writeInt((value ushr 32).toInt())
+            writeInt(value.toInt())
+        }
+
+        fun write(source: ByteArray) {
+            ensure(source.size)
+            source.copyInto(bytes, size)
+            size += source.size
+        }
+
+        fun toByteArray(): ByteArray = bytes.copyOf(size)
     }
 
     private sealed interface HeaderResult {

@@ -1,8 +1,9 @@
 package com.moralesDev.dsForEveryone.emulator
 
-import org.junit.Assert.assertEquals
-import org.junit.Assert.assertTrue
-import org.junit.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertTrue
+import kotlin.test.Test
+import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.sin
 import kotlin.math.sqrt
@@ -24,7 +25,7 @@ class JoystickGeometryTest {
     }
 
     @Test
-    fun `las cuatro cardinales, con y hacia abajo`() {
+    fun `las cuatro cardinales — con y hacia abajo`() {
         assertEquals(setOf(DsButton.RIGHT), JoystickGeometry.directions(80f, 0f, radius))
         assertEquals(setOf(DsButton.LEFT), JoystickGeometry.directions(-80f, 0f, radius))
         assertEquals(setOf(DsButton.UP), JoystickGeometry.directions(0f, -80f, radius))
@@ -43,8 +44,8 @@ class JoystickGeometryTest {
     fun `los ocho sectores miden lo mismo`() {
         // A 22° de la horizontal sigue siendo derecha; a 23°, ya diagonal.
         fun at(degrees: Double) = JoystickGeometry.directions(
-            (80 * cos(Math.toRadians(degrees))).toFloat(),
-            (80 * sin(Math.toRadians(degrees))).toFloat(),
+            (80 * cos((degrees * PI / 180.0))).toFloat(),
+            (80 * sin((degrees * PI / 180.0))).toFloat(),
             radius,
         )
         assertEquals(setOf(DsButton.RIGHT), at(22.0))
@@ -62,11 +63,11 @@ class JoystickGeometryTest {
     fun `nunca da direcciones opuestas ni mas de dos`() {
         for (degrees in 0 until 360) {
             val result = JoystickGeometry.directions(
-                (90 * cos(Math.toRadians(degrees.toDouble()))).toFloat(),
-                (90 * sin(Math.toRadians(degrees.toDouble()))).toFloat(),
+                (90 * cos((degrees.toDouble() * PI / 180.0))).toFloat(),
+                (90 * sin((degrees.toDouble() * PI / 180.0))).toFloat(),
                 radius,
             )
-            assertTrue("$degrees°: $result", result.size in 1..2)
+            assertTrue(result.size in 1..2, "$degrees°: $result")
             assertTrue(!(DsButton.UP in result && DsButton.DOWN in result))
             assertTrue(!(DsButton.LEFT in result && DsButton.RIGHT in result))
         }

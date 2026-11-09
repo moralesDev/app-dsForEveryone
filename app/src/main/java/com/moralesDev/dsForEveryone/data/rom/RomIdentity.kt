@@ -1,92 +1,28 @@
 package com.moralesDev.dsForEveryone.data.rom
 
 import java.io.InputStream
-import java.security.MessageDigest
 import java.util.zip.CRC32
 
 /**
- * Identidad estable de una ROM: SHA-256 de su contenido completo.
+ * Identidad de una ROM leída desde un `InputStream` de Android.
  *
- * El identificador no puede depender del nombre del archivo. El usuario
- * renombra, mueve y vuelve a descargar sus ROMs; si la partida colgara del
- * nombre, dos archivos con el mismo contenido y distinto nombre serían dos
- * juegos, y dos archivos distintos con el mismo nombre compartirían partida.
- * El hash del contenido elimina las dos posibilidades.
+ * El cálculo en sí —SHA-256 del contenido, cabecera y banner en el mismo
+ * recorrido— vive en [RomFingerprinter], en el módulo común, y es el mismo
+ * en iOS. Aquí sólo queda lo propio de Android: ir sacando bloques del
+ * flujo que entrega SAF.
  */
 object RomIdentity {
 
-    /**
-     * Calcula el hash leyendo por bloques, sin cargar la ROM entera en memoria
-     * (una ROM de DS llega a varios cientos de MB), y en el mismo recorrido
-     * extrae la cabecera y el banner.
-     *
-     * El banner vive en un desplazamiento variable que sólo se conoce tras leer
-     * la cabecera (los primeros [DsRomHeader.SIZE] bytes, que en la práctica
-     * siempre caen dentro del primer bloque). A partir de ahí, cada bloque que
-     * llega se recorta contra la ventana `[bannerOffset, bannerOffset +
-     * DsBanner.SIZE)` y la parte que se solape se copia a su sitio: así no hace
-     * falta retroceder en el flujo ni cargar nada de más.
-     */
+    /** Ver [RomFingerprinter]: lee por bloques, sin cargar la ROM entera en memoria. */
     fun read(stream: InputStream): RomFingerprint {
-        val digest = MessageDigest.getInstance("SHA-256")
-        val buffer = ByteArray(BUFFER_SIZE)
-        val header = ByteArray(DsRomHeader.SIZE)
-        var headerFilled = 0
-        var total = 0L
-
-        var bannerOffset = -1L
-        var banner: ByteArray? = null
-        var bannerFilled = 0
-
+        val fingerprinter = RomFingerprinter()
+        val buffer = ByteArray(RomFingerprinter.BUFFER_SIZE)
         while (true) {
             val read = stream.read(buffer)
             if (read <= 0) break
-            val chunkStart = total
-            digest.update(buffer, 0, read)
-            total += read
-
-            if (headerFilled < header.size) {
-                val take = minOf(read, header.size - headerFilled)
-                buffer.copyInto(header, headerFilled, 0, take)
-                headerFilled += take
-            }
-
-            if (bannerOffset < 0 && headerFilled == header.size) {
-                val offset = DsRomHeader.parse(header)?.bannerOffset ?: 0L
-                if (offset > 0) {
-                    bannerOffset = offset
-                    banner = ByteArray(DsBanner.SIZE)
-                }
-            }
-
-            banner?.let { bannerBuffer ->
-                val chunkEnd = chunkStart + read
-                val windowEnd = bannerOffset + bannerBuffer.size
-                val overlapStart = maxOf(chunkStart, bannerOffset)
-                val overlapEnd = minOf(chunkEnd, windowEnd)
-                if (overlapStart < overlapEnd) {
-                    val length = (overlapEnd - overlapStart).toInt()
-                    buffer.copyInto(
-                        destination = bannerBuffer,
-                        destinationOffset = (overlapStart - bannerOffset).toInt(),
-                        startIndex = (overlapStart - chunkStart).toInt(),
-                        endIndex = (overlapStart - chunkStart).toInt() + length,
-                    )
-                    bannerFilled += length
-                }
-            }
+            fingerprinter.update(buffer, read)
         }
-
-        val parsedHeader = if (headerFilled == header.size) DsRomHeader.parse(header) else null
-        val validHeader = parsedHeader?.takeIf { it.isValid }
-        val parsedBanner = banner?.takeIf { bannerFilled == it.size }?.let(DsBanner::parse)
-
-        return RomFingerprint(
-            id = digest.digest().toHexString(),
-            sizeBytes = total,
-            header = validHeader,
-            banner = parsedBanner,
-        )
+        return fingerprinter.finish()
     }
 
     /**
@@ -113,7 +49,7 @@ object RomIdentity {
      */
     fun crc32(stream: InputStream): Long {
         val crc = CRC32()
-        val buffer = ByteArray(BUFFER_SIZE)
+        val buffer = ByteArray(RomFingerprinter.BUFFER_SIZE)
         while (true) {
             val read = stream.read(buffer)
             if (read < 0) break
@@ -121,20 +57,4 @@ object RomIdentity {
         }
         return crc.value
     }
-
-    private fun ByteArray.toHexString(): String =
-        joinToString("") { byte -> "%02x".format(byte) }
-
-    private const val BUFFER_SIZE = 64 * 1024
-}
-
-data class RomFingerprint(
-    val id: String,
-    val sizeBytes: Long,
-    /** `null` si la cabecera no llegó a leerse entera o si su comprobación no cuadra. */
-    val header: DsRomHeader?,
-    /** `null` si el cartucho no declara banner, o si el suyo está truncado o corrupto. */
-    val banner: DsBanner?,
-) {
-    val isValid: Boolean get() = header != null
 }

@@ -66,7 +66,8 @@ El entorno actual es **macOS / zsh**:
 
 ```sh
 ./gradlew assembleDebug            # APK (compila el core + puente + app)
-./gradlew testDebugUnitTest        # pruebas de JVM
+./gradlew testDebugUnitTest        # pruebas de JVM de :app
+./gradlew :shared:allTests         # pruebas de :shared, en JVM y en el simulador de iOS
 ./gradlew installDebug             # instalar en el dispositivo conectado
 ./gradlew lint                     # lint de AGP
 ```
@@ -168,8 +169,13 @@ no.
 
 ## Pruebas
 
-Sólo pruebas de JVM (`app/src/test/`), con JUnit 4, `kotlinx-coroutines-test` y
-Turbine. Un `FakeEmulatorCore` para ejercitar controlador y mandos. Los
+Pruebas de JVM en `app/src/test/`, con JUnit 4, `kotlinx-coroutines-test` y
+Turbine. Lo que vive en el módulo común `:shared` (la geometría de
+`ScreenLayout`, `TouchRouter` y `ControlLayout`, `DsButton`, joystick y
+cruceta) se prueba en `shared/src/commonTest/` con `kotlin.test`, y esas
+pruebas corren en la JVM **y** en el simulador de iOS (ver
+[`docs/ios.md`](docs/ios.md)). Ahí, nada de `Math` ni de APIs de Java, ni
+comas en los nombres de las pruebas: Kotlin/Native no las admite. Un `FakeEmulatorCore` para ejercitar controlador y mandos. Los
 sistemas de archivos se prueban sobre carpetas temporales de verdad, no sobre
 dobles.
 

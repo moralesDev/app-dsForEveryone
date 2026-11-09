@@ -1,7 +1,7 @@
 package com.moralesDev.dsForEveryone.emulator
 
-import org.junit.Assert.assertEquals
-import org.junit.Test
+import kotlin.test.assertEquals
+import kotlin.test.Test
 
 /**
  * El bit de cada botón no se deduce: se copia de las cabeceras del core (ver

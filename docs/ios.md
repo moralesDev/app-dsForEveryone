@@ -191,6 +191,53 @@ Nuevo módulo Gradle `:shared` con Kotlin Multiplatform (`commonMain`,
 **Está hecho cuando** `:app` usa `:shared`, todas las pruebas pasan y las de
 geometría corren también en iOS.
 
+**Estado (2026-11-09): primer paso hecho**, la geometría.
+
+- Módulo `shared/` con Kotlin Multiplatform y el plugin
+  `com.android.kotlin.multiplatform.library` de AGP 9. Destinos: Android,
+  `iosArm64` (dispositivos) e `iosSimulatorArm64`.
+- Movidos con `git mv` (conservan su historia y su paquete, así que `:app`
+  no cambia ni un import): `emulator/layout/*` (`ControlLayout`,
+  `LayoutEngine`, `ScreenLayout`, `TouchRouter`), `DsButton`,
+  `JoystickGeometry` y `DirectionalPadZones`.
+- El único Java que había en ese código era un `Math.toDegrees`; ahora es
+  `* (180 / PI)`, la misma cuenta.
+- Sus siete archivos de pruebas, de JUnit a `kotlin.test`: el mensaje pasa
+  del primer argumento al último, `@Test(expected = …)` pasa a
+  `assertFailsWith`, y las comas de los nombres pasan a «—» (Kotlin/Native no
+  las admite). **108 pruebas, las mismas, en verde en la JVM y en el
+  simulador de iOS.**
+- `bash gradlew testDebugUnitTest assembleDebug` sigue en verde.
+
+**Segundo paso (2026-11-09): hecho**, ROMs y partidas.
+
+- A `commonMain`, con `git mv`: `DsRomHeader`, `DsBanner`, `RomInfo` y
+  `SaveStateContainer`. `crc16` pasa de `internal` a pública porque las
+  pruebas de `:app` la usan y `internal` no cruza módulos.
+- **SHA-256 y CRC32** (`data/hash/Hashes.kt`) con `expect`/`actual`:
+  `MessageDigest` y `java.util.zip.CRC32` en Android, CommonCrypto y zlib en
+  iOS. No se reescriben en Kotlin común porque serían más lentos justo donde
+  importa: el alta de una ROM recorre cientos de MB.
+- **`RomFingerprinter`** (común): el recorrido de `RomIdentity.read` —hash,
+  cabecera y banner en una pasada—, alimentado por bloques. `RomIdentity`
+  se queda en `:app` sólo para leer el `InputStream` de SAF.
+- **`SaveStateContainer`**: `DataInputStream`/`DataOutputStream` pasan a un
+  lector y un escritor big-endian propios, con la misma semántica. El
+  formato no cambia ni un byte: `GoldenSaveStateTest` sigue leyendo el
+  archivo congelado.
+- Pruebas: `SaveStateContainerTest` (los archivos estropeados a mano) pasa a
+  `commonTest`, y hay un `HashesTest` nuevo con vectores de referencia
+  (FIPS 180-2 para SHA-256, `0xCBF43926` para CRC32) que comprueba que las
+  dos plataformas dan lo mismo. **137 pruebas en verde en la JVM y en el
+  simulador de iOS**; `:app`, 207 en verde.
+- Se quedan en `:app` (en la JVM) las pruebas de cabecera, banner e
+  identidad: dependen de `DsRomFixtures`, que usan otras siete pruebas de
+  `:app`, y las pruebas de un módulo no se ven desde otro. Siguen probando
+  el código ya movido.
+
+Queda para iOS-3: `UiMessage` depende de los recursos de Compose para
+Android y se mueve con los textos.
+
 ### iOS-3 · Las dependencias, multiplataforma
 
 | Hoy | Mañana | Nota |

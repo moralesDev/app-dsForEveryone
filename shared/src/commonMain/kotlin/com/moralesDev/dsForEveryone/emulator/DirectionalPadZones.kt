@@ -1,5 +1,6 @@
 package com.moralesDev.dsForEveryone.emulator
 
+import kotlin.math.PI
 import kotlin.math.atan2
 
 /**
@@ -107,7 +108,9 @@ object DirectionalPadZones {
         if (dx == 0f && dy == 0f) return emptySet()
 
         val cardinalWidth = 90f - diagonalWidthDegrees
-        val angleDegrees = normalizeDegrees(Math.toDegrees(atan2(dy, dx).toDouble()).toFloat())
+        // `* (180 / PI)` y no Math.toDegrees, que es de Java y no existe en iOS.
+        // Es la misma cuenta que hace Math.toDegrees, con la misma constante.
+        val angleDegrees = normalizeDegrees((atan2(dy, dx).toDouble() * (180.0 / PI)).toFloat())
         // Desplaza el origen medio ancho cardinal hacia atrás: así la cuña
         // RIGHT queda centrada en el ángulo 0° en vez de empezar en él.
         val shifted = normalizeDegrees(angleDegrees + cardinalWidth / 2f)

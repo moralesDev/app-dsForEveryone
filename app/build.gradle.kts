@@ -284,6 +284,8 @@ listOf(
 }
 
 dependencies {
+    // Lo común con iOS: la geometría de pantallas y mandos (docs/ios.md, iOS-2).
+    implementation(project(":shared"))
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.lifecycle.runtime.compose)

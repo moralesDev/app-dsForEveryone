@@ -1,9 +1,9 @@
 package com.moralesDev.dsForEveryone.data.save
 
-import org.junit.Assert.assertEquals
-import org.junit.Assert.assertNull
-import org.junit.Assert.assertTrue
-import org.junit.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertNull
+import kotlin.test.assertTrue
+import kotlin.test.Test
 
 /**
  * El contenedor visto como lo que es: un analizador de archivos que vienen del
@@ -59,7 +59,7 @@ class SaveStateContainerTest {
     fun `el archivo empieza por la firma E4FS`() {
         val bytes = encoded()
 
-        assertEquals("E4FS", String(bytes, 0, 4, Charsets.US_ASCII))
+        assertEquals("E4FS", bytes.decodeToString(0, 4))
     }
 
     @Test
@@ -127,7 +127,7 @@ class SaveStateContainerTest {
     }
 
     @Test
-    fun `no basta con que coincida el hash, el CRC tambien`() {
+    fun `no basta con que coincida el hash — el CRC tambien`() {
         // El CRC es la segunda condición, no un adorno.
         val other = header(romCrc32 = 0x12345678L)
 
@@ -203,7 +203,7 @@ class SaveStateContainerTest {
 
     private fun rejection(bytes: ByteArray): StateRejection {
         val decoded = SaveStateContainer.decode(bytes)
-        assertTrue("Se esperaba un rechazo y se obtuvo $decoded", decoded is DecodedState.Rejected)
+        assertTrue(decoded is DecodedState.Rejected, "Se esperaba un rechazo y se obtuvo $decoded")
         return (decoded as DecodedState.Rejected).reason
     }
 }

@@ -1,8 +1,12 @@
 package com.moralesDev.dsForEveryone.emulator
 
-import org.junit.Assert.assertEquals
-import org.junit.Assert.assertTrue
-import org.junit.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertTrue
+import kotlin.math.PI
+import kotlin.math.cos
+import kotlin.math.sin
+import kotlin.test.Test
+import kotlin.test.assertFailsWith
 
 /**
  * El reparto del área de la cruceta en ocho cuñas, comprobado coordenada a
@@ -18,8 +22,8 @@ class DirectionalPadZonesTest {
 
     /** Punto a [distance] px del centro, en la dirección [angleDegrees] (0 = derecha, sentido horario). */
     private fun pointAt(angleDegrees: Float, distance: Float): Pair<Float, Float> {
-        val radians = Math.toRadians(angleDegrees.toDouble())
-        return (center + distance * Math.cos(radians)).toFloat() to (center + distance * Math.sin(radians)).toFloat()
+        val radians = angleDegrees.toDouble() * PI / 180.0
+        return (center + distance * cos(radians)).toFloat() to (center + distance * sin(radians)).toFloat()
     }
 
     // ---------------------------------------------------------- las ocho direcciones
@@ -60,8 +64,8 @@ class DirectionalPadZonesTest {
     @Test
     fun `el disco neutro mide lo que dice y no mas`() {
         val radius = SIDE * DirectionalPadZones.DEAD_ZONE_RATIO
-        assertEquals("dentro del disco no hay dirección", emptySet<DsButton>(), at(center + radius - 1f, center))
-        assertTrue("justo fuera del disco sí la hay", at(center + radius + 1f, center).isNotEmpty())
+        assertEquals(emptySet<DsButton>(), at(center + radius - 1f, center), "dentro del disco no hay dirección")
+        assertTrue(at(center + radius + 1f, center).isNotEmpty(), "justo fuera del disco sí la hay")
     }
 
     // ---------------------------------------------------------- cubre el círculo sin huecos ni solapes
@@ -92,15 +96,15 @@ class DirectionalPadZonesTest {
             val result = at(x, y)
 
             assertTrue(
-                "($angle°) da una combinación inválida: $result",
                 result.isEmpty() || result in expected,
+                "($angle°) da una combinación inválida: $result",
             )
-            assertTrue("($angle°) no debería estar vacío fuera de la zona muerta", result.isNotEmpty())
+            assertTrue(result.isNotEmpty(), "($angle°) no debería estar vacío fuera de la zona muerta")
             seen += result
             angle += 0.25f
         }
 
-        assertEquals("deben aparecer las ocho combinaciones", expected, seen)
+        assertEquals(expected, seen, "deben aparecer las ocho combinaciones")
     }
 
     @Test
@@ -182,9 +186,11 @@ class DirectionalPadZonesTest {
         assertEquals(emptySet<DsButton>(), DirectionalPadZones.directionsAt(10f, 10f, -1f, 10f))
     }
 
-    @Test(expected = IllegalArgumentException::class)
+    @Test
     fun `un ancho de diagonal fuera de rango se rechaza`() {
-        at(center + RADIUS, center, diagonalWidth = 91f)
+        assertFailsWith<IllegalArgumentException> {
+            at(center + RADIUS, center, diagonalWidth = 91f)
+        }
     }
 
     private companion object {

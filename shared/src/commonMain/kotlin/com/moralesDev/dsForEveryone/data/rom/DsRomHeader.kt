@@ -59,8 +59,12 @@ data class DsRomHeader(
  * CRC-16 con el que la DS comprueba tanto la cabecera como el banner: init
  * `0xFFFF`, polinomio reflejado `0xA001` (equivalente a CRC-16/MODBUS). Es la
  * función `GetCRC16` de la BIOS, documentada en GBATEK.
+ *
+ * Pública y no `internal` desde que vive en el módulo común: las pruebas de
+ * `:app` la usan para fabricar cabeceras y banners válidos (DsRomFixtures),
+ * y `internal` no cruza de un módulo a otro.
  */
-internal fun crc16(bytes: ByteArray, offset: Int, length: Int): Int {
+fun crc16(bytes: ByteArray, offset: Int, length: Int): Int {
     var crc = 0xFFFF
     for (index in offset until offset + length) {
         crc = crc xor (bytes[index].toInt() and 0xFF)

@@ -1,16 +1,16 @@
 package com.moralesDev.dsForEveryone.emulator.layout
 
-import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
-import org.junit.Assert.assertTrue
-import org.junit.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertTrue
+import kotlin.test.Test
 
 class LayoutEngineTest {
 
     // ---------------------------- fitAspectRatio
 
     @Test
-    fun `cuando el hueco es mas ancho que la proporcion, manda el alto`() {
+    fun `cuando el hueco es mas ancho que la proporcion — manda el alto`() {
         // 400x100 es mucho más ancho que 4:3: si se usara todo el ancho, el
         // alto necesario (300) no cabría. El alto disponible (100) manda, y
         // el ancho se deriva de él.
@@ -18,18 +18,18 @@ class LayoutEngineTest {
 
         assertEquals(100f, size.height, 0.01f)
         assertEquals(100f * 4f / 3f, size.width, 0.01f)
-        assertTrue("no debe superar el ancho del hueco", size.width <= 400f)
+        assertTrue(size.width <= 400f, "no debe superar el ancho del hueco")
     }
 
     @Test
-    fun `cuando el hueco es mas alto que la proporcion, manda el ancho`() {
+    fun `cuando el hueco es mas alto que la proporcion — manda el ancho`() {
         // 100x400 es mucho más alto que 4:3: si se usara todo el alto, el
         // ancho necesario (533) no cabría. El ancho disponible (100) manda.
         val size = LayoutEngine.fitAspectRatio(LayoutSize(100f, 400f), 4f / 3f)
 
         assertEquals(100f, size.width, 0.01f)
         assertEquals(100f * 3f / 4f, size.height, 0.01f)
-        assertTrue("no debe superar el alto del hueco", size.height <= 400f)
+        assertTrue(size.height <= 400f, "no debe superar el alto del hueco")
     }
 
     @Test
@@ -89,11 +89,11 @@ class LayoutEngineTest {
     // ---------------------------- isWithin
 
     @Test
-    fun `un rectangulo dentro del area esta dentro, borde incluido`() {
+    fun `un rectangulo dentro del area esta dentro — borde incluido`() {
         val area = LayoutRect(0f, 0f, 100f, 100f)
 
         assertTrue(LayoutEngine.isWithin(LayoutRect(10f, 10f, 90f, 90f), area))
-        assertTrue("el borde exacto cuenta como dentro", LayoutEngine.isWithin(area, area))
+        assertTrue(LayoutEngine.isWithin(area, area), "el borde exacto cuenta como dentro")
     }
 
     @Test
@@ -138,7 +138,7 @@ class LayoutEngineTest {
     }
 
     @Test
-    fun `unos margenes mayores que el rectangulo lo dejan sin area, no invertido`() {
+    fun `unos margenes mayores que el rectangulo lo dejan sin area — no invertido`() {
         val recortado = LayoutRect(0f, 0f, 100f, 100f)
             .inset(LayoutInsets(left = 80f, top = 90f, right = 80f, bottom = 90f))
 

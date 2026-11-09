@@ -1,10 +1,11 @@
 package com.moralesDev.dsForEveryone.emulator.layout
 
-import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
-import org.junit.Assert.assertNull
-import org.junit.Assert.assertTrue
-import org.junit.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertNull
+import kotlin.test.assertTrue
+import kotlin.test.Test
+import kotlin.test.assertFailsWith
 
 class ControlLayoutTest {
 
@@ -26,15 +27,15 @@ class ControlLayoutTest {
     )
 
     @Test
-    fun `ningun grupo se solapa con otro ni con la pantalla tactil, en las dos orientaciones y con cualquier tamano`() {
+    fun `ningun grupo se solapa con otro ni con la pantalla tactil — en las dos orientaciones y con cualquier tamano`() {
         for ((label, size) in orientations) {
             for (mode in LayoutMode.entries) {
                 val placement = ScreenLayout.resolve(mode, size, gap = 0.03f, secondaryScale = 0.35f)
                 for (minTouchTarget in minTouchTargets) {
                     val profile = ControlLayout.defaultProfile(size.asArea(), placement.touchScreen, minTouchTarget)
                     assertFalse(
-                        "$mode en $label con objetivo táctil de $minTouchTarget solapa",
                         ControlLayout.hasOverlap(profile, placement.touchScreen),
+                        "$mode en $label con objetivo táctil de $minTouchTarget solapa",
                     )
                 }
             }
@@ -65,7 +66,7 @@ class ControlLayoutTest {
     }
 
     @Test
-    fun `la cruceta y el rombo de accion son mas grandes que L, R, Start, Select y soplar`() {
+    fun `la cruceta y el rombo de accion son mas grandes que L — R — Start — Select y soplar`() {
         val profile = ControlLayout.defaultProfile(
             LayoutRect(0f, 0f, 1080f, 2200f),
             ScreenLayout.resolve(LayoutMode.STACKED, LayoutSize(1080f, 2200f), gap = 0.03f).touchScreen,
@@ -87,7 +88,7 @@ class ControlLayoutTest {
     }
 
     @Test
-    fun `ningun objetivo tactil queda por debajo del minimo pedido, cuando hay banda suficiente`() {
+    fun `ningun objetivo tactil queda por debajo del minimo pedido — cuando hay banda suficiente`() {
         val available = LayoutSize(1080f, 2200f)
         val touchScreen = ScreenLayout.resolve(LayoutMode.STACKED, available, gap = 0.03f).touchScreen
         val minTouchTarget = 48f
@@ -100,11 +101,13 @@ class ControlLayoutTest {
         }
     }
 
-    @Test(expected = IllegalArgumentException::class)
+    @Test
     fun `un perfil incompleto no se acepta`() {
-        ControlLayoutProfile(
-            mapOf(ControlGroup.L to ControlGroupPlacement(LayoutRect(0f, 0f, 10f, 10f), 1f)),
-        )
+        assertFailsWith<IllegalArgumentException> {
+            ControlLayoutProfile(
+                mapOf(ControlGroup.L to ControlGroupPlacement(LayoutRect(0f, 0f, 10f, 10f), 1f)),
+            )
+        }
     }
 
     @Test
@@ -201,7 +204,7 @@ class ControlLayoutTest {
     }
 
     @Test
-    fun `decode rechaza texto vacio, incompleto o con numeros invalidos`() {
+    fun `decode rechaza texto vacio — incompleto o con numeros invalidos`() {
         assertNull(ControlLayout.decode(""))
         assertNull(ControlLayout.decode("L:0,0,0.1,0.1,1"))
         assertNull(ControlLayout.decode(ControlGroup.entries.joinToString(";") { "${it.name}:0,0,0.1,noesnumero,1" }))
@@ -229,13 +232,13 @@ class ControlLayoutTest {
                     val profile = ControlLayout.defaultProfile(area, touchScreen, minTouchTarget)
                     profile.groups.forEach { (group, placement) ->
                         assertTrue(
-                            "$group en $label ($mode, objetivo $minTouchTarget) se sale: ${placement.bounds}",
                             LayoutEngine.isWithin(placement.bounds, area),
+                            "$group en $label ($mode, objetivo $minTouchTarget) se sale: ${placement.bounds}",
                         )
                     }
                     assertFalse(
-                        "$mode en $label con objetivo táctil de $minTouchTarget solapa",
                         ControlLayout.hasOverlap(profile, touchScreen),
+                        "$mode en $label con objetivo táctil de $minTouchTarget solapa",
                     )
                 }
             }
@@ -310,18 +313,18 @@ class ControlLayoutTest {
     )
 
     @Test
-    fun `superpuesto, ningun grupo se solapa con otro ni se sale del hueco, con cualquier tamano`() {
+    fun `superpuesto — ningun grupo se solapa con otro ni se sale del hueco — con cualquier tamano`() {
         for (area in portraitAreas) {
             for (minTouchTarget in minTouchTargets + 126f) {
                 val profile = ControlLayout.overlayProfile(area, minTouchTarget)
                 assertFalse(
-                    "$area con objetivo $minTouchTarget solapa",
                     ControlLayout.hasOverlap(profile, touchScreen = null),
+                    "$area con objetivo $minTouchTarget solapa",
                 )
                 profile.groups.forEach { (group, placement) ->
                     assertTrue(
-                        "$group en $area (objetivo $minTouchTarget) se sale: ${placement.bounds}",
                         LayoutEngine.isWithin(placement.bounds, area),
+                        "$group en $area (objetivo $minTouchTarget) se sale: ${placement.bounds}",
                     )
                 }
             }
@@ -329,20 +332,20 @@ class ControlLayoutTest {
     }
 
     @Test
-    fun `superpuesto, cada grupo va del lado de su mano`() {
+    fun `superpuesto — cada grupo va del lado de su mano`() {
         for (area in portraitAreas) {
             val groups = ControlLayout.overlayProfile(area, 126f).groups.mapValues { it.value.bounds }
             listOf(ControlGroup.L, ControlGroup.BLOW, ControlGroup.DIRECTIONAL_PAD, ControlGroup.SELECT).forEach {
-                assertTrue("$it en $area", groups.getValue(it).right <= area.centerX)
+                assertTrue(groups.getValue(it).right <= area.centerX, "$it en $area")
             }
             listOf(ControlGroup.R, ControlGroup.ACTION_BUTTONS, ControlGroup.START).forEach {
-                assertTrue("$it en $area", groups.getValue(it).left >= area.centerX)
+                assertTrue(groups.getValue(it).left >= area.centerX, "$it en $area")
             }
         }
     }
 
     @Test
-    fun `superpuesto, L arriba, soplar debajo de L y la direccion debajo de soplar`() {
+    fun `superpuesto — L arriba — soplar debajo de L y la direccion debajo de soplar`() {
         for (area in portraitAreas) {
             val groups = ControlLayout.overlayProfile(area, 126f).groups.mapValues { it.value.bounds }
             val l = groups.getValue(ControlGroup.L)
@@ -351,39 +354,39 @@ class ControlLayoutTest {
             val r = groups.getValue(ControlGroup.R)
             val action = groups.getValue(ControlGroup.ACTION_BUTTONS)
 
-            assertTrue("$area", l.bottom <= blow.top && blow.bottom <= dpad.top)
-            assertTrue("$area", r.bottom <= action.top)
+            assertTrue(l.bottom <= blow.top && blow.bottom <= dpad.top, "$area")
+            assertTrue(r.bottom <= action.top, "$area")
             assertEquals(l.top, r.top, 0.01f)
             assertEquals(dpad.bottom, action.bottom, 0.01f)
         }
     }
 
     @Test
-    fun `superpuesto, Select y Start abajo, uno a cada lado del centro`() {
+    fun `superpuesto — Select y Start abajo — uno a cada lado del centro`() {
         for (area in portraitAreas) {
             val groups = ControlLayout.overlayProfile(area, 126f).groups.mapValues { it.value.bounds }
             val select = groups.getValue(ControlGroup.SELECT)
             val start = groups.getValue(ControlGroup.START)
             val dpad = groups.getValue(ControlGroup.DIRECTIONAL_PAD)
 
-            assertTrue("$area", select.right <= area.centerX && start.left >= area.centerX)
+            assertTrue(select.right <= area.centerX && start.left >= area.centerX, "$area")
             assertEquals(select.bottom, start.bottom, 0.01f)
-            assertTrue("$area", select.bottom >= dpad.bottom)
+            assertTrue(select.bottom >= dpad.bottom, "$area")
             // Pegados al centro: ningún otro grupo entre ellos y el centro.
-            assertTrue("$area", area.centerX - select.right < select.width)
+            assertTrue(area.centerX - select.right < select.width, "$area")
         }
     }
 
     @Test
-    fun `superpuesto, con sitio de sobra cada grupo tiene su tamano`() {
+    fun `superpuesto — con sitio de sobra cada grupo tiene su tamano`() {
         val area = portraitAreas.first()
         val m = 126f
         val groups = ControlLayout.overlayProfile(area, m).groups.mapValues { it.value.bounds }
 
         fun assertSize(group: ControlGroup, width: Float, height: Float) {
             val bounds = groups.getValue(group)
-            assertEquals("$group ancho", width, bounds.width, 0.01f)
-            assertEquals("$group alto", height, bounds.height, 0.01f)
+            assertEquals(width, bounds.width, 0.01f, "$group ancho")
+            assertEquals(height, bounds.height, 0.01f, "$group alto")
         }
         assertSize(ControlGroup.DIRECTIONAL_PAD, 3f * m, 3f * m)
         // El rombo, un 20 % menor que la dirección.
@@ -398,15 +401,15 @@ class ControlLayoutTest {
     }
 
     @Test
-    fun `superpuesto, ningun grupo sube del techo`() {
+    fun `superpuesto — ningun grupo sube del techo`() {
         for (area in portraitAreas) {
             val ceiling = area.top + area.height * 0.55f
             for (minTouchTarget in minTouchTargets + 126f) {
                 val profile = ControlLayout.overlayProfile(area, minTouchTarget, ceiling = ceiling)
                 profile.groups.forEach { (group, placement) ->
                     assertTrue(
-                        "$group en $area (objetivo $minTouchTarget) sube de $ceiling: ${placement.bounds}",
                         placement.bounds.top >= ceiling - 0.01f,
+                        "$group en $area (objetivo $minTouchTarget) sube de $ceiling: ${placement.bounds}",
                     )
                 }
                 assertFalse(ControlLayout.hasOverlap(profile, touchScreen = null))
@@ -415,7 +418,7 @@ class ControlLayoutTest {
     }
 
     @Test
-    fun `el techo es el borde de abajo de la pantalla de arriba, sea cual sea`() {
+    fun `el techo es el borde de abajo de la pantalla de arriba — sea cual sea`() {
         val size = LayoutSize(1080f, 2400f)
         val insets = LayoutInsets(top = 66f, bottom = 48f)
         val area = size.asArea().inset(insets)
@@ -433,12 +436,12 @@ class ControlLayoutTest {
         val area = size.asArea()
         for (mode in listOf(LayoutMode.TOP_ONLY, LayoutMode.BOTTOM_ONLY, LayoutMode.MAIN_AND_SECONDARY, LayoutMode.SIDE_BY_SIDE)) {
             val placement = ScreenLayout.resolve(mode, size)
-            assertEquals("$mode", area.top, ControlLayout.overlayCeiling(placement, area), 0.01f)
+            assertEquals(area.top, ControlLayout.overlayCeiling(placement, area), 0.01f, "$mode")
         }
     }
 
     @Test
-    fun `el boton de apartar va abajo a la derecha, a la altura de Start, sin pisar nada`() {
+    fun `el boton de apartar va abajo a la derecha — a la altura de Start — sin pisar nada`() {
         for (area in portraitAreas) {
             for (minTouchTarget in minTouchTargets + 126f) {
                 for (systemTop in listOf(null, area.bottom - minTouchTarget * 1.5f)) {
@@ -454,14 +457,14 @@ class ControlLayoutTest {
                     val start = profile.groups.getValue(ControlGroup.START).bounds
                     val label = "$area, objetivo $minTouchTarget, systemTop $systemTop"
 
-                    assertEquals(label, r.right, toggle.right, 0.01f)
-                    assertTrue(label, LayoutEngine.isWithin(toggle, area))
+                    assertEquals(r.right, toggle.right, 0.01f, label)
+                    assertTrue(LayoutEngine.isWithin(toggle, area), label)
                     profile.groups.forEach { (group, placement) ->
-                        assertFalse("pisa $group: $label", LayoutEngine.overlaps(toggle, placement.bounds))
+                        assertFalse(LayoutEngine.overlaps(toggle, placement.bounds), "pisa $group: $label")
                     }
                     // Con un hueco realista va justo a la altura de Start.
                     if (minTouchTarget == 126f && area.height > 1000f) {
-                        assertEquals(label, start.centerY, toggle.centerY, 0.01f)
+                        assertEquals(start.centerY, toggle.centerY, 0.01f, label)
                     }
                 }
             }
@@ -469,7 +472,7 @@ class ControlLayoutTest {
     }
 
     @Test
-    fun `superpuesto, en un 16 9 los mandos pisan la pantalla inferior`() {
+    fun `superpuesto — en un 16 9 los mandos pisan la pantalla inferior`() {
         val size = LayoutSize(1080f, 1920f)
         val insets = LayoutInsets(top = 60f, bottom = 48f)
         val area = size.asArea().inset(insets)
@@ -493,7 +496,7 @@ class ControlLayoutTest {
     }
 
     @Test
-    fun `la direccion y el rombo se acercan al centro lo pedido, y nada mas se mueve`() {
+    fun `la direccion y el rombo se acercan al centro lo pedido — y nada mas se mueve`() {
         val area = portraitAreas.first()
         val base = ControlLayout.overlayProfile(area, 126f).groups.mapValues { it.value.bounds }
         val shifted = ControlLayout.overlayProfile(area, 126f, inwardShift = 50f).groups.mapValues { it.value.bounds }
@@ -501,19 +504,19 @@ class ControlLayoutTest {
         assertEquals(base.getValue(ControlGroup.DIRECTIONAL_PAD).left + 50f, shifted.getValue(ControlGroup.DIRECTIONAL_PAD).left, 0.01f)
         assertEquals(base.getValue(ControlGroup.ACTION_BUTTONS).right - 50f, shifted.getValue(ControlGroup.ACTION_BUTTONS).right, 0.01f)
         listOf(ControlGroup.L, ControlGroup.R, ControlGroup.BLOW).forEach {
-            assertEquals("$it", base.getValue(it).left, shifted.getValue(it).left, 0.01f)
+            assertEquals(base.getValue(it).left, shifted.getValue(it).left, 0.01f, "$it")
         }
     }
 
     @Test
-    fun `por mucho que se pida acercarlos, nunca pasan su mitad ni se solapan`() {
+    fun `por mucho que se pida acercarlos — nunca pasan su mitad ni se solapan`() {
         for (area in portraitAreas) {
             val profile = ControlLayout.overlayProfile(area, 126f, inwardShift = 10_000f)
             val groups = profile.groups.mapValues { it.value.bounds }
-            assertTrue("$area", groups.getValue(ControlGroup.DIRECTIONAL_PAD).right <= area.centerX + 0.01f)
-            assertTrue("$area", groups.getValue(ControlGroup.ACTION_BUTTONS).left >= area.centerX - 0.01f)
-            assertFalse("$area", ControlLayout.hasOverlap(profile, touchScreen = null))
-            groups.values.forEach { assertTrue("$area: $it", LayoutEngine.isWithin(it, area)) }
+            assertTrue(groups.getValue(ControlGroup.DIRECTIONAL_PAD).right <= area.centerX + 0.01f, "$area")
+            assertTrue(groups.getValue(ControlGroup.ACTION_BUTTONS).left >= area.centerX - 0.01f, "$area")
+            assertFalse(ControlLayout.hasOverlap(profile, touchScreen = null), "$area")
+            groups.values.forEach { assertTrue(LayoutEngine.isWithin(it, area), "$area: $it") }
         }
     }
 
@@ -531,7 +534,7 @@ class ControlLayoutTest {
     }
 
     @Test
-    fun `el hueco entre pantallas apiladas, y ninguno si no lo estan`() {
+    fun `el hueco entre pantallas apiladas — y ninguno si no lo estan`() {
         val size = LayoutSize(1080f, 2400f)
         val stacked = ScreenLayout.resolve(LayoutMode.STACKED, size, gap = 0.05f)
         assertEquals(stacked.topScreen.bottom to stacked.touchScreen.top, ControlLayout.stackedGap(stacked))
@@ -540,7 +543,7 @@ class ControlLayoutTest {
         assertEquals(swapped.touchScreen.bottom to swapped.topScreen.top, ControlLayout.stackedGap(swapped))
 
         for (mode in listOf(LayoutMode.SIDE_BY_SIDE, LayoutMode.TOP_ONLY, LayoutMode.MAIN_AND_SECONDARY)) {
-            assertNull("$mode", ControlLayout.stackedGap(ScreenLayout.resolve(mode, size)))
+            assertNull(ControlLayout.stackedGap(ScreenLayout.resolve(mode, size)), "$mode")
         }
     }
 
@@ -553,11 +556,11 @@ class ControlLayoutTest {
         assertEquals(ceiling, groups.getValue(ControlGroup.L).top, 0.01f)
         assertEquals(ceiling, groups.getValue(ControlGroup.R).top, 0.01f)
         val lowest = groups.values.maxOf { it.bottom }
-        assertTrue("el bloque llega hasta $lowest, pegado al borde ${area.bottom}", area.bottom - lowest > 126f)
+        assertTrue(area.bottom - lowest > 126f, "el bloque llega hasta $lowest, pegado al borde ${area.bottom}")
     }
 
     @Test
-    fun `Select y Start bajan a la altura pedida, soplar con ellos, y el resto no se mueve`() {
+    fun `Select y Start bajan a la altura pedida — soplar con ellos — y el resto no se mueve`() {
         val area = portraitAreas.first()
         val ceiling = area.centerY + 30f
         val base = ControlLayout.overlayProfile(area, 126f, ceiling = ceiling, inwardShift = 40f)
@@ -572,7 +575,7 @@ class ControlLayoutTest {
         assertEquals(groups.getValue(ControlGroup.SELECT).centerY, blow.centerY, 0.01f)
         assertEquals(groups.getValue(ControlGroup.L).left, blow.left, 0.01f)
         (ControlGroup.entries - ControlGroup.SELECT - ControlGroup.START - ControlGroup.BLOW).forEach {
-            assertEquals("$it", base.getValue(it), groups.getValue(it))
+            assertEquals(base.getValue(it), groups.getValue(it), "$it")
         }
         assertFalse(ControlLayout.hasOverlap(moved, touchScreen = null))
     }
@@ -582,16 +585,16 @@ class ControlLayoutTest {
         for (area in portraitAreas) {
             for (systemTop in listOf(area.top, area.centerY, area.bottom - 1f, area.bottom + 500f)) {
                 val profile = ControlLayout.overlayProfile(area, 126f, inwardShift = 40f, systemTop = systemTop)
-                assertFalse("$area, $systemTop", ControlLayout.hasOverlap(profile, touchScreen = null))
+                assertFalse(ControlLayout.hasOverlap(profile, touchScreen = null), "$area, $systemTop")
                 profile.groups.values.forEach {
-                    assertTrue("$area, $systemTop: ${it.bounds}", LayoutEngine.isWithin(it.bounds, area))
+                    assertTrue(LayoutEngine.isWithin(it.bounds, area), "$area, $systemTop: ${it.bounds}")
                 }
             }
         }
     }
 
     @Test
-    fun `el borde de abajo de la pantalla inferior, sea cual sea`() {
+    fun `el borde de abajo de la pantalla inferior — sea cual sea`() {
         val size = LayoutSize(1080f, 2400f)
         val normal = ScreenLayout.resolve(LayoutMode.STACKED, size, gap = 0.05f)
         assertEquals(normal.touchScreen.bottom, ControlLayout.lowerScreenBottom(normal))
@@ -617,36 +620,36 @@ class ControlLayoutTest {
     }
 
     @Test
-    fun `apiladas, se apartan los que tapan la pantalla de abajo y Select y Start se quedan`() {
+    fun `apiladas — se apartan los que tapan la pantalla de abajo y Select y Start se quedan`() {
         for (swapped in listOf(false, true)) {
             val (profile, placement) = portraitScene(LayoutMode.STACKED, swapped)
             val hideable = ControlLayout.groupsCoveringScreens(profile, placement)
 
-            assertFalse("$swapped", ControlGroup.SELECT in hideable)
-            assertFalse("$swapped", ControlGroup.START in hideable)
-            assertTrue("$swapped", ControlGroup.DIRECTIONAL_PAD in hideable)
-            assertTrue("$swapped", ControlGroup.ACTION_BUTTONS in hideable)
+            assertFalse(ControlGroup.SELECT in hideable, "$swapped")
+            assertFalse(ControlGroup.START in hideable, "$swapped")
+            assertTrue(ControlGroup.DIRECTIONAL_PAD in hideable, "$swapped")
+            assertTrue(ControlGroup.ACTION_BUTTONS in hideable, "$swapped")
         }
     }
 
     @Test
-    fun `apiladas, soplar va abajo a la izquierda frente al boton de apartar, sin tapar la pantalla`() {
+    fun `apiladas — soplar va abajo a la izquierda frente al boton de apartar — sin tapar la pantalla`() {
         for (swapped in listOf(false, true)) {
             val (profile, placement) = portraitScene(LayoutMode.STACKED, swapped)
             val blow = profile.groups.getValue(ControlGroup.BLOW).bounds
             val area = LayoutSize(1080f, 2400f).asArea().inset(LayoutInsets(top = 66f, bottom = 48f))
             val toggle = ControlLayout.hideToggleBounds(profile, 126f, area)
 
-            assertEquals("$swapped", toggle.centerY, blow.centerY, 0.01f)
-            assertEquals("$swapped", profile.groups.getValue(ControlGroup.L).bounds.left, blow.left, 0.01f)
-            assertFalse("$swapped", LayoutEngine.overlaps(blow, placement.topScreen))
-            assertFalse("$swapped", LayoutEngine.overlaps(blow, placement.touchScreen))
-            assertFalse("$swapped", ControlLayout.hasOverlap(profile, touchScreen = null))
+            assertEquals(toggle.centerY, blow.centerY, 0.01f, "$swapped")
+            assertEquals(profile.groups.getValue(ControlGroup.L).bounds.left, blow.left, 0.01f, "$swapped")
+            assertFalse(LayoutEngine.overlaps(blow, placement.topScreen), "$swapped")
+            assertFalse(LayoutEngine.overlaps(blow, placement.touchScreen), "$swapped")
+            assertFalse(ControlLayout.hasOverlap(profile, touchScreen = null), "$swapped")
         }
     }
 
     @Test
-    fun `soplar no se aparta nunca, aunque tape una pantalla`() {
+    fun `soplar no se aparta nunca — aunque tape una pantalla`() {
         val (profile, placement) = portraitScene(LayoutMode.STACKED)
         val l = profile.groups.getValue(ControlGroup.L)
         val overBottomScreen = ControlLayoutProfile(profile.groups + (ControlGroup.BLOW to l))
@@ -657,7 +660,7 @@ class ControlLayoutTest {
     fun `con las pantallas en la mitad de arriba no hay nada que apartar`() {
         for (mode in listOf(LayoutMode.TOP_ONLY, LayoutMode.BOTTOM_ONLY, LayoutMode.SIDE_BY_SIDE, LayoutMode.MAIN_AND_SECONDARY)) {
             val (profile, placement) = portraitScene(mode)
-            assertEquals("$mode", emptySet<ControlGroup>(), ControlLayout.groupsCoveringScreens(profile, placement))
+            assertEquals(emptySet<ControlGroup>(), ControlLayout.groupsCoveringScreens(profile, placement), "$mode")
         }
     }
 }

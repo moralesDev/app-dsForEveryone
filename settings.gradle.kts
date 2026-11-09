@@ -16,3 +16,4 @@ dependencyResolutionManagement {
 
 rootProject.name = "DS Emulador"
 include(":app")
+include(":shared")

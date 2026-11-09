@@ -1,9 +1,9 @@
 package com.moralesDev.dsForEveryone.emulator.layout
 
-import org.junit.Assert.assertEquals
-import org.junit.Assert.assertNull
-import org.junit.Assert.assertTrue
-import org.junit.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertNull
+import kotlin.test.assertTrue
+import kotlin.test.Test
 
 /**
  * De punto de la vista a coordenada de la DS, comprobado en el borde exacto:
@@ -44,29 +44,29 @@ class TouchRouterTest {
     // ---------------------------- el recorte ocurre EN el borde
 
     @Test
-    fun `el borde izquierdo corta exactamente ahi, no un pixel antes ni despues`() {
-        assertEquals("justo dentro", 0, TouchRouter.map(0f, 96f, placement)!!.x)
-        assertNull("justo fuera", TouchRouter.map(-0.5f, 96f, placement))
+    fun `el borde izquierdo corta exactamente ahi — no un pixel antes ni despues`() {
+        assertEquals(0, TouchRouter.map(0f, 96f, placement)!!.x, "justo dentro")
+        assertNull(TouchRouter.map(-0.5f, 96f, placement), "justo fuera")
     }
 
     @Test
-    fun `el borde derecho corta exactamente ahi, no un pixel antes ni despues`() {
-        assertEquals("justo dentro, en el borde", 255, TouchRouter.map(256f, 96f, placement)!!.x)
-        assertEquals("un pixel dentro del borde derecho", 255, TouchRouter.map(255.9f, 96f, placement)!!.x)
-        assertNull("justo fuera", TouchRouter.map(256.5f, 96f, placement))
+    fun `el borde derecho corta exactamente ahi — no un pixel antes ni despues`() {
+        assertEquals(255, TouchRouter.map(256f, 96f, placement)!!.x, "justo dentro, en el borde")
+        assertEquals(255, TouchRouter.map(255.9f, 96f, placement)!!.x, "un pixel dentro del borde derecho")
+        assertNull(TouchRouter.map(256.5f, 96f, placement), "justo fuera")
     }
 
     @Test
-    fun `el borde superior corta exactamente ahi, no un pixel antes ni despues`() {
-        assertEquals("justo dentro", 0, TouchRouter.map(128f, 0f, placement)!!.y)
-        assertNull("justo fuera", TouchRouter.map(128f, -0.5f, placement))
+    fun `el borde superior corta exactamente ahi — no un pixel antes ni despues`() {
+        assertEquals(0, TouchRouter.map(128f, 0f, placement)!!.y, "justo dentro")
+        assertNull(TouchRouter.map(128f, -0.5f, placement), "justo fuera")
     }
 
     @Test
-    fun `el borde inferior corta exactamente ahi, no un pixel antes ni despues`() {
-        assertEquals("justo dentro, en el borde", 191, TouchRouter.map(128f, 192f, placement)!!.y)
-        assertEquals("un pixel dentro del borde inferior", 191, TouchRouter.map(128f, 191.9f, placement)!!.y)
-        assertNull("justo fuera", TouchRouter.map(128f, 192.5f, placement))
+    fun `el borde inferior corta exactamente ahi — no un pixel antes ni despues`() {
+        assertEquals(191, TouchRouter.map(128f, 192f, placement)!!.y, "justo dentro, en el borde")
+        assertEquals(191, TouchRouter.map(128f, 191.9f, placement)!!.y, "un pixel dentro del borde inferior")
+        assertNull(TouchRouter.map(128f, 192.5f, placement), "justo fuera")
     }
 
     // ---------------------------- pantallas intercambiadas
