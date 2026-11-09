@@ -406,8 +406,17 @@ Se hace en cinco pasos; tras cada uno Android sigue igual:
      hay que copiarlos a `DsForEveryone.app/compose-resources/` —sin ellos
      falla al cargar la fuente—, con un script que use las variables de Xcode
      (`TARGET_BUILD_DIR`), porque CMake no expande `EFFECTIVE_PLATFORM_NAME`.
-   - Pendiente: probarla en el iPad de verdad; los selectores de archivos de
-     iOS; y la biblioteca y el juego.
+   - ✅ Probada en un iPad Air M2. Logo nuevo (`art/logo.png`,
+     `tools/make-icons.swift`): icono en Android e iOS y `AppLogo` dentro de
+     la app.
+   - ✅ **Selectores de archivos de iOS** (`DocumentPickers.ios.kt`,
+     `UIDocumentPickerViewController`). Abrir lee el archivo en su sitio, sin
+     copiarlo, con su permiso de acceso («security-scoped»). Crear elige una
+     **carpeta** y crea dentro el archivo con el nombre propuesto (« (2)»… si
+     existe): así funciona como en Android, primero se elige dónde y después
+     se escribe. Pendiente de probar con una copia de partidas real (importar
+     en el iPad una exportada en Android).
+   - Pendiente: la biblioteca y el juego.
 
 ### iOS-4 · El juego en iOS
 
