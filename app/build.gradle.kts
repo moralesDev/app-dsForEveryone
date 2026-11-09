@@ -131,8 +131,9 @@ room {
     schemaDirectory("$projectDir/schemas")
 }
 
-// Verifica que el objeto compilado de nuestro puente (ds_bridge.cpp.o, no
+// Verifica que el objeto compilado de nuestro puente (ds_core.cpp.o, no
 // libdsemu.so entero) contenga la constante BRIDGE_CORE_VERSION ("1.1").
+// Desde la fase iOS-1 vive en native/ds_core/, compartida con iOS.
 //
 // A diferencia de mGBA en `app-emulador`, melonDS 1.1 no tiene el bug de
 // `version.cmake` escapándose a un `.git` ajeno (ver docs/integracion-
@@ -147,8 +148,8 @@ room {
 // el .so.
 //
 // Segunda comprobación: un grep sobre nuestras propias fuentes (los .cpp/.h
-// de native/emulator_bridge y los .kt de app/src/main/java, comentarios
-// descontados) que falla si alguien referencia los símbolos de
+// de native/ds_core y native/emulator_bridge y los .kt de app/src/main/java,
+// comentarios descontados) que falla si alguien referencia los símbolos de
 // third_party/melonDS/src/version.h.in que identifican una compilación
 // concreta (MELONDS_VERSION, MELONDS_GIT_BRANCH, MELONDS_GIT_HASH,
 // MELONDS_BUILD_PROVIDER) en vez de la constante propia del puente.
@@ -173,9 +174,9 @@ abstract class VerifyCoreVersionTask : DefaultTask() {
 
     private fun verifyCompiledObject() {
         val root = cxxBuildDirectory.get().asFile
-        val objectFile = root.walkTopDown().firstOrNull { it.name == "ds_bridge.cpp.o" }
+        val objectFile = root.walkTopDown().firstOrNull { it.name == "ds_core.cpp.o" }
             ?: error(
-                "No se encontró ds_bridge.cpp.o bajo $root: ¿cambió el layout de " +
+                "No se encontró ds_core.cpp.o bajo $root: ¿cambió el layout de " +
                     ".cxx o el nombre del objeto?",
             )
 
@@ -184,7 +185,7 @@ abstract class VerifyCoreVersionTask : DefaultTask() {
         // ese proyecto quedaría descartada sin llegar a compararse.
         val strings = extractPrintableStrings(objectFile.readBytes(), minLength = 3)
         check("1.1" in strings) {
-            "ds_bridge.cpp.o no contiene \"1.1\": BRIDGE_CORE_VERSION cambió sin " +
+            "ds_core.cpp.o no contiene \"1.1\": BRIDGE_CORE_VERSION cambió sin " +
                 "actualizar esta comprobación (o dejó de ser un literal)."
         }
     }
@@ -252,6 +253,9 @@ abstract class VerifyCoreVersionTask : DefaultTask() {
 }
 
 val coreVersionGuardedSources = files(
+    fileTree(layout.projectDirectory.dir("../native/ds_core")) {
+        include("**/*.cpp", "**/*.h")
+    },
     fileTree(layout.projectDirectory.dir("../native/emulator_bridge")) {
         include("**/*.cpp", "**/*.h")
     },
