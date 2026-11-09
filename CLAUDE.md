@@ -227,3 +227,4 @@ Ampliar aquí antes de escribir código nuevo en esas áreas:
 - [`docs/reutilizacion.md`](docs/reutilizacion.md) — qué se trae de `app-emulador`, qué se adapta y qué es nuevo.
 - [`docs/copia-de-partidas.md`](docs/copia-de-partidas.md) — exportar e importar partidas: formato, qué se rechaza y cómo se recupera un reemplazo interrumpido.
 - [`docs/plan-de-trabajo.md`](docs/plan-de-trabajo.md) — las cinco fases, los diecinueve entregables y el prompt de cada uno.
+- [`docs/ios.md`](docs/ios.md) — iPhone y iPad con Kotlin Multiplatform: qué se comparte, qué cambia (sin JIT), licencia en la App Store y las fases iOS-0 a iOS-5.

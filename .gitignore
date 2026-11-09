@@ -13,6 +13,7 @@
 /captures/
 .externalNativeBuild/
 .cxx/
+/build-ios/
 /app/.cxx/
 .kotlin/
 local.properties

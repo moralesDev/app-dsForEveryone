@@ -1,0 +1,252 @@
+# iOS y iPadOS
+
+Plan para llevar DsForEveryone a iPhone y iPad desde este mismo repositorio.
+Estado: **arranque.** Lo único hecho es la primera comprobación de la fase
+iOS-0 (el core compila para iPhone); todo lo demás es plan.
+
+## La decisión: Kotlin Multiplatform, en este repositorio
+
+Hay dos caminos y se elige el primero:
+
+| | Kotlin Multiplatform + Compose Multiplatform | App nativa en Swift/SwiftUI |
+|---|---|---|
+| Geometría (`ControlLayout`, `ScreenLayout`, `TouchRouter`) | Se comparte tal cual, con sus pruebas | Se reescribe y se vuelve a probar |
+| Partidas, ajustes, biblioteca | Se comparten | Se reescriben |
+| Pantallas (juego, biblioteca, editor, ajustes) | Se comparten casi enteras | Se reescriben |
+| Qué se escribe para iOS | Lo que toca el sistema: hilo, audio, vídeo, archivos, vibración, mandos | Todo |
+| Dos apps que mantener | No | Sí |
+
+Lo que más costó en Android —dos pantallas colocables, la ruta táctil, doce
+botones en poco sitio y el editor— es geometría pura, **fuera de Compose a
+propósito** (ver `CLAUDE.md`). Esa decisión es la que ahora hace barato
+compartirla: no depende de nada de Android.
+
+Por qué no un repositorio aparte, como se decidió para 3DS: aquel era otro
+emulador con otro pipeline gráfico; esto es la **misma app** en otro sistema.
+Separarla duplicaría justo lo que se quiere compartir.
+
+## Lo que cambia en iPhone y iPad
+
+### Sin JIT
+
+Apple no deja a una app normal escribir y luego ejecutar código, que es lo
+que hace un JIT. En Android el core usa el recompilador ARM64 de melonDS
+(`ENABLE_JIT=ON`); en iOS va con el **intérprete**.
+
+- En iPhones recientes y en iPads con chip M, la DS con intérprete es
+  jugable (Delta, en la App Store, usa melonDS así).
+- En modelos antiguos, y en general a 1,5x y 2x, se notará.
+- Por eso la fase iOS-0 es **medir antes de construir** nada encima.
+
+### Las piezas nativas
+
+| Pieza | Android | iOS |
+|---|---|---|
+| Core | `libcore.a` con JIT | `libcore.a` sin JIT (ya compila, ver iOS-0) |
+| Puente | `ds_bridge.cpp` con JNI | El mismo núcleo en C, llamado por `cinterop` |
+| Audio | AAudio | Audio Unit (`AVAudioEngine` o `AURemoteIO`) |
+| Vídeo | GL ES, textura 256×384 y dos quads | Compose `Canvas` con la imagen 256×384 y `FilterQuality` (ver abajo) |
+| Hilo de emulación | `Thread` + `LockSupport.parkNanos` | Hilo POSIX + `mach_absolute_time`/`nanosleep` |
+| ROMs y archivos de sistema | SAF (`DocumentAccess`) | `UIDocumentPickerViewController` + marcadores con ámbito de seguridad |
+| Vibración | `HapticFeedback` | `UIImpactFeedbackGenerator` |
+| Mandos físicos | `KeyEvent`/`MotionEvent` | Framework `GameController` |
+| Micrófono | Soplido simulado | Soplido simulado (igual: sin permiso) |
+
+**El vídeo.** En Android se pinta con GL ES porque el truco de
+`setFixedSize` no servía con dos pantallas (ver `docs/pantallas.md`). En iOS,
+OpenGL ES está obsoleto y Compose Multiplatform ya pinta con Metal por debajo.
+El primer intento es el más sencillo: copiar el búfer 256×384 a una imagen y
+dibujar sus dos mitades en los dos rectángulos de `ScreenLayout` con
+`FilterQuality.None` («Nítido») o `Low` («Suavizado»). Son 393 KB por
+fotograma; si eso no llega a 60 fps, el plan B es una `MTKView` dentro de un
+`UIKitView` con dos quads, el mismo diseño que el renderizador GL.
+
+**Las reglas invariantes no cambian.** Un hilo propio, el core tocado desde
+un solo hilo, la entrada táctil como estado compartido, escritura atómica de
+partidas, SHA-256 como identidad: todo eso vive en código común y vale igual.
+Lo que cambia es sólo con qué primitiva del sistema se cumple cada una.
+
+### Particularidades del iPad
+
+- **Apple Pencil = lápiz de la DS.** No hace falta código propio: llega
+  como un puntero más y `TouchRouter` lo trata igual que un dedo.
+- **Ventanas de cualquier tamaño** (Split View, Slide Over, Stage Manager).
+  La geometría ya calcula sobre el hueco disponible, pero hay que probar el
+  cambio de tamaño en caliente: el perfil de mandos y la colocación se
+  recalculan, y el hilo de emulación no se puede parar por ello.
+- **Teclado físico** además de mandos: entra por `GameController` (`GCKeyboard`).
+
+### Lo que no se puede hacer igual
+
+- **`filesDir` y la exportación de partidas**: en iOS son la carpeta
+  `Application Support` de la app y la hoja de compartir del sistema.
+- **«Sin permisos»** se mantiene: el selector de documentos no pide permiso, y
+  no se declara `NSMicrophoneUsageDescription`.
+
+## Licencia y distribución: lo delicado
+
+- **App Store.** Apple admite emuladores desde 2024. Pero sus condiciones
+  añaden restricciones de uso que la GPL prohíbe añadir; por eso VLC tuvo que
+  salir de la tienda en 2011. Publicar melonDS (GPL-3.0) en la App Store
+  exige **antes** confirmarlo con los titulares del copyright de melonDS. Lo
+  mismo vale para TestFlight, que pasa por las mismas condiciones. Pendiente
+  también en `docs/licencia.md`.
+- **Sin tienda.** Instalar desde Xcode en un dispositivo propio no tiene ese
+  problema. Con una cuenta de Apple gratuita la app caduca a los 7 días; con
+  la cuenta de desarrollador (99 USD al año), al año.
+- **Unión Europea.** Las tiendas alternativas (AltStore PAL y otras) son una
+  vía distinta de la App Store, con sus propias condiciones que también hay
+  que revisar.
+
+Mientras eso no esté resuelto, el objetivo es una app que funcione en
+dispositivos propios, no una publicación.
+
+## Fases
+
+Mismo método que [`plan-de-trabajo.md`](plan-de-trabajo.md): una rama por
+fase y cada fase deja Android funcionando igual que antes. **Android no se
+rompe nunca por el camino**: cada paso se comprueba con
+`bash gradlew testDebugUnitTest assembleDebug` además de lo propio de iOS.
+
+### iOS-0 · ¿Va lo bastante rápido? (medir antes de construir)
+
+1. ✅ **El core compila para iPhone.** `third_party/melonDS` sin tocar,
+   `arm64`, iOS 16, sin JIT, sin renderizador OpenGL, sin GDB stub: produce
+   `libcore.a` en unos 10 s. Comando en el apéndice.
+2. ✅ Una app mínima en Xcode, sin Kotlin todavía:
+   [`ios/spike/`](../ios/spike/README.md). Carga una ROM con la BIOS libre de
+   melonDS (`FreeBIOS`), corre el core en su propio hilo con o sin límite de
+   60 Hz y muestra fotogramas por segundo, milisegundos por fotograma y
+   porcentaje de velocidad de una DS. Compila y enlaza; falta correrla en un
+   dispositivo.
+3. Medir en un iPhone y en un iPad reales, con una demo 2D y una 3D.
+
+   **Primera medición (2026-11-09), iPad Air 11" (M2), iPadOS 26, intérprete
+   sin JIT, compilación Release:**
+
+   | Modo | fps | ms por fotograma | Margen sobre una DS |
+   |---|---|---|---|
+   | Sin límite | 165 | 5,6 | 434 % |
+   | 60 Hz | 60 | 6,5 | 300 % (ver nota) |
+
+   - El core va a más de **4 veces** la velocidad de una DS: sobra para x1, x1,5
+     y x2 sin JIT, al menos en un M2.
+   - A 60 Hz el fotograma tarda algo más (6,5 ms frente a 5,6) porque el
+     procesador baja de frecuencia entre fotograma y fotograma. Es lo
+     esperable y no es un problema: sigue siendo un 39 % del presupuesto.
+   - Medido con *Zelda: Spirit Tracks*, un juego **3D** (el caso exigente:
+     el renderizador 3D por software corre en su propio hilo). Un 2D irá
+     igual o mejor.
+   - Falta probar un iPhone, sobre todo uno sin chip de la serie Pro.
+
+   **Decisión:** seguir. Sin JIT, el iPad M2 tiene margen de sobra.
+
+**Está hecho cuando** hay cifras de fotogramas por segundo por dispositivo y
+una decisión escrita aquí: seguir, o seguir sólo para iPad / modelos recientes.
+
+### iOS-1 · El puente, libre de Android
+
+`ds_bridge.cpp` mezcla tres cosas: el uso de melonDS, JNI y AAudio. Se parte en:
+
+- `ds_core.h/.cpp`: una API en C pura (`ds_load`, `ds_run_frame`,
+  `ds_set_keys`, `ds_set_touch`, `ds_save_state`…), sin JNI ni Android. Aquí
+  van los `Platform::*` de melonDS, el micrófono y el anillo de audio.
+- `ds_jni.cpp`: sólo traduce JNI a esa API.
+- `audio_aaudio.cpp` y, más adelante, `audio_ios.mm`, detrás de una interfaz
+  pequeña.
+
+**Está hecho cuando** Android funciona exactamente igual, con las mismas
+pruebas, y `ds_core` compila también con el SDK de iOS.
+
+**Estado (2026-11-09):** hecho y probado en un Android real (imagen,
+sonido, silencio a x1,5/x2, mandos, táctil, soplido, save states y
+batería) y en el iPad con `ios/spike/`.
+
+- `native/ds_core/` (`ds_core.h`, `ds_core.cpp`, `CMakeLists.txt`): la API
+  en C. El nombre de la API cambia (`ds_load`, `ds_run_frame`…), la lógica
+  no: los bloques de `Platform`, el anillo de audio, la carga y los trucos se
+  movieron tal cual, con sus comentarios.
+- `native/emulator_bridge/ds_bridge.cpp`: sólo JNI. Las mismas 19 funciones
+  nativas, exportadas igual (comprobado con `llvm-nm` sobre `libdsemu.so`).
+- `native/emulator_bridge/audio_aaudio.cpp`: AAudio, que llama a
+  `ds_audio_read`. El silencio al silenciar y el relleno cuando la emulación
+  no llega están en `ds_core`, compartidos.
+- `verifyCoreVersion` busca ahora la constante en `ds_core.cpp.o`.
+- `ios/spike/` usa `ds_core` en lugar de su copia de `Platform`, que se ha
+  borrado: el mismo `ds_core.cpp` compila para Android con JIT y para iOS
+  sin él.
+- `bash gradlew testDebugUnitTest assembleDebug` en verde.
+
+### iOS-2 · El módulo compartido
+
+Nuevo módulo Gradle `:shared` con Kotlin Multiplatform (`commonMain`,
+`androidMain`, `iosMain`). Se mueve primero lo que no toca nada de Android:
+
+- `emulator/layout/*`, `DsButton`, `JoystickGeometry`, `DirectionalPadZones`.
+- El contenedor de save states, `RomIdentity`, `DsRomHeader`, `DsBanner`.
+- `UiMessage` y lo que no dependa de `Context`.
+- Sus pruebas pasan a `commonTest` con `kotlin.test` y corren en JVM y en el
+  simulador de iOS.
+
+**Está hecho cuando** `:app` usa `:shared`, todas las pruebas pasan y las de
+geometría corren también en iOS.
+
+### iOS-3 · Las dependencias, multiplataforma
+
+| Hoy | Mañana | Nota |
+|---|---|---|
+| Hilt | Koin, o inyección a mano | Hilt no existe fuera de Android |
+| Room | Room KMP | Room ya soporta iOS; mismo esquema |
+| DataStore | DataStore KMP | Mismo formato de preferencias |
+| ViewModel, Navigation | Sus versiones KMP de JetBrains | |
+| Compose + Material 3 | Compose Multiplatform | Iconos y tipografía incluidos |
+| Recursos `res/values*/strings.xml` | Recursos de Compose Multiplatform | Siguen bilingües, español por defecto |
+
+Con eso las pantallas pasan a `commonMain`. Detrás de `expect`/`actual`
+quedan sólo: `EmulatorCore`, el hilo de emulación, `DocumentAccess`, el
+renderizador, la vibración y los mandos físicos.
+
+**Está hecho cuando** Android sigue igual y la app de iOS arranca, muestra
+la biblioteca vacía y navega por los ajustes, en el simulador.
+
+### iOS-4 · El juego en iOS
+
+Los `actual` de iOS: el core por `cinterop`, el hilo con su reloj absoluto,
+el audio, el vídeo con `Canvas`, el selector de documentos, la vibración y
+`GameController`.
+
+**Lección de iOS-0 para el hilo de emulación:** un hilo propio no tiene
+bucle de eventos que vacíe la reserva de *autorelease*. En la prueba, cada
+copia del fotograma (384 KB) se quedaba viva: +22 MB por segundo e iOS
+cerraba la app a los ~5 GB, a los cuatro minutos, sin dejar informe. Con un
+`@autoreleasepool` por fotograma se queda plana en 174 MB (medido 5 minutos
+con Spirit Tracks). En Kotlin/Native vale lo mismo: cualquier objeto de
+Foundation que se cree en el hilo de emulación va dentro de
+`autoreleasepool { }` en cada vuelta del bucle.
+
+**Está hecho cuando** una ROM libre se juega en un iPhone real con sonido,
+táctil, mandos en pantalla y partidas que se guardan y se cargan.
+
+### iOS-5 · iPad y cierre
+
+- Pencil, ventanas de tamaño variable, teclado y mandos físicos.
+- Cambios de tamaño en caliente sin cortar la emulación.
+- La decisión sobre distribución (ver arriba), documentada.
+
+**Está hecho cuando** se juega en un iPad real en pantalla completa y en
+Split View, y las dos disposiciones se recalculan sin perder el estado.
+
+## Apéndice: compilar el core para iPhone
+
+```sh
+cmake -S third_party/melonDS -B build-ios -G "Unix Makefiles" \
+  -DCMAKE_SYSTEM_NAME=iOS -DCMAKE_OSX_ARCHITECTURES=arm64 \
+  -DCMAKE_OSX_DEPLOYMENT_TARGET=16.0 -DCMAKE_BUILD_TYPE=Release \
+  -DBUILD_QT_SDL=OFF -DENABLE_JIT=OFF -DENABLE_OGLRENDERER=OFF \
+  -DENABLE_GDBSTUB=OFF -DENABLE_LTO_RELEASE=OFF
+make -C build-ios -j10 core
+```
+
+Comprobado con Xcode 26.6 y el SDK de iOS 26.5: `build-ios/src/libcore.a`,
+arm64. Para el simulador hace falta además instalar su runtime en Xcode
+(Settings → Components); en este Mac no está instalado todavía.

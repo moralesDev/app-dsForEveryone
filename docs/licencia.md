@@ -145,6 +145,15 @@ Cuando empiece a haber código:
 5. **Una etiqueta de git por cada versión publicada**, apuntando al commit
    exacto del que salió el binario.
 
+## iOS: la GPL y la App Store
+
+Las condiciones de la App Store (y de TestFlight) añaden restricciones de uso
+y copia que la GPL prohíbe añadir; por ese conflicto VLC salió de la tienda
+en 2011. Antes de publicar la versión de iOS hay que confirmar con los
+titulares del copyright de melonDS que lo aceptan. Instalar desde Xcode en
+dispositivos propios no tiene ese problema. Plan completo en
+[`ios.md`](ios.md).
+
 ## Sobre las ROMs, la BIOS y el firmware
 
 Nada de esto se distribuye, ni se descarga, ni se enlaza a sitios donde
