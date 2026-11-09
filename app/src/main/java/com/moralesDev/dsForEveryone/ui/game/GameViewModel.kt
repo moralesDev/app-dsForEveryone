@@ -40,6 +40,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import com.moralesDev.dsForEveryone.emulator.openFromDescriptor
 import java.nio.ByteBuffer
 import com.moralesDev.dsForEveryone.resources.Res
 import com.moralesDev.dsForEveryone.resources.ch_limit_reached
@@ -102,7 +103,7 @@ class GameViewModel(
     val micNoiseActive: StateFlow<Boolean> get() = controller.input.micNoiseActive
 
     /** Lo lee el hilo de GL directamente; no pasa por Compose ni por corrutinas. */
-    val currentFrame: ByteBuffer? get() = controller.currentFrame
+    val currentFrame: ByteBuffer? get() = controller.currentFrame?.byteBuffer
 
     private val _slotAction = MutableStateFlow<SlotAction?>(null)
     val slotAction: StateFlow<SlotAction?> = _slotAction.asStateFlow()

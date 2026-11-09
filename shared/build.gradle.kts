@@ -26,7 +26,13 @@ kotlin {
         compileSdk = 37
         minSdk = 26
 
-        withHostTestBuilder {}
+        // Como en :app: en las pruebas de JVM las clases de Android son stubs
+        // que lanzan excepción; con esto devuelven un valor por defecto. Sin
+        // ello Process.setThreadPriority mata el hilo de emulación en su
+        // primera línea (EmulatorControllerThreadTest).
+        withHostTestBuilder {}.configure {
+            isReturnDefaultValues = true
+        }
 
         // Sin esto los textos de Compose Multiplatform (composeResources) no
         // entran en el APK: este tipo de módulo trae los recursos de Android

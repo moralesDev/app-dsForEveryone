@@ -1,8 +1,6 @@
 package com.moralesDev.dsForEveryone.emulator.core
 
-import android.os.ParcelFileDescriptor
-import android.view.Surface
-import java.nio.ByteBuffer
+import com.moralesDev.dsForEveryone.emulator.FrameBuffer
 
 /**
  * Frontera entre la aplicación y el core de emulación.
@@ -22,9 +20,12 @@ import java.nio.ByteBuffer
  *   [stateSize], [serializeState], [deserializeState], [readBattery],
  *   [consumeBatteryDirty], [captureFrame] y [captureFrameInto] se llaman
  *   **siempre** desde el hilo de emulación, nunca desde el hilo principal.
- * - [attachSurface] es la excepción: la llama el hilo principal, y **debe
- *   bloquear** hasta que el core deje de escribir en la superficie anterior,
- *   si es que escribe en alguna (ver su documentación).
+ *
+ * Desde iOS-4 (docs/ios.md) la interfaz es común: en Android la implementa
+ * el puente JNI (`DsEmulatorCore`), en iOS `cinterop` sobre el mismo
+ * ds_core. Se fue `attachSurface`, que ningún core usaba (el vídeo de la DS
+ * sale siempre por [captureFrameInto]); cargar desde un descriptor de
+ * archivo es sólo de Android (`DescriptorLoadingCore`).
  */
 interface EmulatorCore {
 
@@ -54,32 +55,6 @@ interface EmulatorCore {
      *   core en estado utilizable.
      */
     fun load(rom: ByteArray, batterySave: ByteArray?): CoreLoadResult
-
-    /**
-     * Como [load], pero a partir de un descriptor abierto sobre el archivo
-     * real de la ROM en vez de un `ByteArray` ya copiado. Existe para ROMs
-     * sueltas (no dentro de un `.zip`) que pueden pesar más de lo que cabe
-     * cómodo en el heap de Java —ver `RomRepository.openRomForCore`—: cargar
-     * un cartucho de 128 MB con [load] exige tenerlo entero en un único
-     * `ByteArray` de Kotlin, y eso es lo que agotaba el heap.
-     *
-     * La implementación por defecto simplemente lee el descriptor entero y
-     * delega en [load]: es lo que basta para [StubEmulatorCore], donde el
-     * tamaño de la ROM nunca es un problema real. Un core que sí lo sea
-     * sobrescribe este método para mapear el archivo en el lado nativo, sin
-     * que llegue a existir un `ByteArray` con la ROM completa.
-     *
-     * Se queda con la propiedad de [fd] y lo cierra siempre, tenga éxito o
-     * no la carga.
-     */
-    fun loadFromDescriptor(
-        fd: ParcelFileDescriptor,
-        length: Long,
-        batterySave: ByteArray?,
-    ): CoreLoadResult {
-        val bytes = ParcelFileDescriptor.AutoCloseInputStream(fd).use { it.readBytes() }
-        return load(bytes, batterySave)
-    }
 
     /** Libera la ROM y todos los recursos nativos asociados. Idempotente. */
     fun unload()
@@ -150,18 +125,6 @@ interface EmulatorCore {
     fun applyCheats(entries: List<CheatEntry>): List<CheatRejection?> = entries.map { null }
 
     /**
-     * Ver el contrato de hilos en la documentación de la interfaz.
-     *
-     * En la DS la presentación normal no pasa por aquí: el framebuffer se lee
-     * con [captureFrame] y se sube como textura (fase 2.5), no se dibuja
-     * directamente sobre una `Surface` como en `app-emulador`. Esta llamada
-     * se conserva para un eventual camino de render 3D por GL directo a
-     * superficie (fase 4); un core que no lo use puede limitarse a guardar la
-     * referencia.
-     */
-    fun attachSurface(surface: Surface?)
-
-    /**
      * Bytes que ocupa el estado de la ROM cargada ahora mismo, o 0 si no hay
      * ninguna o el core no está disponible.
      */
@@ -214,16 +177,9 @@ interface EmulatorCore {
      * @return `false` si no hay fotograma que copiar (nada cargado todavía) o
      *   si [buffer] no es válido; en ese caso no se escribe nada.
      */
-    fun captureFrameInto(buffer: ByteBuffer): Boolean {
+    fun captureFrameInto(buffer: FrameBuffer): Boolean {
         val frame = captureFrame() ?: return false
-        buffer.clear()
-        for (pixel in frame) {
-            buffer.put(((pixel shr 16) and 0xFF).toByte()) // R
-            buffer.put(((pixel shr 8) and 0xFF).toByte()) // G
-            buffer.put((pixel and 0xFF).toByte()) // B
-            buffer.put(((pixel shr 24) and 0xFF).toByte()) // A
-        }
-        buffer.position(0)
+        buffer.fillFromArgb(frame)
         return true
     }
 }

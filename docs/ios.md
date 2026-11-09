@@ -461,6 +461,32 @@ Descubierto de paso: melonDS acepta como cartucho hasta 16 bytes de basura
 (rellena lo que falta); en la app no importa, porque la biblioteca valida la
 cabecera antes.
 
+**Paso 2 — ✅ `EmulatorCore`, `EmulatorController` e `InputManager` en
+común** (2026-11-09). Las reglas de CLAUDE.md siguen igual: hilo propio,
+reloj absoluto, el core desde un solo hilo, comandos en cola, la entrada como
+estado compartido. Lo que da cada plataforma:
+
+- `EmulationThread` (hilo, `parkNanos`/`unpark` con semántica de
+  `LockSupport`, `join`): en Android, `Thread` + `URGENT_DISPLAY` +
+  `LockSupport`, como antes; en iOS, `NSThread` con calidad de servicio
+  interactiva y un `NSCondition`.
+- `perFrame { }`: cada vuelta del bucle; en iOS dentro de un
+  `autoreleasepool` (la lección de iOS-0).
+- `FrameBuffer`: el `ByteBuffer` directo de siempre en Android; un
+  `ByteArray` en iOS.
+- En común: el reloj (`TimeSource.Monotonic`), la cola de comandos (un
+  `Channel` sin límite, `trySend`/`tryReceive`) y los atómicos
+  (`kotlin.concurrent.atomics`). En pausa el hilo atiende los comandos y
+  duerme 50 ms o hasta que llega otro; antes un `resume()` podía tardar hasta
+  50 ms en notarse, ahora despierta al momento.
+- Cargar desde un descriptor de archivo es sólo de Android
+  (`DescriptorLoadingCore`, `openFromDescriptor` como extensión). Fuera
+  `attachSurface`: ningún core la usaba.
+- `EmulatorControllerTest` (29 pruebas, `:app`) prueba el controlador común
+  sobre las primitivas de Android; `EmulatorControllerThreadTest` (común)
+  arranca, corre, atiende un comando en pausa y para, también en el
+  simulador de iOS.
+
 Los `actual` de iOS: el core por `cinterop`, el hilo con su reloj absoluto,
 el audio, el vídeo con `Canvas`, el selector de documentos, la vibración y
 `GameController`.

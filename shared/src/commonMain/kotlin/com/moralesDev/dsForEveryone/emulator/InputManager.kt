@@ -3,9 +3,10 @@ package com.moralesDev.dsForEveryone.emulator
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import java.util.concurrent.atomic.AtomicBoolean
-import java.util.concurrent.atomic.AtomicInteger
-import java.util.concurrent.atomic.AtomicReference
+import kotlin.concurrent.atomics.AtomicBoolean
+import kotlin.concurrent.atomics.AtomicInt
+import kotlin.concurrent.atomics.AtomicReference
+import kotlin.concurrent.atomics.ExperimentalAtomicApi
 
 /**
  * Posición del lápiz sobre la pantalla táctil, en coordenadas de la DS
@@ -34,9 +35,10 @@ data class TouchState(val x: Int, val y: Int, val down: Boolean) {
  * dibujar el punto de contacto; si se retrasan un fotograma no pasa nada,
  * porque no son la fuente que alimenta al core.
  */
+@OptIn(ExperimentalAtomicApi::class)
 class InputManager {
 
-    private val mask = AtomicInteger(0)
+    private val mask = AtomicInt(0)
     private val touch = AtomicReference(TouchState.UP)
     private val micNoise = AtomicBoolean(false)
     private val lid = AtomicBoolean(false)
@@ -56,16 +58,16 @@ class InputManager {
     val micNoiseActive: StateFlow<Boolean> = _micNoise.asStateFlow()
 
     /** Máscara que consume el core al inicio de cada fotograma. */
-    val currentMask: Int get() = mask.get()
+    val currentMask: Int get() = mask.load()
 
     /** Posición del lápiz que consume el core al inicio de cada fotograma. */
-    val currentTouch: TouchState get() = touch.get()
+    val currentTouch: TouchState get() = touch.load()
 
     /** Si el core debe inyectar ruido de micrófono en este fotograma. */
-    val currentMicNoise: Boolean get() = micNoise.get()
+    val currentMicNoise: Boolean get() = micNoise.load()
 
     /** Si la tapa está cerrada ahora mismo. Lo lee el hilo de emulación una vez por vuelta. */
-    val currentLidClosed: Boolean get() = lid.get()
+    val currentLidClosed: Boolean get() = lid.load()
 
     /** La tapa, observable: es lo que pinta el velo de «tapa cerrada» sobre el juego. */
     val lidClosed: StateFlow<Boolean> = _lidClosed.asStateFlow()
@@ -104,7 +106,7 @@ class InputManager {
      */
     fun setTouch(x: Int, y: Int, down: Boolean) {
         val state = if (down) TouchState(x, y, down = true) else TouchState.UP
-        touch.set(state)
+        touch.store(state)
         _touch.value = state
     }
 
@@ -115,7 +117,7 @@ class InputManager {
      * el lápiz.
      */
     fun setMicNoise(active: Boolean) {
-        micNoise.set(active)
+        micNoise.store(active)
         _micNoise.value = active
     }
 
@@ -128,7 +130,7 @@ class InputManager {
      * tapa bajada sigue con la tapa bajada—; sólo la abre quien la cerró.
      */
     fun setLidClosed(closed: Boolean) {
-        lid.set(closed)
+        lid.store(closed)
         _lidClosed.value = closed
     }
 
@@ -137,6 +139,15 @@ class InputManager {
         publishMask(mask.updateAndGet { 0 })
         setTouch(0, 0, down = false)
         setMicNoise(false)
+    }
+
+    /** Lo que era `AtomicInteger.updateAndGet`, con un compareAndSet en bucle. */
+    private fun AtomicInt.updateAndGet(transform: (Int) -> Int): Int {
+        while (true) {
+            val current = load()
+            val next = transform(current)
+            if (compareAndSet(current, next)) return next
+        }
     }
 
     private fun publishMask(value: Int) {

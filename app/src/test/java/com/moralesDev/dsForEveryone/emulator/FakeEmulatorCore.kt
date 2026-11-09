@@ -1,6 +1,5 @@
 package com.moralesDev.dsForEveryone.emulator
 
-import android.view.Surface
 import com.moralesDev.dsForEveryone.emulator.core.CheatEntry
 import com.moralesDev.dsForEveryone.emulator.core.CheatRejection
 import com.moralesDev.dsForEveryone.emulator.core.CoreLoadResult
@@ -26,7 +25,6 @@ class FakeEmulatorCore(
     val frames = AtomicInteger(0)
     val lastKeys = AtomicInteger(-1)
     val unloaded = AtomicBoolean(false)
-    val surfaceAttached = AtomicBoolean(false)
     val loads = AtomicInteger(0)
 
     /** Historial de posiciones del lápiz recibidas, una entrada por fotograma. */
@@ -101,10 +99,6 @@ class FakeEmulatorCore(
     override fun setLidClosed(closed: Boolean) {
         lidClosed.set(closed)
         lidChanges.incrementAndGet()
-    }
-
-    override fun attachSurface(surface: Surface?) {
-        surfaceAttached.set(surface != null)
     }
 
     /**

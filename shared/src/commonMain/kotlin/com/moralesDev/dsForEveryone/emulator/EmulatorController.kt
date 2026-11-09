@@ -1,15 +1,13 @@
 package com.moralesDev.dsForEveryone.emulator
 
-import android.os.ParcelFileDescriptor
-import android.os.Process
-import android.util.Log
-import android.view.Surface
 import com.moralesDev.dsForEveryone.emulator.core.CheatEntry
 import com.moralesDev.dsForEveryone.emulator.core.CheatRejection
 import com.moralesDev.dsForEveryone.emulator.core.CoreLoadResult
 import com.moralesDev.dsForEveryone.emulator.core.EmulatorCore
+import com.moralesDev.dsForEveryone.util.AppLog
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -17,11 +15,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.withContext
-import java.nio.ByteBuffer
-import java.nio.ByteOrder
-import java.util.concurrent.LinkedBlockingQueue
-import java.util.concurrent.TimeUnit
-import java.util.concurrent.locks.LockSupport
+import kotlin.concurrent.Volatile
+import kotlin.time.TimeSource
 
 /** Situación del emulador, tal y como la observa la UI. */
 enum class EmulatorStatus { IDLE, LOADING, RUNNING, PAUSED, ERROR }
@@ -43,8 +38,13 @@ enum class EmulatorStatus { IDLE, LOADING, RUNNING, PAUSED, ERROR }
  * Estructura heredada de `app-emulador` sin cambios; lo que cambia es el
  * período —el de la DS, no el de la GBA— y que cada vuelta también entrega
  * al core la posición del lápiz, no sólo la máscara de botones.
+ *
+ * Común a Android e iOS desde iOS-4 (docs/ios.md). Lo que da cada plataforma
+ * es el hilo ([EmulationThread]: prioridad, dormir y despertar) y el búfer
+ * del fotograma ([FrameBuffer]); el bucle, el reloj absoluto y la cola de
+ * comandos son los mismos en las dos.
  */
-class EmulatorController(private val core: EmulatorCore) {
+class EmulatorController(internal val core: EmulatorCore) {
 
     val input = InputManager()
 
@@ -62,10 +62,16 @@ class EmulatorController(private val core: EmulatorCore) {
     private val _batteryUpdates = MutableSharedFlow<ByteArray>(extraBufferCapacity = 4)
     val batteryUpdates: SharedFlow<ByteArray> = _batteryUpdates.asSharedFlow()
 
-    private val commands = LinkedBlockingQueue<Runnable>()
+    /**
+     * Los comandos para el hilo de emulación. Un canal sin límite: `trySend`
+     * y `tryReceive` no bloquean ni necesitan cerrojos, y se pueden usar
+     * desde un hilo que no es una corrutina, que es lo que es el de
+     * emulación.
+     */
+    private val commands = Channel<() -> Unit>(Channel.UNLIMITED)
 
     @Volatile
-    private var thread: EmulationThread? = null
+    private var session: Session? = null
 
     /**
      * Búfer único para el fotograma, reservado una sola vez y reutilizado
@@ -75,9 +81,7 @@ class EmulatorController(private val core: EmulatorCore) {
      * ser la causa real del OutOfMemoryError de la fase 4.C (ver
      * docs/estabilizacion-core.md).
      */
-    private val frameBuffer: ByteBuffer =
-        ByteBuffer.allocateDirect(DsVideo.WIDTH * DsVideo.HEIGHT * BYTES_PER_PIXEL)
-            .order(ByteOrder.nativeOrder())
+    private val frameBuffer = FrameBuffer()
 
     @Volatile
     private var frameReady = false
@@ -90,7 +94,7 @@ class EmulatorController(private val core: EmulatorCore) {
      * llamada `suspend`. Siempre el mismo búfer: quien lo consuma debe
      * copiarlo o subirlo antes de que la siguiente vuelta lo reescriba.
      */
-    val currentFrame: ByteBuffer? get() = if (frameReady) frameBuffer else null
+    val currentFrame: FrameBuffer? get() = if (frameReady) frameBuffer else null
 
     /**
      * Fotogramas emulados desde que la partida en curso salió de algún sitio:
@@ -118,18 +122,10 @@ class EmulatorController(private val core: EmulatorCore) {
         finishOpen { core.load(rom, batterySave) }
 
     /**
-     * Como [open], pero a partir de un descriptor de archivo abierto sobre la
-     * ROM (ver [com.moralesDev.dsForEveryone.emulator.core.EmulatorCore.loadFromDescriptor]):
-     * la vía para ROMs sueltas que pueden pesar más de lo que cabe cómodo en
-     * el heap de Java.
+     * Detiene la sesión anterior, carga con [load] y arranca el hilo en pausa.
+     * Lo usan [open] y, en Android, `openFromDescriptor`.
      */
-    suspend fun openFromDescriptor(
-        fd: ParcelFileDescriptor,
-        length: Long,
-        batterySave: ByteArray?,
-    ): CoreLoadResult = finishOpen { core.loadFromDescriptor(fd, length, batterySave) }
-
-    private suspend fun finishOpen(load: () -> CoreLoadResult): CoreLoadResult =
+    internal suspend fun finishOpen(load: () -> CoreLoadResult): CoreLoadResult =
         withContext(Dispatchers.Default) {
             close()
             _status.value = EmulatorStatus.LOADING
@@ -137,7 +133,7 @@ class EmulatorController(private val core: EmulatorCore) {
             val result = load()
             framesSinceLoad = 0L
             if (result is CoreLoadResult.Success) {
-                EmulationThread().also { thread = it; it.start() }
+                Session().also { session = it; it.thread.start() }
                 _status.value = EmulatorStatus.PAUSED
             } else {
                 _status.value = EmulatorStatus.ERROR
@@ -146,9 +142,9 @@ class EmulatorController(private val core: EmulatorCore) {
         }
 
     fun resume() {
-        val running = thread ?: return
+        val running = session ?: return
         running.paused = false
-        LockSupport.unpark(running)
+        running.thread.unpark()
         _status.value = EmulatorStatus.RUNNING
     }
 
@@ -172,7 +168,7 @@ class EmulatorController(private val core: EmulatorCore) {
         private set
 
     fun pause() {
-        val running = thread ?: return
+        val running = session ?: return
         running.paused = true
         // Un botón que se quede pulsado al abrir el menú reaparecería pulsado
         // al reanudar; se sueltan todos, lápiz incluido.
@@ -186,12 +182,12 @@ class EmulatorController(private val core: EmulatorCore) {
      * de ANR.
      */
     fun stop() {
-        thread?.let {
+        session?.let {
             it.paused = false
             it.running = false
-            LockSupport.unpark(it)
+            it.thread.unpark()
         }
-        thread = null
+        session = null
         _framesPerSecond.value = 0
         frameReady = false
         _status.value = EmulatorStatus.IDLE
@@ -199,13 +195,10 @@ class EmulatorController(private val core: EmulatorCore) {
 
     /** Espera a que el hilo anterior muera de verdad antes de reutilizar el core. */
     private suspend fun close() = withContext(Dispatchers.Default) {
-        val previous = thread
+        val previous = session
         stop()
-        previous?.join(JOIN_TIMEOUT_MS)
+        previous?.thread?.join(JOIN_TIMEOUT_MS)
     }
-
-    /** Ver el contrato de hilos de [EmulatorCore.attachSurface]. */
-    fun attachSurface(surface: Surface?) = core.attachSurface(surface)
 
     suspend fun saveState(): ByteArray? = onEmulationThread { core.serializeState() }
 
@@ -226,7 +219,7 @@ class EmulatorController(private val core: EmulatorCore) {
         }
 
         if (rollback != null && !core.deserializeState(rollback)) {
-            Log.e(TAG, "El estado anterior tampoco se pudo restaurar")
+            AppLog.e(TAG, "El estado anterior tampoco se pudo restaurar")
         }
         false
     }
@@ -254,32 +247,32 @@ class EmulatorController(private val core: EmulatorCore) {
      * competir.
      */
     private suspend fun <T> onEmulationThread(block: () -> T): T {
-        val running = thread
-        if (running == null || !running.isAlive) return block()
+        val running = session
+        if (running == null || !running.thread.isAlive) return block()
 
         val result = CompletableDeferred<T>()
-        commands.add(
-            Runnable {
-                try {
-                    result.complete(block())
-                } catch (error: Throwable) {
-                    result.completeExceptionally(error)
-                }
-            },
-        )
-        LockSupport.unpark(running)
+        commands.trySend {
+            try {
+                result.complete(block())
+            } catch (error: Throwable) {
+                result.completeExceptionally(error)
+            }
+        }
+        running.thread.unpark()
         return result.await()
     }
 
-    private inner class EmulationThread : Thread("ds-emulation") {
+    /** Una sesión de juego: su hilo y los dos interruptores que lo gobiernan. */
+    private inner class Session {
 
         @Volatile var running = true
 
         @Volatile var paused = true
 
-        override fun run() {
-            Process.setThreadPriority(Process.THREAD_PRIORITY_URGENT_DISPLAY)
-            var nextFrameAt = System.nanoTime()
+        val thread = EmulationThread("ds-emulation", ::run)
+
+        private fun run() {
+            var nextFrameAt = now()
             var windowStartedAt = nextFrameAt
             var framesInWindow = 0
             var lastBatteryCheckAt = nextFrameAt
@@ -288,7 +281,7 @@ class EmulatorController(private val core: EmulatorCore) {
             var appliedLid = false
 
             try {
-                while (running) {
+                while (running) perFrame {
                     if (paused) {
                         // En pausa no suena nada: sin esto seguiría oyéndose
                         // el audio que quedó en el anillo —medio segundo de
@@ -300,11 +293,14 @@ class EmulatorController(private val core: EmulatorCore) {
                         }
                         // Sigue atendiendo comandos: guardar estado desde el
                         // menú ocurre precisamente con la emulación detenida.
-                        commands.poll(PAUSED_POLL_MS, TimeUnit.MILLISECONDS)?.run()
-                        nextFrameAt = System.nanoTime()
+                        // Duerme hasta que llegue uno (onEmulationThread
+                        // despierta el hilo) o como mucho PAUSED_POLL_MS.
+                        drainCommands()
+                        thread.parkNanos(PAUSED_POLL_MS * 1_000_000L)
+                        nextFrameAt = now()
                         windowStartedAt = nextFrameAt
                         framesInWindow = 0
-                        continue
+                        return@perFrame
                     }
 
                     drainCommands()
@@ -339,7 +335,7 @@ class EmulatorController(private val core: EmulatorCore) {
                     framesSinceLoad++
                     frameReady = core.captureFrameInto(frameBuffer)
 
-                    val now = System.nanoTime()
+                    val now = now()
 
                     // Reloj de pared, no cuenta de fotogramas: a velocidades
                     // distintas de 1x un contador de frames dejaría de valer
@@ -361,39 +357,42 @@ class EmulatorController(private val core: EmulatorCore) {
                     }
 
                     nextFrameAt += DsVideo.frameDurationNanosAt(speed)
-                    val sleepNanos = nextFrameAt - System.nanoTime()
+                    val sleepNanos = nextFrameAt - now()
                     if (sleepNanos > 0) {
-                        LockSupport.parkNanos(sleepNanos)
+                        thread.parkNanos(sleepNanos)
                     } else {
                         // Vamos tarde: se reancla el reloj en lugar de
                         // acumular deuda y provocar una ráfaga de fotogramas.
-                        nextFrameAt = System.nanoTime()
+                        nextFrameAt = now()
                     }
                 }
             } catch (error: Throwable) {
-                Log.e(TAG, "El hilo de emulación terminó con un error", error)
+                AppLog.e(TAG, "El hilo de emulación terminó con un error", error)
                 _status.value = EmulatorStatus.ERROR
             } finally {
                 // Los comandos pendientes se atienden antes de soltar el
                 // core, para no dejar a nadie esperando un save state que no
                 // llegará.
                 drainCommands()
-                core.attachSurface(null)
                 core.unload()
             }
         }
 
         private fun drainCommands() {
-            while (true) (commands.poll() ?: return).run()
+            while (true) (commands.tryReceive().getOrNull() ?: return).invoke()
         }
     }
 
     private companion object {
         const val TAG = "EmulatorController"
+
+        /** Reloj monótono en nanosegundos: `System.nanoTime` en Android, el del sistema en iOS. */
+        private val clockOrigin = TimeSource.Monotonic.markNow()
+
+        fun now(): Long = clockOrigin.elapsedNow().inWholeNanoseconds
         const val PAUSED_POLL_MS = 50L
         const val JOIN_TIMEOUT_MS = 1_000L
         const val FPS_WINDOW_NANOS = 500_000_000L
-        const val BYTES_PER_PIXEL = 4
 
         /**
          * Nunca por debajo del tiempo real (cámara lenta no es una función de

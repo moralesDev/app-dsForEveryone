@@ -291,13 +291,6 @@ class EmulatorControllerTest {
     }
 
     @Test
-    fun `enganchar y soltar la superficie funciona sin ROM cargada`() = runTest {
-        controller.attachSurface(null)
-
-        assertEquals(EmulatorStatus.IDLE, controller.status.value)
-    }
-
-    @Test
     fun `sin hilo vivo los comandos se ejecutan igualmente`() = runTest {
         // Nunca se abrió ninguna ROM: no hay hilo al que encolar nada.
         assertNotNull(controller.saveState())
