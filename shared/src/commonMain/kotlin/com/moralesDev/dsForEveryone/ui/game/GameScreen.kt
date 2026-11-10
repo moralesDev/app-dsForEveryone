@@ -1,11 +1,6 @@
 package com.moralesDev.dsForEveryone.ui.game
 
-import android.app.Activity
-import android.content.Context
-import android.content.ContextWrapper
-import android.content.pm.ActivityInfo
-import android.opengl.GLSurfaceView
-import androidx.activity.compose.BackHandler
+import androidx.compose.ui.backhandler.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -43,19 +38,18 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import org.jetbrains.compose.resources.stringResource
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
@@ -75,7 +69,6 @@ import com.moralesDev.dsForEveryone.emulator.layout.ScreenLayout
 import com.moralesDev.dsForEveryone.emulator.layout.ScreenPlacement
 import com.moralesDev.dsForEveryone.emulator.layout.TouchRouter
 import com.moralesDev.dsForEveryone.emulator.layout.inset
-import com.moralesDev.dsForEveryone.emulator.render.DsGLRenderer
 import com.moralesDev.dsForEveryone.ui.components.GlassIconButton
 import com.moralesDev.dsForEveryone.ui.game.controls.ActionButtons
 import com.moralesDev.dsForEveryone.ui.game.controls.BlowButton
@@ -106,7 +99,7 @@ import com.moralesDev.dsForEveryone.resources.lid_closed
 import com.moralesDev.dsForEveryone.resources.lid_open_hint
 
 /**
- * Pantalla de juego (entregable 2.6): las dos pantallas con [DsGLRenderer],
+ * Pantalla de juego (entregable 2.6): las dos pantallas con [GameVideo],
  * la superficie táctil sobre la pantalla inferior y los siete grupos de
  * mandos colocados por [ControlLayout], todo contra `StubEmulatorCore`.
  *
@@ -128,6 +121,7 @@ import com.moralesDev.dsForEveryone.resources.lid_open_hint
  * `landscapeLayoutMode`/`landscapeControlLayout` de `EmulatorSettings` entran
  * en juego. Ver docs/entrada.md, «Mando físico».
  */
+@OptIn(ExperimentalComposeUiApi::class)
 @Composable
 fun GameScreen(onExit: () -> Unit) {
     val viewModel: GameViewModel = koinViewModel()
@@ -273,10 +267,6 @@ fun GameScreen(onExit: () -> Unit) {
         label = "controls-hide",
     )
 
-    val renderer = remember { DsGLRenderer(frameProvider = { viewModel.currentFrame }) }
-    LaunchedEffect(placement) { placement?.let(renderer::setPlacement) }
-    LaunchedEffect(settings.imageFilter) { renderer.setFilter(settings.imageFilter) }
-
     val touchOffsetPx = with(density) { settings.touchOffsetDp.dp.toPx() }
 
     Box(
@@ -287,16 +277,11 @@ fun GameScreen(onExit: () -> Unit) {
                 availableSize = LayoutSize(size.width.toFloat(), size.height.toFloat())
             },
     ) {
-        AndroidView(
+        GameVideo(
+            frame = { viewModel.currentFrame },
+            placement = placement,
+            filter = settings.imageFilter,
             modifier = Modifier.fillMaxSize(),
-            factory = { context ->
-                GLSurfaceView(context).apply {
-                    setEGLContextClientVersion(2)
-                    setRenderer(renderer)
-                    renderMode = GLSurfaceView.RENDERMODE_CONTINUOUSLY
-                }
-            },
-            onRelease = { it.onPause() },
         )
 
         placement?.let { current ->
@@ -830,31 +815,5 @@ private fun PauseWhileHidden(onHidden: () -> Unit, onShown: () -> Unit) {
         lifecycleOwner.lifecycle.addObserver(observer)
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
-}
-
-/**
- * Libera la orientación mientras haya un mando físico conectado y esta
- * pantalla esté visible; el resto de la app sigue en vertical por
- * manifiesto. Sin mando, la partida se queda en vertical: encajar doce
- * mandos táctiles en horizontal sin tapar la pantalla inferior no
- * compensaba (ver docs/entrada.md, «Mando físico»), y un mando físico es
- * justo lo que cambia esa cuenta.
- */
-@Composable
-private fun FreeOrientationWhileGamepadConnected(gamepadConnected: Boolean) {
-    val context = LocalContext.current
-    DisposableEffect(gamepadConnected) {
-        if (!gamepadConnected) return@DisposableEffect onDispose {}
-        val activity = context.findActivity()
-        val previousOrientation = activity.requestedOrientation
-        activity.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_FULL_SENSOR
-        onDispose { activity.requestedOrientation = previousOrientation }
-    }
-}
-
-private tailrec fun Context.findActivity(): Activity = when (this) {
-    is Activity -> this
-    is ContextWrapper -> baseContext.findActivity()
-    else -> error("No se encontró ninguna Activity en la cadena de contextos")
 }
 

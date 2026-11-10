@@ -2,7 +2,6 @@ package com.moralesDev.dsForEveryone.emulator.gamepad
 
 import android.view.KeyEvent
 import com.moralesDev.dsForEveryone.data.settings.SettingsRepository
-import com.moralesDev.dsForEveryone.emulator.DsButton
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -10,12 +9,6 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
-
-/** Un objetivo mapeado, ya traducido a lo que le importa a `InputManager`. */
-sealed interface GamepadInput {
-    data class Button(val button: DsButton, val isPressed: Boolean) : GamepadInput
-    data class Blow(val active: Boolean) : GamepadInput
-}
 
 /**
  * Único punto donde entra un `KeyEvent` de mando, venga de Bluetooth o de

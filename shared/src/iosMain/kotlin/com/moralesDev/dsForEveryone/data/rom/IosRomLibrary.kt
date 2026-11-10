@@ -141,6 +141,45 @@ class IosRomLibrary(
         }
     }
 
+    /**
+     * Los bytes de la ROM tal como los quiere el core: el archivo entero si
+     * es suelta, o la única `.nds` de dentro si es un `.zip`. `null` si el
+     * marcador ya no lleva a ningún sitio o no se puede leer.
+     *
+     * Entera en memoria, a diferencia de Android: allí el heap de Java no
+     * daba para una ROM grande y se pasa un descriptor al core; en iOS no hay
+     * ese límite.
+     */
+    suspend fun readForCore(rom: RomInfo): ByteArray? = withContext(ioDispatcher) {
+        val url = resolve(rom.documentUri) ?: return@withContext null
+        val access = url.startAccessingSecurityScopedResource()
+        try {
+            val path = url.path?.toPath() ?: return@withContext null
+            val head = fileSystem.read(path) { if (request(4)) readByteArray(4) else ByteArray(0) }
+            if (!isZip(head)) return@withContext fileSystem.read(path) { readByteArray() }
+
+            val copy = storageManager.newRomScratchPath()
+            try {
+                fileSystem.copy(path, copy)
+                ZipArchiveReader(fileSystem, copy).use { zip ->
+                    zip.entries
+                        .singleOrNull { !it.isDirectory && it.name.lowercase().endsWith(".nds") }
+                        ?.let { zip.read(it, MAX_UNCOMPRESSED_BYTES.toInt()) }
+                }
+            } finally {
+                fileSystem.delete(copy, mustExist = false)
+            }
+        } catch (error: IOException) {
+            AppLog.e(TAG, "No se pudo leer la ROM para el core", error)
+            null
+        } catch (error: ZipFormatException) {
+            AppLog.e(TAG, "El .zip de la ROM ya no se puede leer", error)
+            null
+        } finally {
+            if (access) url.stopAccessingSecurityScopedResource()
+        }
+    }
+
     /** Hash, cabecera y banner de la ROM: suelta, o la única de un `.zip`. */
     private fun fingerprintOf(path: Path): Resolution {
         // Por los primeros bytes, nunca por el nombre: igual que en Android.

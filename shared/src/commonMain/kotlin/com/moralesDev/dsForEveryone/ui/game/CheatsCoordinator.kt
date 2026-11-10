@@ -7,7 +7,9 @@ import com.moralesDev.dsForEveryone.emulator.core.CheatEntry
 import com.moralesDev.dsForEveryone.emulator.core.CheatRejection
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import java.util.UUID
+import kotlin.concurrent.Volatile
+import kotlin.uuid.ExperimentalUuidApi
+import kotlin.uuid.Uuid
 
 /**
  * Trucos de una sesión de juego: aplicarlos al core, persistirlos en
@@ -46,7 +48,8 @@ import java.util.UUID
  * coinciden y siguen siendo la partida correcta, y quien llama sólo necesita
  * avisar del fallo de guardado.
  */
-internal class CheatsCoordinator(
+@OptIn(ExperimentalUuidApi::class)
+class CheatsCoordinator(
     private val romId: String,
     private val cheatsManager: CheatsManager,
     private val controller: EmulatorController,
@@ -91,7 +94,7 @@ internal class CheatsCoordinator(
         }
 
         val candidate = CheatEntry(
-            id = UUID.randomUUID().toString(),
+            id = Uuid.random().toString(),
             label = label,
             lines = rawLines,
             enabled = true,

@@ -5,10 +5,10 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.moralesDev.dsForEveryone.data.cheats.CheatsLoadResult
 import com.moralesDev.dsForEveryone.data.cheats.CheatsManager
-import com.moralesDev.dsForEveryone.data.rom.RomIdentity
 import com.moralesDev.dsForEveryone.data.rom.RomInfo
-import com.moralesDev.dsForEveryone.data.rom.RomRepository
-import com.moralesDev.dsForEveryone.data.rom.RomSource
+import com.moralesDev.dsForEveryone.data.rom.GameRomOpener
+import com.moralesDev.dsForEveryone.data.rom.OpenedRom
+import com.moralesDev.dsForEveryone.data.rom.RomLibrary
 import com.moralesDev.dsForEveryone.data.save.SaveManager
 import com.moralesDev.dsForEveryone.data.save.SaveStateManager
 import com.moralesDev.dsForEveryone.data.save.SaveStateSlot
@@ -26,10 +26,11 @@ import com.moralesDev.dsForEveryone.emulator.core.CheatEntry
 import com.moralesDev.dsForEveryone.emulator.core.CheatRejection
 import com.moralesDev.dsForEveryone.emulator.core.CoreLoadResult
 import com.moralesDev.dsForEveryone.emulator.gamepad.GamepadInput
-import com.moralesDev.dsForEveryone.emulator.gamepad.GamepadInputRouter
-import com.moralesDev.dsForEveryone.emulator.gamepad.GamepadManager
+import com.moralesDev.dsForEveryone.emulator.gamepad.GamepadSource
+import com.moralesDev.dsForEveryone.emulator.FrameBuffer
 import com.moralesDev.dsForEveryone.emulator.layout.LayoutMode
 import com.moralesDev.dsForEveryone.ui.UiMessage
+import com.moralesDev.dsForEveryone.util.AppLog
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -40,8 +41,6 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import com.moralesDev.dsForEveryone.emulator.openFromDescriptor
-import java.nio.ByteBuffer
 import com.moralesDev.dsForEveryone.resources.Res
 import com.moralesDev.dsForEveryone.resources.ch_limit_reached
 import com.moralesDev.dsForEveryone.resources.msg_cheat_added
@@ -63,12 +62,13 @@ import com.moralesDev.dsForEveryone.resources.msg_state_slot_empty
 import com.moralesDev.dsForEveryone.resources.msg_state_unreadable
 
 /**
- * Sesión de juego, contra `StubEmulatorCore` hasta que llegue el core nativo
- * (fase 4).
+ * Sesión de juego. Común a Android e iOS (docs/ios.md, iOS-4): lo que cambia
+ * de una plataforma a otra —cómo se entrega la ROM al core y de dónde vienen
+ * los mandos físicos— entra por [GameRomOpener] y [GamepadSource].
  *
  * Si la navegación trae un `romId` —desde la biblioteca (fase 3.3)— se carga
- * esa ROM de verdad, leída a través de [RomRepository] (descomprime el `.zip`
- * si hace falta), junto con su partida de batería si ya tenía una. Sin
+ * esa ROM de verdad, a través de [GameRomOpener], junto con su partida de
+ * batería si ya tenía una. Sin
  * `romId` se abre un cartucho de mentira que sólo necesita suficientes bytes
  * para pasar la comprobación de tamaño mínimo del stub: es lo que deja seguir
  * probando pantallas, táctil y mandos sin pasar por la biblioteca, como en
@@ -78,11 +78,11 @@ import com.moralesDev.dsForEveryone.resources.msg_state_unreadable
 class GameViewModel(
     private val controller: EmulatorController,
     private val settingsRepository: SettingsRepository,
-    private val romRepository: RomRepository,
+    private val romLibrary: RomLibrary,
+    private val romOpener: GameRomOpener,
     private val saveManager: SaveManager,
     private val cheatsManager: CheatsManager,
-    private val gamepadManager: GamepadManager,
-    private val gamepadInputRouter: GamepadInputRouter,
+    private val gamepads: GamepadSource,
     private val applicationScope: CoroutineScope,
     savedStateHandle: SavedStateHandle,
 ) : ViewModel() {
@@ -102,8 +102,8 @@ class GameViewModel(
 
     val micNoiseActive: StateFlow<Boolean> get() = controller.input.micNoiseActive
 
-    /** Lo lee el hilo de GL directamente; no pasa por Compose ni por corrutinas. */
-    val currentFrame: ByteBuffer? get() = controller.currentFrame?.byteBuffer
+    /** Lo lee el presentador de vídeo directamente; no pasa por Compose ni por corrutinas. */
+    val currentFrame: FrameBuffer? get() = controller.currentFrame
 
     private val _slotAction = MutableStateFlow<SlotAction?>(null)
     val slotAction: StateFlow<SlotAction?> = _slotAction.asStateFlow()
@@ -151,23 +151,23 @@ class GameViewModel(
         romId?.let { CheatsCoordinator(it, cheatsManager, controller) }
 
     /** Si hay al menos un mando físico conectado: oculta los mandos en pantalla en horizontal (ver `GameScreen`). */
-    val isGamepadConnected: StateFlow<Boolean> = gamepadManager.connectedDevices
+    val isGamepadConnected: StateFlow<Boolean> = gamepads.connectedDevices
         .map { it.isNotEmpty() }
         .stateIn(scope = viewModelScope, started = SharingStarted.Eagerly, initialValue = false)
 
     init {
         // Mientras esta pantalla esté viva, un botón de mando entra al juego
-        // en vez de a la navegación normal — ver `GamepadInputRouter.isActive`.
-        gamepadInputRouter.isActive = true
+        // en vez de a la navegación normal — ver `GamepadSource.isActive`.
+        gamepads.isActive = true
 
         viewModelScope.launch {
-            gamepadManager.connections.collect { device ->
+            gamepads.connections.collect { device ->
                 _message.value = UiMessage(Res.string.msg_gamepad_detected, device.name)
             }
         }
 
         viewModelScope.launch {
-            gamepadInputRouter.events.collect { input ->
+            gamepads.events.collect { input ->
                 when (input) {
                     is GamepadInput.Button -> controller.input.setPressed(input.button, input.isPressed)
                     is GamepadInput.Blow -> controller.input.setMicNoise(input.active)
@@ -183,38 +183,25 @@ class GameViewModel(
         }
 
         viewModelScope.launch {
-            val rom = romId?.let { romRepository.findById(it) }
+            val rom = romId?.let { romLibrary.findById(it) }
             _rom.value = rom
             val battery = romId?.let { saveManager.loadBattery(it) }
 
-            // openRomForCore evita cargar la ROM entera en un ByteArray de
-            // Kotlin cuando se puede: una ROM suelta grande (128 MB no es
-            // raro en un cartucho real de DS) agotaba el heap antes de
-            // llegar siquiera al core (ver docs/estabilizacion-core.md).
-            val source = rom?.let { romRepository.openRomForCore(it) } ?: RomSource.Bytes(FAKE_CARTRIDGE)
-            val result = when (source) {
-                is RomSource.Bytes -> controller.open(source.data, battery)
-                is RomSource.Descriptor -> controller.openFromDescriptor(source.fd, source.length, battery)
-            }
+            val opened = rom?.let { romOpener.open(it, controller, battery) }
+                ?: OpenedRom(controller.open(FAKE_CARTRIDGE, battery), crc32 = 0L)
 
-            if (result is CoreLoadResult.Success && romId != null) {
+            if (opened.result is CoreLoadResult.Success && romId != null) {
                 identity = StateIdentity(
                     romSha256 = romId,
-                    // Se calcula sobre los bytes que acaban de entrar en el
-                    // core, no sobre los que se leyeron al dar de alta la ROM:
-                    // es lo que se está emulando de verdad. Con Descriptor el
-                    // core ya se quedó con ese descriptor, así que hace falta
-                    // un flujo propio para el CRC32.
-                    romCrc32 = when (source) {
-                        is RomSource.Bytes -> RomIdentity.crc32(source.data)
-                        is RomSource.Descriptor ->
-                            rom?.let { romRepository.openRawStream(it)?.use(RomIdentity::crc32) } ?: 0L
-                    },
+                    // Sobre los bytes que acaban de entrar en el core, no
+                    // sobre los que se leyeron al dar de alta la ROM: es lo
+                    // que se está emulando de verdad.
+                    romCrc32 = opened.crc32,
                     coreName = controller.coreName,
                     coreVersion = controller.coreVersion,
                     stateSize = controller.stateSize(),
                 )
-                romRepository.markPlayed(romId)
+                romLibrary.markPlayed(romId)
                 refreshSlots()
                 loadCheats()
             }
@@ -410,9 +397,14 @@ class GameViewModel(
             when (val result = saveManager.readState(rid, slot, sessionIdentity)) {
                 StateReadResult.Empty -> _message.value = UiMessage(Res.string.msg_state_slot_empty, slot)
                 StateReadResult.Unreadable -> _message.value = UiMessage(Res.string.msg_state_unreadable)
-                is StateReadResult.Rejected -> _message.value = result.reason.toMessage()
+                is StateReadResult.Rejected -> {
+                    // Al usuario, el motivo en palabras; al registro, con sus números.
+                    AppLog.w(TAG, "Ranura $slot rechazada: ${result.reason} (sesión: $sessionIdentity)")
+                    _message.value = result.reason.toMessage()
+                }
                 is StateReadResult.Loaded -> {
                     val ok = controller.loadState(result.payload)
+                    if (!ok) AppLog.w(TAG, "El core rechazó la ranura $slot (${result.payload.size} bytes)")
                     _message.value = if (ok) {
                         UiMessage(Res.string.msg_state_loaded, slot)
                     } else {
@@ -535,7 +527,7 @@ class GameViewModel(
      * tendría ya con quién hablar.
      */
     override fun onCleared() {
-        gamepadInputRouter.isActive = false
+        gamepads.isActive = false
         val rid = romId
         applicationScope.launch {
             if (rid != null) {
@@ -570,6 +562,8 @@ class GameViewModel(
     }
 
     private companion object {
+        const val TAG = "GameViewModel"
+
         /** Un minuto de juego a 1x (59,8261 fotogramas por segundo). */
         const val MIN_FRAMES_FOR_AUTO_BACKUP = 3_590L
 

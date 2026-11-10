@@ -22,7 +22,11 @@ import com.moralesDev.dsForEveryone.data.storage.StorageManager
 import com.moralesDev.dsForEveryone.emulator.EmulatorController
 import com.moralesDev.dsForEveryone.emulator.core.DsEmulatorCore
 import com.moralesDev.dsForEveryone.emulator.core.EmulatorCore
+import com.moralesDev.dsForEveryone.emulator.gamepad.AndroidGamepadSource
 import com.moralesDev.dsForEveryone.emulator.gamepad.GamepadInputRouter
+import com.moralesDev.dsForEveryone.emulator.gamepad.GamepadSource
+import com.moralesDev.dsForEveryone.data.rom.AndroidGameRomOpener
+import com.moralesDev.dsForEveryone.data.rom.GameRomOpener
 import com.moralesDev.dsForEveryone.emulator.gamepad.GamepadManager
 import com.moralesDev.dsForEveryone.ui.MainViewModel
 import com.moralesDev.dsForEveryone.ui.game.GameViewModel
@@ -84,6 +88,8 @@ val appModule = module {
 
     single { GamepadInputRouter(get(), get(ApplicationScope)) }
 
+    single<GamepadSource> { AndroidGamepadSource(get(), get()) }
+
     single {
         Room.databaseBuilder(androidContext(), DsEmuDatabase::class.java, DsEmuDatabase.NAME).build()
     }
@@ -98,6 +104,8 @@ val appModule = module {
 
     // La misma instancia, vista como la biblioteca común (data/rom/RomLibrary).
     single<RomLibrary> { get<RomRepository>() }
+
+    single<GameRomOpener> { AndroidGameRomOpener(get()) }
 
     single { CoverRepository(get(), get(), get(IoDispatcher)) }
 
@@ -147,11 +155,11 @@ val appModule = module {
         GameViewModel(
             controller = get(),
             settingsRepository = get(),
-            romRepository = get(),
+            romLibrary = get(),
+            romOpener = get(),
             saveManager = get(),
             cheatsManager = get(),
-            gamepadManager = get(),
-            gamepadInputRouter = get(),
+            gamepads = get(),
             applicationScope = get(ApplicationScope),
             savedStateHandle = get(),
         )

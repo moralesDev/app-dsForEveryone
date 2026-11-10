@@ -1,8 +1,10 @@
 # iOS y iPadOS
 
 Plan para llevar DsForEveryone a iPhone y iPad desde este mismo repositorio.
-Estado: **arranque.** Lo único hecho es la primera comprobación de la fase
-iOS-0 (el core compila para iPhone); todo lo demás es plan.
+Estado: **iOS-4 en curso.** En el iPad se juega: biblioteca, ajustes, copias
+de partidas y la pantalla de juego con el core, el sonido, los mandos en
+pantalla y las ranuras. Faltan los mandos físicos. El
+detalle de cada fase, más abajo.
 
 ## La decisión: Kotlin Multiplatform, en este repositorio
 
@@ -487,9 +489,44 @@ estado compartido. Lo que da cada plataforma:
   arranca, corre, atiende un comando en pausa y para, también en el
   simulador de iOS.
 
-Los `actual` de iOS: el core por `cinterop`, el hilo con su reloj absoluto,
-el audio, el vídeo con `Canvas`, el selector de documentos, la vibración y
-`GameController`.
+**Paso 3 — ✅ el core, el sonido y la pantalla de juego en iOS**
+(2026-11-09, probado en un iPad Air M2 con Pokémon SoulSilver: imagen,
+sonido, táctil, mandos, ranuras con miniatura, giro y pausa al salir).
+
+- `native/ios/` es el proyecto CMake que compila Gradle para iOS:
+  `ds_core` más `ds_audio_ios.c`, una `AudioUnit` RemoteIO a 48 kHz, estéreo
+  de 16 bits, cuyo *callback* pide las muestras a `ds_audio_read`. En C y no
+  en Kotlin: el *callback* corre en el hilo de tiempo real del sistema, donde
+  no se puede reservar memoria ni bloquear. `dsCore.def` enlaza además
+  `AudioToolbox`.
+- `IosEmulatorCore` es el `EmulatorCore` de iOS sobre la API C de
+  `ds_core.h`. `IosEmulatorCoreTest` lo prueba solo (cargar, correr, copiar
+  el fotograma, guardar y restaurar un estado, trucos con la línea mala) y
+  dentro del controlador con su hilo.
+- `GameViewModel`, `GameScreen` y `CheatsCoordinator` son comunes. Lo que
+  cambia por plataforma entra por tres huecos:
+  - `GameRomOpener`, entregar la ROM al core: en Android, el descriptor de
+    siempre (`AndroidGameRomOpener`); en iOS, `IosRomLibrary.readForCore`
+    abre el marcador y lee los bytes, descomprimiendo el `.zip` si hace
+    falta. En iOS la ROM entra entera en memoria: no hay el límite del heap
+    de Java que obligó al descriptor.
+  - `GamepadSource`, los mandos físicos: `AndroidGamepadSource` sobre
+    `GamepadManager` y `GamepadInputRouter`; en iOS, `NoGamepads` hasta el
+    paso 5.
+  - `GameVideo`: GL ES con `DsGLRenderer` en Android, sin cambios; en iOS,
+    Skia, el mismo lienzo de Compose: un `Bitmap` propio al que se copia el
+    fotograma con `memcpy` una vez por refresco y que se pinta en los dos
+    rectángulos, con `FilterQuality.None` para «Nítido» y `Low` para
+    «Suavizado». `FreeOrientationWhileGamepadConnected` no hace nada en iOS:
+    `Info.plist` ya deja girar el iPad.
+- Las miniaturas de las ranuras, con Skia (`SkiaThumbnailEncoder`).
+- Lo que enseñó el iPad: en vertical, con su pantalla casi 4:3, las dos
+  pantallas de la DS ocupan casi todo el alto y Select y Start no caben
+  debajo. Antes se quedaban en mitad de la pantalla inferior; ahora van lo
+  más abajo posible (`ControlLayout.overlayProfile`).
+
+**Paso 4 — mandos físicos** con `GameController` y la pantalla de mapeo
+común. Pendiente.
 
 **Lección de iOS-0 para el hilo de emulación:** un hilo propio no tiene
 bucle de eventos que vacíe la reserva de *autorelease*. En la prueba, cada

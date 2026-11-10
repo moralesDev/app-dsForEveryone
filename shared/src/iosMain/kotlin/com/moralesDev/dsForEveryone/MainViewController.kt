@@ -22,6 +22,7 @@ import com.moralesDev.dsForEveryone.resources.ios_pending_back
 import com.moralesDev.dsForEveryone.resources.ios_pending_title
 import com.moralesDev.dsForEveryone.ui.App
 import com.moralesDev.dsForEveryone.ui.components.AccentButton
+import com.moralesDev.dsForEveryone.ui.game.GameScreen
 import com.moralesDev.dsForEveryone.ui.library.RomLibraryScreen
 import com.moralesDev.dsForEveryone.ui.navigation.PlatformScreens
 import com.moralesDev.dsForEveryone.ui.theme.Background
@@ -34,8 +35,8 @@ import platform.UIKit.UIViewController
  * La app de iOS: lo mismo que pinta `MainActivity` en Android, en un
  * `UIViewController` que la app de Xcode (ios/app/) pone como raíz.
  *
- * Las pantallas que todavía no están en iOS —el juego y el mapeo de mandos—
- * enseñan un aviso, con un botón para volver.
+ * La pantalla que todavía no está en iOS —el mapeo de mandos— enseña un
+ * aviso, con un botón para volver.
  */
 fun MainViewController(): UIViewController {
     startKoinIos()
@@ -47,7 +48,7 @@ fun MainViewController(): UIViewController {
                 library = { onOpenSettings, onOpenGame ->
                     RomLibraryScreen(onOpenSettings = onOpenSettings, onOpen = { rom -> onOpenGame(rom.id) })
                 },
-                game = { onExit -> PendingOnIos(onExit) },
+                game = { onExit -> GameScreen(onExit = onExit) },
                 gamepadMapping = { onBack -> PendingOnIos(onBack) },
             ),
         )

@@ -12,6 +12,7 @@ import com.moralesDev.dsForEveryone.data.rom.RomLibrary
 import com.moralesDev.dsForEveryone.data.save.BatterySaveManager
 import com.moralesDev.dsForEveryone.data.save.SaveManager
 import com.moralesDev.dsForEveryone.data.save.SaveStateManager
+import com.moralesDev.dsForEveryone.data.save.SkiaThumbnailEncoder
 import com.moralesDev.dsForEveryone.ui.library.RomLibraryViewModel
 import com.moralesDev.dsForEveryone.data.save.SaveArchive
 import com.moralesDev.dsForEveryone.data.settings.SettingsRepository
@@ -20,6 +21,17 @@ import com.moralesDev.dsForEveryone.ui.MainViewModel
 import com.moralesDev.dsForEveryone.ui.game.layout.LayoutEditorViewModel
 import com.moralesDev.dsForEveryone.ui.settings.SettingsViewModel
 import kotlinx.cinterop.ExperimentalForeignApi
+import com.moralesDev.dsForEveryone.data.cheats.CheatsManager
+import com.moralesDev.dsForEveryone.data.rom.GameRomOpener
+import com.moralesDev.dsForEveryone.data.rom.IosGameRomOpener
+import com.moralesDev.dsForEveryone.emulator.EmulatorController
+import com.moralesDev.dsForEveryone.emulator.core.EmulatorCore
+import com.moralesDev.dsForEveryone.emulator.core.IosEmulatorCore
+import com.moralesDev.dsForEveryone.emulator.gamepad.GamepadSource
+import com.moralesDev.dsForEveryone.emulator.gamepad.NoGamepads
+import com.moralesDev.dsForEveryone.ui.game.GameViewModel
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
@@ -39,8 +51,8 @@ import platform.Foundation.preferredLanguages
 
 /**
  * Lo que se inyecta en iOS: el equivalente de `AppModule` de Android, sólo
- * con lo que usan las pantallas que ya son comunes (docs/ios.md, iOS-3
- * paso 5). Crecerá con la biblioteca y el juego.
+ * con lo que usan las pantallas comunes (docs/ios.md). Faltan los mandos
+ * físicos y su pantalla de mapeo.
  *
  * Todo vive en `Application Support/files/`, que es la carpeta privada de la
  * app que el sistema incluye en las copias de seguridad, y la misma
@@ -49,6 +61,10 @@ import platform.Foundation.preferredLanguages
 private val iosModule = module {
 
     single<CoroutineDispatcher>(IoDispatcher) { Dispatchers.IO }
+
+    // Lo que tiene que terminar aunque se cierre la pantalla que lo pidió:
+    // volcar la partida al salir del juego (ver GameViewModel.onCleared).
+    single<CoroutineScope>(ApplicationScope) { CoroutineScope(SupervisorJob() + Dispatchers.Default) }
 
     single { filesDirectory() }
 
@@ -81,12 +97,23 @@ private val iosModule = module {
 
     single { BatterySaveManager(get(), get(IoDispatcher)) }
     // Sin miniaturas en las ranuras hasta que llegue el juego a iOS.
-    single { SaveStateManager(get(), get(IoDispatcher)) }
+    single { SaveStateManager(get(), get(IoDispatcher), SkiaThumbnailEncoder) }
     single { SaveManager(get(), get(), get()) }
+
+    single { CheatsManager(get(), get(IoDispatcher)) }
 
     single { IosRomLibrary(get<DsEmuDatabase>().romDao(), get(), get(IoDispatcher)) }
     single<RomLibrary> { get<IosRomLibrary>() }
     single<CoverStore> { IosCoverStore(get(), get(IoDispatcher)) }
+    single<GameRomOpener> { IosGameRomOpener(get()) }
+
+    // melonDS por cinterop (native/ds_core), con su salida de audio. Igual
+    // que en Android, el controlador es único: un solo hilo de emulación.
+    single<EmulatorCore> { IosEmulatorCore() }
+    single { EmulatorController(get()) }
+
+    // Los mandos llegan en el paso 5 de iOS-4 (GameController).
+    single<GamepadSource> { NoGamepads() }
 
     // Ajustes sólo necesita los títulos para el manifiesto de una copia:
     // salen de la base de datos, sin pasar por el repositorio de ROMs.
@@ -99,6 +126,19 @@ private val iosModule = module {
     viewModel { SettingsViewModel(get(), get(), get()) }
     viewModel { LayoutEditorViewModel(get()) }
     viewModel { RomLibraryViewModel(get(), get(), get(), get()) }
+    viewModel {
+        GameViewModel(
+            controller = get(),
+            settingsRepository = get(),
+            romLibrary = get(),
+            romOpener = get(),
+            saveManager = get(),
+            cheatsManager = get(),
+            gamepads = get(),
+            applicationScope = get(ApplicationScope),
+            savedStateHandle = get(),
+        )
+    }
 }
 
 /** `Application Support/files/`, creada si no existe. */

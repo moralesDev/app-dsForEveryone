@@ -56,11 +56,12 @@ kotlin {
         val coreDir = dsCoreBuildDir(target.name)
         target.compilations.getByName("main").cinterops.create("dsCore") {
             definitionFile.set(file("src/nativeInterop/cinterop/dsCore.def"))
-            includeDirs(rootProject.file("native/ds_core"))
+            includeDirs(rootProject.file("native/ds_core"), rootProject.file("native/ios"))
             extraOpts(
                 "-libraryPath", coreDir.absolutePath,
-                "-libraryPath", coreDir.resolve("melonDS/src").absolutePath,
-                "-libraryPath", coreDir.resolve("melonDS/src/teakra/src").absolutePath,
+                "-libraryPath", coreDir.resolve("ds_core").absolutePath,
+                "-libraryPath", coreDir.resolve("ds_core/melonDS/src").absolutePath,
+                "-libraryPath", coreDir.resolve("ds_core/melonDS/src/teakra/src").absolutePath,
             )
         }
     }
@@ -137,8 +138,8 @@ compose.resources {
 }
 
 // ---------------------------------------------------------------------------
-// El core de iOS: native/ds_core (con melonDS dentro) como bibliotecas
-// estáticas, una compilación por destino. Es el mismo ds_core que Android
+// El core de iOS: native/ios (ds_core con melonDS dentro, más la salida de
+// audio de iOS) como bibliotecas estáticas, una compilación por destino. Es el mismo ds_core que Android
 // compila con el NDK, pero sin JIT: Apple no deja ejecutar código generado
 // en tiempo de ejecución (ver docs/ios.md). Sólo en un Mac.
 // ---------------------------------------------------------------------------
@@ -157,12 +158,13 @@ mapOf("iosArm64" to "iphoneos", "iosSimulatorArm64" to "iphonesimulator").forEac
     val buildDir = dsCoreBuildDir(target)
 
     val configure = tasks.register<Exec>("configureDsCore$suffix") {
-        description = "Configura ds_core (CMake) para $target"
+        description = "Configura ds_core y el audio de iOS (CMake) para $target"
         onlyIf { System.getProperty("os.name").startsWith("Mac") }
         inputs.file(rootProject.file("native/ds_core/CMakeLists.txt"))
+        inputs.file(rootProject.file("native/ios/CMakeLists.txt"))
         outputs.file(buildDir.resolve("CMakeCache.txt"))
         commandLine(
-            cmakeExecutable, "-S", rootProject.file("native/ds_core").absolutePath, "-B", buildDir.absolutePath,
+            cmakeExecutable, "-S", rootProject.file("native/ios").absolutePath, "-B", buildDir.absolutePath,
             "-G", "Unix Makefiles",
             "-DCMAKE_SYSTEM_NAME=iOS", "-DCMAKE_OSX_SYSROOT=$sdk", "-DCMAKE_OSX_ARCHITECTURES=arm64",
             "-DCMAKE_OSX_DEPLOYMENT_TARGET=16.0", "-DCMAKE_BUILD_TYPE=Release",
@@ -177,7 +179,7 @@ mapOf("iosArm64" to "iphoneos", "iosSimulatorArm64" to "iphonesimulator").forEac
         onlyIf { System.getProperty("os.name").startsWith("Mac") }
         // CMake ya compila sólo lo que cambió; aquí no se intenta adivinarlo.
         outputs.upToDateWhen { false }
-        commandLine(cmakeExecutable, "--build", buildDir.absolutePath, "--target", "ds_core", "-j", "8")
+        commandLine(cmakeExecutable, "--build", buildDir.absolutePath, "--target", "ds_audio_ios", "-j", "8")
     }
 
     tasks.matching { it.name == "cinteropDsCore$suffix" }.configureEach { dependsOn(build) }

@@ -4,9 +4,8 @@ La app de iOS. Todo su código está en el módulo común `shared/` (Kotlin
 Multiplatform + Compose Multiplatform); aquí sólo hay el arranque (`main.m`)
 y el proyecto, que se genera con CMake. Ver [`docs/ios.md`](../../docs/ios.md).
 
-Estado: arranca y enseña la bienvenida, Ajustes, Acerca de y el editor de
-disposición. La biblioteca, el juego y el mapeo de mandos enseñan un aviso de
-«todavía no»; los selectores de archivos aún no hacen nada.
+Estado: la app entera salvo el mapeo de mandos físicos, que enseña un aviso
+de «todavía no». Ver docs/ios.md, iOS-4.
 
 ## En el simulador
 
