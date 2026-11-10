@@ -420,8 +420,9 @@ object ControlLayout {
      * @param systemTop si no es `null`, a qué altura empiezan Select y Start
      *   en lugar de ir en el bloque: debajo de la pantalla inferior, ver
      *   [lowerScreenBottom]. Nunca pisan la dirección ni el rombo —si les
-     *   quedan debajo, bajan hasta librarlos— ni se salen por abajo; si no
-     *   hay sitio para eso, se quedan donde iban en el bloque.
+     *   quedan debajo, bajan hasta librarlos— ni se salen por abajo: si
+     *   debajo de la pantalla no caben, van lo más abajo posible. Sólo si ni
+     *   eso cabe se quedan donde iban en el bloque.
      */
     fun overlayProfile(
         area: LayoutRect,
@@ -525,8 +526,13 @@ object ControlLayout {
             .filter { other -> other.left < start.right && other.right > select.left }
             .maxOfOrNull { it.bottom + gap }
             ?: usable.top
-        val newTop = maxOf(systemTop, clearance)
-        if (newTop + height > usable.bottom - gap) return groups
+        // Si debajo de la pantalla no caben —un iPad en vertical, donde las
+        // dos pantallas ocupan casi todo el alto—, lo más abajo posible: sobre
+        // el borde inferior de la pantalla, no en mitad de ella, que es donde
+        // quedaban en el bloque.
+        val lowest = usable.bottom - gap - height
+        val newTop = minOf(maxOf(systemTop, clearance), lowest)
+        if (newTop < clearance) return groups
 
         val dy = newTop - select.top
         val moved = groups + mapOf(

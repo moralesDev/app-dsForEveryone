@@ -581,6 +581,27 @@ class ControlLayoutTest {
     }
 
     @Test
+    fun `sin sitio bajo la pantalla — iPad en vertical — Select y Start van al borde de abajo`() {
+        // 820×1180 pt: las dos pantallas apiladas ocupan casi todo el alto.
+        val area = LayoutRect(0f, 0f, 1640f, 2360f)
+        val placement = ScreenLayout.resolve(LayoutMode.STACKED, LayoutSize(area.width, area.height), gap = 0.02f, upperHalf = true)
+        val profile = ControlLayout.overlayProfile(
+            area,
+            126f,
+            ceiling = ControlLayout.overlayCeiling(placement, area),
+            inwardShift = 40f,
+            systemTop = ControlLayout.lowerScreenBottom(placement),
+        )
+        val groups = profile.groups.mapValues { it.value.bounds }
+        val select = groups.getValue(ControlGroup.SELECT)
+        val start = groups.getValue(ControlGroup.START)
+        assertEquals(select.top, start.top, 0.01f)
+        assertTrue(select.bottom > area.bottom - 2f * select.height, "Select en $select, lejos del borde de abajo")
+        assertFalse(ControlLayout.hasOverlap(profile, touchScreen = null))
+        profile.groups.values.forEach { assertTrue(LayoutEngine.isWithin(it.bounds, area), "${it.bounds}") }
+    }
+
+    @Test
     fun `Select y Start nunca pisan la direccion ni se salen por abajo`() {
         for (area in portraitAreas) {
             for (systemTop in listOf(area.top, area.centerY, area.bottom - 1f, area.bottom + 500f)) {
