@@ -194,25 +194,33 @@ fun GameScreen(onExit: () -> Unit) {
         LayoutRect(0f, 0f, availableSize.width, availableSize.height).inset(insets)
     }
 
+    val pxPerMm = rememberPxPerMm()
+    val gapScale = if (isPortrait) 1f else landscapeGapScale(pxPerMm, usableArea.width)
     val placement = remember(
         activeMode,
         availableSize,
         insets,
         settings.screenGap,
+        gapScale,
         settings.secondaryScale,
         settings.screensSwapped,
         isPortrait,
+        density,
     ) {
         if (availableSize.width > 0f && availableSize.height > 0f) {
             ScreenLayout.resolve(
                 mode = activeMode,
                 available = availableSize,
-                gap = settings.screenGap,
+                gap = settings.screenGap * gapScale,
                 secondaryScale = settings.secondaryScale,
                 swapped = settings.screensSwapped,
                 insets = insets,
-                // En vertical los mandos ocupan del centro hacia abajo.
+                // En vertical los mandos ocupan del centro hacia abajo; en
+                // horizontal, las pantallas arriba y los mandos debajo.
                 upperHalf = isPortrait,
+                alignTop = !isPortrait,
+                // Y encima, sitio para el botón de menú, que no tape la de la derecha.
+                topReserve = with(density) { MENU_BAND.toPx() },
             )
         } else {
             null
@@ -223,7 +231,6 @@ fun GameScreen(onExit: () -> Unit) {
     // Los mandos van encima de las pantallas (ver
     // ControlLayout.overlayProfile): en vertical, sobre la inferior; en
     // horizontal, en las esquinas de abajo.
-    val pxPerMm = rememberPxPerMm()
     val ceilingBelowCenterPx = CONTROLS_CEILING_BELOW_CENTER_MM * pxPerMm.y
     val inwardShiftPx = (if (isPortrait) CONTROLS_INWARD_SHIFT_MM else CONTROLS_INWARD_SHIFT_LANDSCAPE_MM) * pxPerMm.x
     val systemBelowScreenPx = SYSTEM_BUTTONS_BELOW_SCREEN_MM * pxPerMm.y
@@ -256,8 +263,11 @@ fun GameScreen(onExit: () -> Unit) {
             inwardShift = inwardShiftPx,
             systemTop = if (isPortrait) ControlLayout.lowerScreenBottom(current)?.plus(systemBelowScreenPx) else null,
             anchorBottom = !isPortrait,
-            // L y R, arriba: por encima de las pantallas, como en la consola.
-            shouldersAbove = if (isPortrait) null else minOf(current.topScreen.top, current.touchScreen.top),
+            // Y soplar abajo, bajo las pantallas, sin tapar la izquierda.
+            blowBelow = if (isPortrait) null else maxOf(current.topScreen.bottom, current.touchScreen.bottom),
+            // En vertical, L y R entre las dos pantallas, en fila con la
+            // barra de velocidad.
+            shouldersBetween = if (isPortrait) ControlLayout.stackedGap(current) else null,
         )
     }
 
@@ -323,20 +333,30 @@ fun GameScreen(onExit: () -> Unit) {
             )
         }
 
-        // La velocidad, entre las dos pantallas cuando están apiladas en
-        // vertical: a mano sin abrir el menú y sin tapar nada del juego. El
-        // menú de pausa conserva el mismo ajuste para el resto de casos.
-        if (isPortrait) {
-            placement?.let(ControlLayout::stackedGap)?.let { (gapTop, gapBottom) ->
+        // La velocidad, a mano sin abrir el menú y sin tapar nada del juego:
+        // en vertical, entre las dos pantallas apiladas; en horizontal,
+        // centrada bajo las dos, a la altura de soplar (si soplar quedó ahí
+        // abajo) y encima de Select y Start, si cabe. El menú de pausa
+        // conserva el mismo ajuste para el resto de casos.
+        val chipHeightPx = with(density) { SPEED_CHIP_HEIGHT.toPx() }
+        val speedCenterY = placement?.let { current ->
+            if (isPortrait) {
+                ControlLayout.stackedGap(current)
+                    ?.takeIf { (gapTop, gapBottom) -> gapBottom - gapTop >= chipHeightPx }
+                    ?.let { (gapTop, gapBottom) -> (gapTop + gapBottom) / 2f }
+            } else {
+                controlProfile?.let { ControlLayout.speedBarCenterY(current, it, chipHeightPx) }
+            }
+        }
+        speedCenterY?.let { centerY ->
                 SpeedBar(
-                    centerY = (gapTop + gapBottom) / 2f,
+                    centerY = centerY,
                     centerX = usableArea.centerX,
                     selected = settings.speed,
                     onSelect = viewModel::setSpeed,
                     density = density,
                 )
             }
-        }
 
         // Apartar los mandos: abajo a la derecha, a la altura de Start (ver
         // ControlLayout.hideToggleBounds). No se aparta con ellos —es lo que
@@ -368,7 +388,7 @@ fun GameScreen(onExit: () -> Unit) {
             modifier = Modifier
                 .align(Alignment.TopEnd)
                 .windowInsetsPadding(WindowInsets.systemBars)
-                .padding(12.dp),
+                .padding(MENU_BUTTON_MARGIN),
         )
 
         if (isMenuOpen) {
@@ -629,6 +649,10 @@ private fun SpeedBar(
         }
     }
 }
+
+/** El margen del botón de menú y el alto que ocupa con él, ver `topReserve` en ScreenLayout.resolve. */
+private val MENU_BUTTON_MARGIN = 12.dp
+internal val MENU_BAND = MENU_BUTTON_MARGIN * 2 + 38.dp
 
 private val SPEED_CHIP_WIDTH = 46.dp
 private val SPEED_CHIP_HEIGHT = 26.dp

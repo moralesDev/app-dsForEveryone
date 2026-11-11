@@ -178,11 +178,14 @@ object ControlLayout {
         inwardShift: Float = 0f,
         systemTop: Float? = null,
         anchorBottom: Boolean = false,
-        shouldersAbove: Float? = null,
+        blowBelow: Float? = null,
+        shouldersBetween: Pair<Float, Float>? = null,
     ): ControlLayoutProfile {
         val fromCustom = custom?.let { fromFractions(it, area) }
         return fromCustom ?: if (overlay) {
-            overlayProfile(area, minTouchTarget, opacity, ceiling, inwardShift, systemTop, anchorBottom, shouldersAbove)
+            overlayProfile(
+                area, minTouchTarget, opacity, ceiling, inwardShift, systemTop, anchorBottom, blowBelow, shouldersBetween,
+            )
         } else {
             defaultProfile(area, touchScreen, minTouchTarget, opacity)
         }
@@ -431,10 +434,16 @@ object ControlLayout {
      *   tumbado): las pantallas van lado a lado y ocupan el ancho entero, así
      *   que cada racimo va a su esquina de abajo, donde están los pulgares, y
      *   Select y Start abajo en el centro.
-     * @param shouldersAbove si no es `null`, L y R suben justo por encima de
-     *   esa altura —el borde de arriba de las pantallas, en horizontal—, cada
-     *   uno en su esquina: arriba, como en la consola. Si ahí no caben, se
-     *   quedan en el bloque.
+     * @param blowBelow si no es `null`, soplar baja justo por debajo de esa
+     *   altura —el borde de abajo de las pantallas, en horizontal—, en el
+     *   borde izquierdo de los mandos, para no tapar la pantalla izquierda.
+     *   Si ahí pisa la dirección, se corre a su derecha; si tampoco cabe, se
+     *   queda en el bloque.
+     * @param shouldersBetween si no es `null`, L y R van centrados a lo alto
+     *   en esa franja —el hueco entre las dos pantallas apiladas, en
+     *   vertical, el de [stackedGap]—, cada uno en su borde y en fila con la
+     *   barra de velocidad. Ahí no tapan nada. Si no caben en la franja o
+     *   pisarían algo, se quedan en el bloque.
      */
     fun overlayProfile(
         area: LayoutRect,
@@ -444,7 +453,8 @@ object ControlLayout {
         inwardShift: Float = 0f,
         systemTop: Float? = null,
         anchorBottom: Boolean = false,
-        shouldersAbove: Float? = null,
+        blowBelow: Float? = null,
+        shouldersBetween: Pair<Float, Float>? = null,
     ): ControlLayoutProfile {
         val top = ceiling.coerceIn(area.top, area.bottom)
         val usable = LayoutRect(area.left, top, area.right, area.bottom)
@@ -517,33 +527,99 @@ object ControlLayout {
         } else {
             groups
         }
-        val placed = shouldersAbove?.let { withShouldersAbove(withSystem, it, usable, gap) } ?: withSystem
+        val blowPlaced = blowBelow?.let { withBlowBelow(withSystem, it, usable, gap) } ?: withSystem
+        val placed = shouldersBetween?.let { withShouldersBetween(blowPlaced, it, area) } ?: blowPlaced
         return ControlLayoutProfile(placed.mapValues { (_, bounds) -> ControlGroupPlacement(bounds, opacity) })
     }
 
     /**
-     * Sube L y R justo por encima de [screensTop], ver [overlayProfile].
-     * Devuelve [groups] sin tocar si ahí no caben sin salirse ni pisar nada.
+     * Lleva L y R a la franja [band], centrados a lo alto, ver
+     * [overlayProfile]. Devuelve [groups] sin tocar si no caben en ella o
+     * pisarían algo.
      */
-    private fun withShouldersAbove(
+    private fun withShouldersBetween(
         groups: Map<ControlGroup, LayoutRect>,
-        screensTop: Float,
-        usable: LayoutRect,
-        gap: Float,
+        band: Pair<Float, Float>,
+        area: LayoutRect,
     ): Map<ControlGroup, LayoutRect> {
+        val (bandTop, bandBottom) = band
         val l = groups.getValue(ControlGroup.L)
         val r = groups.getValue(ControlGroup.R)
-        val bottom = screensTop - gap
-        val top = bottom - l.height
-        if (top < usable.top) return groups
+        if (bandBottom - bandTop < l.height) return groups
+        val top = (bandTop + bandBottom) / 2f - l.height / 2f
+        if (top < area.top || top + l.height > area.bottom) return groups
         val moved = groups + mapOf(
-            ControlGroup.L to LayoutRect(l.left, top, l.right, bottom),
-            ControlGroup.R to LayoutRect(r.left, top, r.right, bottom),
+            ControlGroup.L to LayoutRect(l.left, top, l.right, top + l.height),
+            ControlGroup.R to LayoutRect(r.left, top, r.right, top + r.height),
         )
         val overlaps = moved.entries.any { (group, rect) ->
             moved.any { (other, otherRect) -> other != group && LayoutEngine.overlaps(rect, otherRect) }
         }
         return if (overlaps) groups else moved
+    }
+
+    /**
+     * Baja soplar justo por debajo de [screensBottom], ver [overlayProfile]:
+     * primero en el borde izquierdo de los mandos (el de L); si ahí pisa
+     * algo, a la derecha de lo que pisa. Devuelve [groups] sin tocar si no
+     * cabe sin salirse, sin pasar del centro o sin pisar nada.
+     */
+    private fun withBlowBelow(
+        groups: Map<ControlGroup, LayoutRect>,
+        screensBottom: Float,
+        usable: LayoutRect,
+        gap: Float,
+    ): Map<ControlGroup, LayoutRect> {
+        val blow = groups.getValue(ControlGroup.BLOW)
+        val others = (groups - ControlGroup.BLOW).values
+        val top = screensBottom + gap
+        fun at(left: Float) = LayoutRect(left, top, left + blow.width, top + blow.height)
+        fun fits(rect: LayoutRect) =
+            rect.bottom <= usable.bottom && rect.right <= usable.centerX && others.none { LayoutEngine.overlaps(rect, it) }
+
+        val first = at(groups.getValue(ControlGroup.L).left)
+        val candidate = if (fits(first)) {
+            first
+        } else {
+            val blocking = others.filter { LayoutEngine.overlaps(first, it) }
+            blocking.maxOfOrNull { it.right + gap }?.let(::at)?.takeIf(::fits)
+        }
+        return if (candidate != null) groups + (ControlGroup.BLOW to candidate) else groups
+    }
+
+    /**
+     * El hueco bajo las dos pantallas cuando van lado a lado, como (borde de
+     * abajo de las pantallas, borde de arriba de Select y Start); `null` si
+     * van apiladas o si no queda hueco. Ahí va la barra de velocidad en
+     * horizontal, centrada, como en vertical va en [stackedGap].
+     */
+    fun belowScreensGap(placement: ScreenPlacement, profile: ControlLayoutProfile): Pair<Float, Float>? {
+        if (stackedGap(placement) != null) return null
+        val screensBottom = maxOf(placement.topScreen.bottom, placement.touchScreen.bottom)
+        val systemTop = minOf(
+            profile.groups.getValue(ControlGroup.SELECT).bounds.top,
+            profile.groups.getValue(ControlGroup.START).bounds.top,
+        )
+        return if (systemTop > screensBottom) screensBottom to systemTop else null
+    }
+
+    /**
+     * Dónde va el centro de la barra de velocidad en horizontal: en el hueco
+     * de [belowScreensGap], a la altura de soplar si soplar está en ese hueco
+     * —en fila con él, ver `blowBelow` en [overlayProfile]—, y si no, en el
+     * medio del hueco. `null` si no hay hueco o no cabe una barra de
+     * [barHeight].
+     */
+    fun speedBarCenterY(placement: ScreenPlacement, profile: ControlLayoutProfile, barHeight: Float): Float? {
+        val (gapTop, gapBottom) = belowScreensGap(placement, profile) ?: return null
+        if (gapBottom - gapTop < barHeight) return null
+        val blow = profile.groups.getValue(ControlGroup.BLOW).bounds
+        val besideBlow = blow.centerY
+        return if (besideBlow - barHeight / 2f >= gapTop && besideBlow + barHeight / 2f <= gapBottom) {
+            besideBlow
+        } else {
+            (gapTop + gapBottom) / 2f
+        }
     }
 
     /**

@@ -70,6 +70,12 @@ object ScreenLayout {
      *   vertical (ver `ControlLayout.overlayProfile`), y una pantalla
      *   centrada quedaría debajo de ellos. Apiladas ya reparten el hueco
      *   entero entre las dos, con la táctil abajo a propósito, y no cambian.
+     * @param alignTop las pantallas, pegadas al borde de arriba del hueco en
+     *   vez de centradas a lo alto: en horizontal, todo lo que sobra queda
+     *   abajo, para los mandos. No hace nada junto con [upperHalf].
+     * @param topReserve con [alignTop], cuánto se deja libre arriba, encima de
+     *   las pantallas: el botón de menú, que si no queda sobre una. Nunca
+     *   encoge las pantallas: si no sobra tanto alto, se deja lo que sobre.
      */
     fun resolve(
         mode: LayoutMode,
@@ -79,6 +85,8 @@ object ScreenLayout {
         swapped: Boolean = false,
         insets: LayoutInsets = LayoutInsets.NONE,
         upperHalf: Boolean = false,
+        alignTop: Boolean = false,
+        topReserve: Float = 0f,
     ): ScreenPlacement {
         val clampedGap = gap.coerceIn(0f, 1f)
         val clampedScale = secondaryScale.coerceIn(0.05f, 0.95f)
@@ -104,6 +112,13 @@ object ScreenLayout {
                 .filter { it.width > 0f && it.height > 0f }
                 .maxOfOrNull { it.bottom } ?: area.bottom
             val dy = area.bottom - blockBottom
+            centeredFirst.shiftedDown(dy) to centeredSecond.shiftedDown(dy)
+        } else if (alignTop) {
+            val visible = listOf(centeredFirst, centeredSecond).filter { it.width > 0f && it.height > 0f }
+            val blockTop = visible.minOfOrNull { it.top } ?: area.top
+            val blockHeight = (visible.maxOfOrNull { it.bottom } ?: area.top) - blockTop
+            val reserve = topReserve.coerceIn(0f, (area.height - blockHeight).coerceAtLeast(0f))
+            val dy = area.top + reserve - blockTop
             centeredFirst.shiftedDown(dy) to centeredSecond.shiftedDown(dy)
         } else {
             centeredFirst to centeredSecond

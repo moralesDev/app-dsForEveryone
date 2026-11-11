@@ -343,4 +343,35 @@ class ScreenLayoutTest {
         assertEquals(centered.topScreen.width, upper.topScreen.width, 0.01f)
         assertEquals(centered.topScreen.height, upper.topScreen.height, 0.01f)
     }
+
+    @Test
+    fun `alignTop — las pantallas arriba del hueco y del mismo tamano que centradas`() {
+        val size = LayoutSize(2360f, 1640f)
+        val insets = LayoutInsets(0f, 48f, 0f, 40f)
+        for (mode in listOf(LayoutMode.SIDE_BY_SIDE, LayoutMode.TOP_ONLY, LayoutMode.MAIN_AND_SECONDARY)) {
+            val centered = ScreenLayout.resolve(mode, size, gap = 0.02f, insets = insets)
+            val top = ScreenLayout.resolve(mode, size, gap = 0.02f, insets = insets, alignTop = true)
+            val visible = listOf(top.topScreen, top.touchScreen).filter { it.width > 0f && it.height > 0f }
+            assertEquals(48f, visible.minOf { it.top }, 0.01f, "$mode")
+            assertEquals(centered.topScreen.width, top.topScreen.width, 0.01f, "$mode")
+            assertEquals(centered.touchScreen.left, top.touchScreen.left, 0.01f, "$mode")
+        }
+    }
+
+    @Test
+    fun `topReserve — deja sitio arriba sin encoger nunca las pantallas`() {
+        val insets = LayoutInsets(0f, 48f, 0f, 40f)
+        val tablet = LayoutSize(2360f, 1640f)
+        val reserved = ScreenLayout.resolve(LayoutMode.SIDE_BY_SIDE, tablet, insets = insets, alignTop = true, topReserve = 124f)
+        val plain = ScreenLayout.resolve(LayoutMode.SIDE_BY_SIDE, tablet, insets = insets, alignTop = true)
+        assertEquals(48f + 124f, reserved.topScreen.top, 0.01f)
+        assertEquals(plain.topScreen.width, reserved.topScreen.width, 0.01f)
+
+        // En un teléfono tumbado no sobra alto: las pantallas no se mueven ni encogen.
+        val phone = LayoutSize(2400f, 1080f)
+        val phoneReserved = ScreenLayout.resolve(LayoutMode.SIDE_BY_SIDE, phone, alignTop = true, topReserve = 160f)
+        val phonePlain = ScreenLayout.resolve(LayoutMode.SIDE_BY_SIDE, phone, alignTop = true)
+        assertEquals(phonePlain.topScreen.width, phoneReserved.topScreen.width, 0.01f)
+        assertTrue(phoneReserved.topScreen.bottom <= 1080f + 0.01f)
+    }
 }

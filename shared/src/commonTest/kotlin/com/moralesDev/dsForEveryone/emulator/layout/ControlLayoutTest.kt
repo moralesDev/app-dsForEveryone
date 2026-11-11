@@ -2,6 +2,7 @@ package com.moralesDev.dsForEveryone.emulator.layout
 
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlin.test.Test
@@ -602,11 +603,15 @@ class ControlLayoutTest {
     }
 
     @Test
-    fun `en horizontal — iPad tumbado — cada racimo abajo en su esquina y L y R sobre las pantallas`() {
+    fun `en horizontal — iPad tumbado — pantallas arriba y cada racimo abajo en su esquina con L y R encima`() {
         val size = LayoutSize(2360f, 1640f)
         val insets = LayoutInsets(0f, 48f, 0f, 40f)
         val area = LayoutRect(0f, 0f, size.width, size.height).inset(insets)
-        val placement = ScreenLayout.resolve(LayoutMode.SIDE_BY_SIDE, size, gap = 0.05f, insets = insets)
+        val placement = ScreenLayout.resolve(
+            LayoutMode.SIDE_BY_SIDE, size, gap = 0.022f, insets = insets, alignTop = true, topReserve = 124f,
+        )
+        assertEquals(area.top + 124f, placement.topScreen.top, 0.01f, "sitio para el menú encima")
+        val screensBottom = placement.topScreen.bottom
         val profile = ControlLayout.resolveProfile(
             custom = null,
             area = area,
@@ -615,18 +620,29 @@ class ControlLayoutTest {
             overlay = true,
             inwardShift = 80f,
             anchorBottom = true,
-            shouldersAbove = placement.topScreen.top,
+            blowBelow = screensBottom,
         )
         val groups = profile.groups.mapValues { it.value.bounds }
-        assertTrue(groups.getValue(ControlGroup.L).bottom <= placement.topScreen.top, "L sobre las pantallas")
-        assertTrue(groups.getValue(ControlGroup.R).bottom <= placement.touchScreen.top, "R sobre las pantallas")
         val dpad = groups.getValue(ControlGroup.DIRECTIONAL_PAD)
         val action = groups.getValue(ControlGroup.ACTION_BUTTONS)
+        val l = groups.getValue(ControlGroup.L)
+        val r = groups.getValue(ControlGroup.R)
         assertTrue(dpad.right < area.width * 0.25f, "dirección en $dpad")
         assertTrue(action.left > area.width * 0.75f, "rombo en $action")
-        assertTrue(groups.getValue(ControlGroup.L).right < area.width * 0.25f)
-        assertTrue(groups.getValue(ControlGroup.R).left > area.width * 0.75f)
         assertTrue(area.bottom - maxOf(dpad.bottom, action.bottom) < 96f, "pegados abajo")
+        assertTrue(l.bottom <= dpad.top && l.top >= screensBottom, "L sobre la dirección, bajo las pantallas: $l")
+        assertTrue(r.bottom <= action.top && r.top >= screensBottom, "R sobre el rombo, bajo las pantallas: $r")
+        profile.groups.forEach { (group, placed) ->
+            assertFalse(LayoutEngine.overlaps(placed.bounds, placement.topScreen), "$group tapa la pantalla")
+            assertFalse(LayoutEngine.overlaps(placed.bounds, placement.touchScreen), "$group tapa la táctil")
+        }
+        val blow = groups.getValue(ControlGroup.BLOW)
+        assertTrue(blow.top >= screensBottom, "soplar bajo las pantallas: $blow")
+        assertTrue(blow.right < area.centerX, "soplar a la izquierda: $blow")
+        val (gapTop, gapBottom) = assertNotNull(ControlLayout.belowScreensGap(placement, profile), "hueco para la velocidad")
+        assertEquals(screensBottom, gapTop, 0.01f)
+        assertEquals(groups.getValue(ControlGroup.SELECT).top, gapBottom, 0.01f)
+        assertEquals(blow.centerY, assertNotNull(ControlLayout.speedBarCenterY(placement, profile, 52f)), 0.01f)
         assertFalse(ControlLayout.hasOverlap(profile, touchScreen = null))
         profile.groups.values.forEach { assertTrue(LayoutEngine.isWithin(it.bounds, area), "${it.bounds}") }
     }
@@ -666,8 +682,25 @@ class ControlLayoutTest {
             ceiling = ControlLayout.overlayCeiling(placement, area, belowCenter = 31f),
             inwardShift = 19f,
             systemTop = ControlLayout.lowerScreenBottom(placement)?.plus(31f),
+            shouldersBetween = ControlLayout.stackedGap(placement),
         )
         return profile to placement
+    }
+
+    @Test
+    fun `apiladas — L y R entre las dos pantallas en fila con la velocidad sin tapar nada`() {
+        for (swapped in listOf(false, true)) {
+            val (profile, placement) = portraitScene(LayoutMode.STACKED, swapped)
+            val (gapTop, gapBottom) = assertNotNull(ControlLayout.stackedGap(placement))
+            val l = profile.groups.getValue(ControlGroup.L).bounds
+            val r = profile.groups.getValue(ControlGroup.R).bounds
+            assertEquals((gapTop + gapBottom) / 2f, l.centerY, 0.01f, "$swapped")
+            assertEquals(l.centerY, r.centerY, 0.01f, "$swapped")
+            assertTrue(l.right < r.left, "$swapped")
+            val hideable = ControlLayout.groupsCoveringScreens(profile, placement)
+            assertFalse(ControlGroup.L in hideable || ControlGroup.R in hideable, "$swapped")
+            assertFalse(ControlLayout.hasOverlap(profile, touchScreen = null), "$swapped")
+        }
     }
 
     @Test

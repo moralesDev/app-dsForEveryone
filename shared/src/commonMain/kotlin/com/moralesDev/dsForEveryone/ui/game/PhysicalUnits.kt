@@ -23,6 +23,25 @@ data class PxPerMm(val x: Float, val y: Float)
 @Composable
 expect fun rememberPxPerMm(): PxPerMm
 
+/**
+ * La separación entre las dos pantallas en horizontal con el ajuste por
+ * defecto. El ajuste es una fracción del hueco, y en horizontal ese hueco es
+ * el ancho entero: en un iPad, el 5 % era más de 1 cm, que se le quitaba a
+ * las pantallas. Ver [landscapeGapScale].
+ */
+const val SCREEN_GAP_LANDSCAPE_MM = 5f
+
+/** La separación por defecto, la de `EmulatorSettings.screenGap`. */
+private const val DEFAULT_SCREEN_GAP = 0.05f
+
+/**
+ * Por cuánto se multiplica el ajuste de separación en horizontal para que el
+ * de por defecto mida [SCREEN_GAP_LANDSCAPE_MM] sobre el cristal. El ajuste
+ * sigue mandando: el doble de separación sigue siendo el doble.
+ */
+fun landscapeGapScale(pxPerMm: PxPerMm, usableWidth: Float): Float =
+    if (usableWidth <= 0f) 1f else SCREEN_GAP_LANDSCAPE_MM * pxPerMm.x / (DEFAULT_SCREEN_GAP * usableWidth)
+
 /** Cuánto se acercan al centro la dirección y el rombo en vertical. */
 const val CONTROLS_INWARD_SHIFT_MM = 3f
 

@@ -63,7 +63,9 @@ import com.moralesDev.dsForEveryone.ui.game.CONTROLS_CEILING_BELOW_CENTER_MM
 import com.moralesDev.dsForEveryone.ui.game.CONTROLS_INWARD_SHIFT_LANDSCAPE_MM
 import com.moralesDev.dsForEveryone.ui.game.CONTROLS_INWARD_SHIFT_MM
 import com.moralesDev.dsForEveryone.ui.game.LayoutModeChips
+import com.moralesDev.dsForEveryone.ui.game.MENU_BAND
 import com.moralesDev.dsForEveryone.ui.game.SYSTEM_BUTTONS_BELOW_SCREEN_MM
+import com.moralesDev.dsForEveryone.ui.game.landscapeGapScale
 import com.moralesDev.dsForEveryone.ui.game.rememberPxPerMm
 import com.moralesDev.dsForEveryone.ui.theme.Accent
 import com.moralesDev.dsForEveryone.ui.theme.Background
@@ -150,17 +152,27 @@ fun LayoutEditorScreen(onBack: () -> Unit) {
     // medida y no con la del contenedor entero.
     val screensAvailable = usableArea.size
 
-    val placement = remember(activeMode, availableSize, insets, gapState, scaleState, settings.screensSwapped, isPortrait) {
+    // Lo mismo que GameScreen: en horizontal la separación se escala para que
+    // la de por defecto mida medio centímetro.
+    val pxPerMm = rememberPxPerMm()
+    val gapScale = if (isPortrait) 1f else landscapeGapScale(pxPerMm, usableArea.width)
+
+    val placement = remember(
+        activeMode, availableSize, insets, gapState, gapScale, scaleState, settings.screensSwapped, isPortrait, density,
+    ) {
         if (availableSize.width > 0f && availableSize.height > 0f) {
             ScreenLayout.resolve(
                 mode = activeMode,
                 available = availableSize,
-                gap = gapState,
+                gap = gapState * gapScale,
                 secondaryScale = scaleState,
                 swapped = settings.screensSwapped,
                 insets = insets,
-                // En vertical los mandos ocupan del centro hacia abajo.
+                // En vertical los mandos ocupan del centro hacia abajo; en
+                // horizontal, las pantallas arriba y los mandos debajo.
                 upperHalf = isPortrait,
+                alignTop = !isPortrait,
+                topReserve = with(density) { MENU_BAND.toPx() },
             )
         } else {
             null
@@ -171,7 +183,6 @@ fun LayoutEditorScreen(onBack: () -> Unit) {
 
     // Las mismas medidas físicas que GameScreen: si no, el editor colocaría
     // distinto que el juego.
-    val pxPerMm = rememberPxPerMm()
     val ceilingBelowCenterPx = CONTROLS_CEILING_BELOW_CENTER_MM * pxPerMm.y
     val inwardShiftPx = (if (isPortrait) CONTROLS_INWARD_SHIFT_MM else CONTROLS_INWARD_SHIFT_LANDSCAPE_MM) * pxPerMm.x
     val systemBelowScreenPx = SYSTEM_BUTTONS_BELOW_SCREEN_MM * pxPerMm.y
@@ -202,8 +213,11 @@ fun LayoutEditorScreen(onBack: () -> Unit) {
             inwardShift = inwardShiftPx,
             systemTop = if (isPortrait) ControlLayout.lowerScreenBottom(current)?.plus(systemBelowScreenPx) else null,
             anchorBottom = !isPortrait,
-            // L y R, arriba: por encima de las pantallas, como en la consola.
-            shouldersAbove = if (isPortrait) null else minOf(current.topScreen.top, current.touchScreen.top),
+            // Y soplar abajo, bajo las pantallas, sin tapar la izquierda.
+            blowBelow = if (isPortrait) null else maxOf(current.topScreen.bottom, current.touchScreen.bottom),
+            // En vertical, L y R entre las dos pantallas, en fila con la
+            // barra de velocidad.
+            shouldersBetween = if (isPortrait) ControlLayout.stackedGap(current) else null,
         )
     }
 
@@ -236,7 +250,7 @@ fun LayoutEditorScreen(onBack: () -> Unit) {
                     available = screensAvailable,
                     density = density,
                     onDragStart = { isDraggingScreens = true },
-                    onDragDelta = { deltaFraction -> gapState = (gapState + deltaFraction).coerceIn(0f, 1f) },
+                    onDragDelta = { deltaFraction -> gapState = (gapState + deltaFraction / gapScale).coerceIn(0f, 1f) },
                     onDragEnd = {
                         isDraggingScreens = false
                         viewModel.setScreenGap(gapState)
@@ -263,17 +277,25 @@ fun LayoutEditorScreen(onBack: () -> Unit) {
             // En vertical los mandos van encima de la táctil a propósito (ver
             // ControlLayout.overlayProfile): ahí la táctil no bloquea nada.
             val touchBlocker = placement?.touchScreen?.takeUnless { isPortrait }
-            // Y en vertical, nunca por encima de la pantalla de arriba: todo
-            // lo que queda sobre el techo de overlayCeiling es zona vedada.
-            val ceilingBlocker = placement?.takeIf { isPortrait }?.let { current ->
+            // Y en vertical, nunca por encima de la pantalla de arriba: lo que
+            // queda sobre el techo de overlayCeiling es zona vedada, salvo el
+            // hueco entre las dos pantallas, donde van L y R.
+            val ceilingBlockers = placement?.takeIf { isPortrait }?.let { current ->
                 val ceiling = ControlLayout.overlayCeiling(current, usableArea, belowCenter = ceilingBelowCenterPx)
-                LayoutRect(usableArea.left, usableArea.top, usableArea.right, ceiling)
-                    .takeIf { it.height > 0f }
-            }
+                val between = ControlLayout.stackedGap(current)
+                if (between == null) {
+                    listOf(LayoutRect(usableArea.left, usableArea.top, usableArea.right, ceiling))
+                } else {
+                    listOf(
+                        LayoutRect(usableArea.left, usableArea.top, usableArea.right, between.first),
+                        LayoutRect(usableArea.left, between.second, usableArea.right, ceiling),
+                    )
+                }.filter { it.height > 0f }
+            }.orEmpty()
 
             profile.groups.forEach { (group, groupPlacement) ->
                 key(group) {
-                    val blockers = (profile.groups - group).values.map { it.bounds } + listOfNotNull(touchBlocker, ceilingBlocker)
+                    val blockers = (profile.groups - group).values.map { it.bounds } + listOfNotNull(touchBlocker) + ceilingBlockers
                     EditableGroupBox(
                         group = group,
                         placement = groupPlacement,
