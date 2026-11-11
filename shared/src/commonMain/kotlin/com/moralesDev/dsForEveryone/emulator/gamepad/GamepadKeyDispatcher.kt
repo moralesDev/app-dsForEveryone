@@ -62,8 +62,10 @@ class GamepadKeyDispatcher(
     /**
      * Una tecla de mando que se pulsa o se suelta. Devuelve `true` si queda
      * consumida aquí —con [isActive], todas las de un mando, mapeadas o no—.
+     * [isKeyboard] elige el mapeo por defecto si ese aparato no tiene uno
+     * guardado.
      */
-    fun dispatch(descriptor: String, keyCode: Int, isPressed: Boolean): Boolean {
+    fun dispatch(descriptor: String, keyCode: Int, isPressed: Boolean, isKeyboard: Boolean = false): Boolean {
         if (!isActive) return false
         if (isPressed) {
             captureCallback?.let { callback ->
@@ -72,7 +74,7 @@ class GamepadKeyDispatcher(
                 return true
             }
         }
-        val mapping = mappingsByDescriptor[descriptor] ?: GamepadMapping.DEFAULT
+        val mapping = mappingsByDescriptor[descriptor] ?: GamepadMapping.defaultFor(isKeyboard)
         val target = mapping.targetFor(keyCode) ?: return true
         _events.tryEmit(
             when (target) {

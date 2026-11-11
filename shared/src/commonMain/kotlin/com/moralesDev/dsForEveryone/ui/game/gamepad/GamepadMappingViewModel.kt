@@ -38,7 +38,8 @@ class GamepadMappingViewModel(
         .stateIn(viewModelScope, SharingStarted.Eagerly, gamepads.connectedDevices.value.firstOrNull())
 
     val mapping: StateFlow<GamepadMapping> = combine(settingsRepository.settings, connectedDevice) { settings, device ->
-        device?.let { settings.gamepadMappings[it.descriptor] } ?: GamepadMapping.DEFAULT
+        device?.let { settings.gamepadMappings[it.descriptor] ?: GamepadMapping.defaultFor(it.isKeyboard) }
+            ?: GamepadMapping.DEFAULT
     }.stateIn(viewModelScope, SharingStarted.Eagerly, GamepadMapping.DEFAULT)
 
     /** El objetivo esperando su próximo botón, o `null` si no se está capturando nada. */

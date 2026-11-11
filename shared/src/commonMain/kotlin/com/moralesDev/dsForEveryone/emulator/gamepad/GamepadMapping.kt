@@ -73,6 +73,33 @@ data class GamepadMapping(private val keyCodeByTarget: Map<GamepadTarget, Int>) 
         )
 
         /**
+         * Para un teclado físico, la disposición de casi todos los emuladores
+         * de DS (también la de melonDS de escritorio): flechas para la
+         * cruceta, X y Z para A y B, S y A para X e Y, Q y W para L y R,
+         * Intro para Start, Retroceso para Select y Espacio para soplar.
+         */
+        val KEYBOARD_DEFAULT = GamepadMapping(
+            mapOf(
+                GamepadTarget.Button(DsButton.A) to GamepadKeyCodes.KEY_X,
+                GamepadTarget.Button(DsButton.B) to GamepadKeyCodes.KEY_Z,
+                GamepadTarget.Button(DsButton.X) to GamepadKeyCodes.KEY_S,
+                GamepadTarget.Button(DsButton.Y) to GamepadKeyCodes.KEY_A,
+                GamepadTarget.Button(DsButton.L) to GamepadKeyCodes.KEY_Q,
+                GamepadTarget.Button(DsButton.R) to GamepadKeyCodes.KEY_W,
+                GamepadTarget.Button(DsButton.START) to GamepadKeyCodes.ENTER,
+                GamepadTarget.Button(DsButton.SELECT) to GamepadKeyCodes.DEL,
+                GamepadTarget.Button(DsButton.UP) to GamepadKeyCodes.DPAD_UP,
+                GamepadTarget.Button(DsButton.DOWN) to GamepadKeyCodes.DPAD_DOWN,
+                GamepadTarget.Button(DsButton.LEFT) to GamepadKeyCodes.DPAD_LEFT,
+                GamepadTarget.Button(DsButton.RIGHT) to GamepadKeyCodes.DPAD_RIGHT,
+                GamepadTarget.Blow to GamepadKeyCodes.SPACE,
+            ),
+        )
+
+        /** El mapeo de un aparato que nunca se ha personalizado. */
+        fun defaultFor(isKeyboard: Boolean): GamepadMapping = if (isKeyboard) KEYBOARD_DEFAULT else DEFAULT
+
+        /**
          * Inversa de [encode]. Cualquier fallo de formato, o un objetivo
          * repetido o desconocido, hacen que devuelva `null`: mejor caer a
          * [DEFAULT] que arrastrar un mapeo a medio leer. Mismo criterio que

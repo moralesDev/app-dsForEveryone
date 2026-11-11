@@ -93,6 +93,20 @@ class GamepadKeyDispatcherTest {
     }
 
     @Test
+    fun `un teclado sin mapeo guardado usa el suyo por defecto`() = runTest(UnconfinedTestDispatcher()) {
+        val (dispatcher, _) = setUp(backgroundScope)
+        val events = mutableListOf<GamepadInput>()
+        backgroundScope.launch { dispatcher.events.toList(events) }
+        dispatcher.isActive = true
+
+        dispatcher.dispatch("teclado", GamepadKeyCodes.KEY_X, isPressed = true, isKeyboard = true)
+        dispatcher.dispatch("teclado", GamepadKeyCodes.SPACE, isPressed = true, isKeyboard = true)
+        dispatcher.dispatch("teclado", GamepadKeyCodes.BUTTON_A, isPressed = true, isKeyboard = true)
+
+        assertEquals(listOf(GamepadInput.Button(DsButton.A, true), GamepadInput.Blow(true)), events)
+    }
+
+    @Test
     fun `cada mando usa su propio mapeo`() = runTest(UnconfinedTestDispatcher()) {
         val (dispatcher, settings) = setUp(backgroundScope)
         val events = mutableListOf<GamepadInput>()

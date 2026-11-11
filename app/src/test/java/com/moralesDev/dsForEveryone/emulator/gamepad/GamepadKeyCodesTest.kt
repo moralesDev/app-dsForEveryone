@@ -31,4 +31,29 @@ class GamepadKeyCodesTest {
         assertEquals(KeyEvent.KEYCODE_BUTTON_START, GamepadKeyCodes.BUTTON_START)
         assertEquals(KeyEvent.KEYCODE_BUTTON_SELECT, GamepadKeyCodes.BUTTON_SELECT)
     }
+
+    @Test
+    fun `las teclas del teclado valen lo mismo que su constante de KeyEvent`() {
+        assertEquals(KeyEvent.KEYCODE_0, GamepadKeyCodes.KEY_0)
+        assertEquals(KeyEvent.KEYCODE_9, GamepadKeyCodes.KEY_0 + 9)
+        assertEquals(KeyEvent.KEYCODE_A, GamepadKeyCodes.KEY_A)
+        assertEquals(KeyEvent.KEYCODE_Q, GamepadKeyCodes.KEY_Q)
+        assertEquals(KeyEvent.KEYCODE_S, GamepadKeyCodes.KEY_S)
+        assertEquals(KeyEvent.KEYCODE_W, GamepadKeyCodes.KEY_W)
+        assertEquals(KeyEvent.KEYCODE_X, GamepadKeyCodes.KEY_X)
+        assertEquals(KeyEvent.KEYCODE_Z, GamepadKeyCodes.KEY_Z)
+        assertEquals(KeyEvent.KEYCODE_COMMA, GamepadKeyCodes.COMMA)
+        assertEquals(KeyEvent.KEYCODE_PERIOD, GamepadKeyCodes.PERIOD)
+        assertEquals(KeyEvent.KEYCODE_ALT_LEFT, GamepadKeyCodes.ALT_LEFT)
+        assertEquals(KeyEvent.KEYCODE_ALT_RIGHT, GamepadKeyCodes.ALT_RIGHT)
+        assertEquals(KeyEvent.KEYCODE_SHIFT_LEFT, GamepadKeyCodes.SHIFT_LEFT)
+        assertEquals(KeyEvent.KEYCODE_SHIFT_RIGHT, GamepadKeyCodes.SHIFT_RIGHT)
+        assertEquals(KeyEvent.KEYCODE_TAB, GamepadKeyCodes.TAB)
+        assertEquals(KeyEvent.KEYCODE_SPACE, GamepadKeyCodes.SPACE)
+        assertEquals(KeyEvent.KEYCODE_ENTER, GamepadKeyCodes.ENTER)
+        assertEquals(KeyEvent.KEYCODE_DEL, GamepadKeyCodes.DEL)
+        assertEquals(KeyEvent.KEYCODE_ESCAPE, GamepadKeyCodes.ESCAPE)
+        assertEquals(KeyEvent.KEYCODE_CTRL_LEFT, GamepadKeyCodes.CTRL_LEFT)
+        assertEquals(KeyEvent.KEYCODE_CTRL_RIGHT, GamepadKeyCodes.CTRL_RIGHT)
+    }
 }

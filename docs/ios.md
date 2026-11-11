@@ -76,6 +76,10 @@ Lo que cambia es sólo con qué primitiva del sistema se cumple cada una.
   cambio de tamaño en caliente: el perfil de mandos y la colocación se
   recalculan, y el hilo de emulación no se puede parar por ello.
 - **Teclado físico** además de mandos: entra por `GameController` (`GCKeyboard`).
+  Es un aparato más de `IosGamepadSource`, con su mapeo por defecto
+  (`GamepadMapping.KEYBOARD_DEFAULT`: flechas, X Z S A, Q W, Intro,
+  Retroceso y Espacio para soplar) y editable en la misma pantalla. No oculta
+  los mandos en pantalla: en un iPad suele ir siempre puesto en la funda.
 
 ### Lo que no se puede hacer igual
 
@@ -562,6 +566,11 @@ táctil, mandos en pantalla y partidas que se guardan y se cargan.
 ### iOS-5 · iPad y cierre
 
 - Pencil, ventanas de tamaño variable, teclado y mandos físicos.
+  - ✅ Mandos físicos: iOS-4, paso 4.
+  - Teclado físico con `GCKeyboard`: hecho, falta probarlo en el iPad.
+  - Pencil y Split View no piden código: el Pencil es un puntero más y
+    `Info.plist` admite las cuatro orientaciones sin `UIRequiresFullScreen`.
+    Falta probarlos en el iPad.
 - Cambios de tamaño en caliente sin cortar la emulación.
 - La decisión sobre distribución (ver arriba), documentada.
 

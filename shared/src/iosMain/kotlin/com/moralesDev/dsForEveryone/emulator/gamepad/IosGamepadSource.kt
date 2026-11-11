@@ -13,6 +13,9 @@ import platform.GameController.GCControllerButtonInput
 import platform.GameController.GCControllerDidConnectNotification
 import platform.GameController.GCControllerDidDisconnectNotification
 import platform.GameController.GCExtendedGamepad
+import platform.GameController.GCKeyboard
+import platform.GameController.GCKeyboardDidConnectNotification
+import platform.GameController.GCKeyboardDidDisconnectNotification
 
 /**
  * Los mandos de iOS (framework GameController) vistos como [GamepadSource].
@@ -25,7 +28,9 @@ import platform.GameController.GCExtendedGamepad
  * —captura o juego— lo decide [GamepadKeyDispatcher], común con Android.
  *
  * Sólo cuentan los mandos con perfil extendido (Xbox, DualShock, DualSense,
- * Switch Pro, MFi): los que tienen todos los botones de la DS.
+ * Switch Pro, MFi): los que tienen todos los botones de la DS. El teclado
+ * físico (`GCKeyboard`, todos los conectados vistos como uno) es un aparato
+ * más, con su propio mapeo por defecto ([GamepadMapping.KEYBOARD_DEFAULT]).
  *
  * GameController entrega las pulsaciones en la cola principal, igual que
  * las notificaciones de conexión que se registran aquí.
@@ -55,14 +60,18 @@ class IosGamepadSource(private val dispatcher: GamepadKeyDispatcher) : GamepadSo
         val queue = NSOperationQueue.mainQueue
         center.addObserverForName(GCControllerDidConnectNotification, null, queue) { _ -> refresh() }
         center.addObserverForName(GCControllerDidDisconnectNotification, null, queue) { _ -> refresh() }
+        center.addObserverForName(GCKeyboardDidConnectNotification, null, queue) { _ -> refresh() }
+        center.addObserverForName(GCKeyboardDidDisconnectNotification, null, queue) { _ -> refresh() }
         gamepads().forEach(::listen)
+        listenToKeyboard()
     }
 
     private fun refresh() {
         val previous = _connectedDevices.value.map { it.descriptor }.toSet()
         val controllers = gamepads()
         controllers.forEach(::listen)
-        val current = controllers.map { it.toGamepadDevice() }
+        listenToKeyboard()
+        val current = currentGamepads()
         _connectedDevices.value = current
         current.filter { it.descriptor !in previous }.forEach { _connections.tryEmit(it) }
     }
@@ -81,12 +90,30 @@ class IosGamepadSource(private val dispatcher: GamepadKeyDispatcher) : GamepadSo
         }
     }
 
-    private fun currentGamepads(): List<GamepadDevice> = gamepads().map { it.toGamepadDevice() }
+    /** Las teclas del teclado físico, traducidas por [androidKeyCodeForHid]; las demás no existen. */
+    private fun listenToKeyboard() {
+        val input = GCKeyboard.coalescedKeyboard?.keyboardInput ?: return
+        input.setKeyChangedHandler { _, _, hidUsage, pressed ->
+            val keyCode = androidKeyCodeForHid(hidUsage) ?: return@setKeyChangedHandler
+            dispatcher.dispatch(KEYBOARD_DESCRIPTOR, keyCode, pressed, isKeyboard = true)
+        }
+    }
+
+    /** Primero los mandos: la pantalla de mapeo enseña el primero de la lista. */
+    private fun currentGamepads(): List<GamepadDevice> =
+        gamepads().map { it.toGamepadDevice() } + listOfNotNull(
+            GCKeyboard.coalescedKeyboard?.let { keyboard ->
+                GamepadDevice(KEYBOARD_DESCRIPTOR, keyboard.vendorName ?: "Keyboard", isKeyboard = true)
+            },
+        )
 
     private fun gamepads(): List<GCController> =
         GCController.controllers().filterIsInstance<GCController>().filter { it.extendedGamepad != null }
 
     private companion object {
+        /** Todos los teclados conectados llegan como uno solo, así que comparten mapeo. */
+        const val KEYBOARD_DESCRIPTOR = "ios:keyboard"
+
         /** Cada botón del perfil extendido con su código de Android equivalente. */
         fun buttonsOf(pad: GCExtendedGamepad): List<Pair<GCControllerButtonInput?, Int>> = listOf(
             pad.dpad.up to GamepadKeyCodes.DPAD_UP,

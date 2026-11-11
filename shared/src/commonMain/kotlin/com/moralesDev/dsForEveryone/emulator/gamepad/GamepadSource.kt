@@ -12,8 +12,12 @@ import kotlinx.coroutines.flow.emptyFlow
  * identidad estable ([descriptor], sobrevive a reconexiones) y su nombre para
  * mostrar. Cada plataforma lo saca de lo suyo (`InputDevice` en Android,
  * `GCController` en iOS).
+ *
+ * [isKeyboard] para un teclado físico (hoy, sólo en iOS: `GCKeyboard`): tiene
+ * su propio mapeo por defecto ([GamepadMapping.defaultFor]) y no oculta los
+ * mandos en pantalla, porque en un iPad suele ir siempre puesto en la funda.
  */
-data class GamepadDevice(val descriptor: String, val name: String)
+data class GamepadDevice(val descriptor: String, val name: String, val isKeyboard: Boolean = false)
 
 /** Un objetivo mapeado, ya traducido a lo que le importa a `InputManager`. */
 sealed interface GamepadInput {

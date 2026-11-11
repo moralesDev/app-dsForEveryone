@@ -319,6 +319,7 @@
 
     <!-- Mando físico (Bluetooth y USB) -->
     <string name="msg_gamepad_detected">Mando detectado: %1$s</string>
+    <string name="msg_keyboard_detected">Teclado detectado: %1$s</string>
     <string name="gp_title">Mando físico</string>
     <string name="gp_no_gamepad">No hay ningún mando conectado. Conecta uno por Bluetooth o USB para mapearlo.</string>
     <string name="gp_device_name">Mando conectado: %1$s</string>

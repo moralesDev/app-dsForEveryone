@@ -52,6 +52,7 @@ import com.moralesDev.dsForEveryone.resources.msg_cheat_save_failed
 import com.moralesDev.dsForEveryone.resources.msg_cheat_too_large
 import com.moralesDev.dsForEveryone.resources.msg_cheats_corrupt
 import com.moralesDev.dsForEveryone.resources.msg_gamepad_detected
+import com.moralesDev.dsForEveryone.resources.msg_keyboard_detected
 import com.moralesDev.dsForEveryone.resources.msg_state_deleted
 import com.moralesDev.dsForEveryone.resources.msg_state_failed
 import com.moralesDev.dsForEveryone.resources.msg_state_loaded
@@ -150,9 +151,13 @@ class GameViewModel(
     private val cheatsCoordinator: CheatsCoordinator? =
         romId?.let { CheatsCoordinator(it, cheatsManager, controller) }
 
-    /** Si hay al menos un mando físico conectado: oculta los mandos en pantalla en horizontal (ver `GameScreen`). */
+    /**
+     * Si hay al menos un mando físico conectado: oculta los mandos en
+     * pantalla en horizontal (ver `GameScreen`). Un teclado no cuenta: en un
+     * iPad suele ir siempre puesto en la funda.
+     */
     val isGamepadConnected: StateFlow<Boolean> = gamepads.connectedDevices
-        .map { it.isNotEmpty() }
+        .map { devices -> devices.any { !it.isKeyboard } }
         .stateIn(scope = viewModelScope, started = SharingStarted.Eagerly, initialValue = false)
 
     init {
@@ -162,7 +167,8 @@ class GameViewModel(
 
         viewModelScope.launch {
             gamepads.connections.collect { device ->
-                _message.value = UiMessage(Res.string.msg_gamepad_detected, device.name)
+                val text = if (device.isKeyboard) Res.string.msg_keyboard_detected else Res.string.msg_gamepad_detected
+                _message.value = UiMessage(text, device.name)
             }
         }
 

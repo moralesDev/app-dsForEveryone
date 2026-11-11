@@ -33,6 +33,29 @@ object GamepadKeyCodes {
     const val BUTTON_SELECT = 109
     const val BUTTON_MODE = 110
 
+    // Teclado físico. Las letras van seguidas: KEY_A + 0 … KEY_A + 25 son
+    // A … Z; las cifras, KEY_0 + 0 … KEY_0 + 9.
+    const val KEY_0 = 7
+    const val KEY_A = 29
+    const val KEY_Q = KEY_A + 16
+    const val KEY_S = KEY_A + 18
+    const val KEY_W = KEY_A + 22
+    const val KEY_X = KEY_A + 23
+    const val KEY_Z = KEY_A + 25
+    const val COMMA = 55
+    const val PERIOD = 56
+    const val ALT_LEFT = 57
+    const val ALT_RIGHT = 58
+    const val SHIFT_LEFT = 59
+    const val SHIFT_RIGHT = 60
+    const val TAB = 61
+    const val SPACE = 62
+    const val ENTER = 66
+    const val DEL = 67
+    const val ESCAPE = 111
+    const val CTRL_LEFT = 113
+    const val CTRL_RIGHT = 114
+
     /**
      * El nombre de [keyCode] tal como lo da `KeyEvent.keyCodeToString` sin el
      * prefijo `KEYCODE_`, para los de esta lista; `null` para cualquier otro.
@@ -57,5 +80,19 @@ object GamepadKeyCodes {
         BUTTON_START to "BUTTON_START",
         BUTTON_SELECT to "BUTTON_SELECT",
         BUTTON_MODE to "BUTTON_MODE",
-    )
+        COMMA to "COMMA",
+        PERIOD to "PERIOD",
+        ALT_LEFT to "ALT_LEFT",
+        ALT_RIGHT to "ALT_RIGHT",
+        SHIFT_LEFT to "SHIFT_LEFT",
+        SHIFT_RIGHT to "SHIFT_RIGHT",
+        TAB to "TAB",
+        SPACE to "SPACE",
+        ENTER to "ENTER",
+        DEL to "DEL",
+        ESCAPE to "ESCAPE",
+        CTRL_LEFT to "CTRL_LEFT",
+        CTRL_RIGHT to "CTRL_RIGHT",
+    ) + ('A'..'Z').mapIndexed { i, letter -> KEY_A + i to letter.toString() } +
+        (0..9).map { digit -> KEY_0 + digit to digit.toString() }
 }
