@@ -11,6 +11,8 @@ import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TemporaryFolder
+import com.moralesDev.dsForEveryone.data.storage.stateFile
+import com.moralesDev.dsForEveryone.data.storage.statesDirectory
 
 /**
  * El respaldo automático: su ranura propia, y el resumen que usa la biblioteca

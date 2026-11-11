@@ -5,9 +5,14 @@ Guía para Claude Code (claude.ai/code) al trabajar en este repositorio.
 ## Idioma del proyecto
 
 Todo —documentación, comentarios de código, mensajes de commit y la
-conversación con el usuario— está en **español**. La UI será bilingüe (español
-por defecto en `res/values/`, inglés en `res/values-en/`), igual que en
-`app-emulador`. Mantén esa convención.
+conversación con el usuario— está en **español**. La UI es bilingüe, igual que
+en `app-emulador`: español por defecto en
+`shared/src/commonMain/composeResources/values/strings.xml` e inglés en
+`values-en/`. Son recursos de Compose Multiplatform, comunes con iOS: se piden
+con `stringResource(Res.string.…)` de `org.jetbrains.compose.resources`, y en
+esos XML el apóstrofo y las comillas van **sin barra** (`\'` saldría tal
+cual). En `app/src/main/res/` sólo queda `app_name`, para el manifiesto.
+Mantén esa convención.
 
 ## Qué es
 
@@ -66,7 +71,8 @@ El entorno actual es **macOS / zsh**:
 
 ```sh
 ./gradlew assembleDebug            # APK (compila el core + puente + app)
-./gradlew testDebugUnitTest        # pruebas de JVM
+./gradlew testDebugUnitTest        # pruebas de JVM de :app
+./gradlew :shared:allTests         # pruebas de :shared, en JVM y en el simulador de iOS
 ./gradlew installDebug             # instalar en el dispositivo conectado
 ./gradlew lint                     # lint de AGP
 ```
@@ -168,8 +174,13 @@ no.
 
 ## Pruebas
 
-Sólo pruebas de JVM (`app/src/test/`), con JUnit 4, `kotlinx-coroutines-test` y
-Turbine. Un `FakeEmulatorCore` para ejercitar controlador y mandos. Los
+Pruebas de JVM en `app/src/test/`, con JUnit 4, `kotlinx-coroutines-test` y
+Turbine. Lo que vive en el módulo común `:shared` (la geometría de
+`ScreenLayout`, `TouchRouter` y `ControlLayout`, `DsButton`, joystick y
+cruceta) se prueba en `shared/src/commonTest/` con `kotlin.test`, y esas
+pruebas corren en la JVM **y** en el simulador de iOS (ver
+[`docs/ios.md`](docs/ios.md)). Ahí, nada de `Math` ni de APIs de Java, ni
+comas en los nombres de las pruebas: Kotlin/Native no las admite. Un `FakeEmulatorCore` para ejercitar controlador y mandos. Los
 sistemas de archivos se prueban sobre carpetas temporales de verdad, no sobre
 dobles.
 
@@ -227,3 +238,4 @@ Ampliar aquí antes de escribir código nuevo en esas áreas:
 - [`docs/reutilizacion.md`](docs/reutilizacion.md) — qué se trae de `app-emulador`, qué se adapta y qué es nuevo.
 - [`docs/copia-de-partidas.md`](docs/copia-de-partidas.md) — exportar e importar partidas: formato, qué se rechaza y cómo se recupera un reemplazo interrumpido.
 - [`docs/plan-de-trabajo.md`](docs/plan-de-trabajo.md) — las cinco fases, los diecinueve entregables y el prompt de cada uno.
+- [`docs/ios.md`](docs/ios.md) — iPhone y iPad con Kotlin Multiplatform: qué se comparte, qué cambia (sin JIT), licencia en la App Store y las fases iOS-0 a iOS-5.

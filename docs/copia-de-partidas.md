@@ -39,6 +39,30 @@ reemplazar las partidas de *Tal juego*»—: nunca decide nada.
 **No viajan** las portadas elegidas a mano (no son partidas; viven fuera de
 `saves/` por ese mismo motivo) ni los archivos de sistema.
 
+### El zip, igual en Android y en iOS
+
+Hasta iOS-3 se escribía y leía con `java.util.zip`. Desde entonces
+`SaveArchive` vive en el módulo común y usa un zip propio sobre Okio
+(`data/zip/`), porque iOS no trae ninguna API de zip y una copia hecha en un
+sistema tiene que importarse en el otro:
+
+- `ZipWriter` escribe un zip normal: deflate, nombres en UTF-8, sin ZIP64
+  (no hace falta: el tope total es de 4 GB). La fecha de las entradas es la
+  de la exportación en UTC; `java.util.zip` usaba la hora local. Sólo lo
+  nota quien abra el zip con otra herramienta.
+- `ZipArchiveReader` lee desde el **directorio central** y no en orden sobre
+  el flujo como `ZipInputStream`: el `InflaterSource` público de Okio se lleva
+  bytes de más de su origen, y leyendo en orden esos bytes serían la cabecera
+  de la entrada siguiente. Por eso importar copia primero el archivo elegido
+  a `import-staging/` y lo borra al terminar. Las comprobaciones son las
+  mismas o más: manifiesto primero, nombres repetidos, tamaño real
+  descomprimido con tope, CRC, y la cabecera local de cada entrada debe
+  coincidir con su entrada del directorio central.
+- `ZipInteropTest` (`:app`) comprueba las dos direcciones contra
+  `java.util.zip`, incluidas las copias que ya tienen los usuarios, hechas con
+  `ZipOutputStream`. `ZipRoundTripTest` (`:shared`) ejecuta el zip también en
+  iOS.
+
 ## Importar: validar todo, luego decidir, luego cambiar
 
 La importación tiene tres pasos separados, y el usuario sólo ve el segundo:

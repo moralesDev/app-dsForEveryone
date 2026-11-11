@@ -1,0 +1,351 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Textos de DsForEveryone para Compose Multiplatform (docs/ios.md, iOS-3
+  paso 3): los mismos en Android y en iOS. Las pantallas los piden con
+  stringResource(Res.string.…).
+
+  Ojo con los escapes: Compose Multiplatform sólo entiende \n, \t y \uXXXX.
+  Los \' y \" de Android aparecerían tal cual, así que aquí van ' y " sin
+  barra (dentro de un texto XML no hace falta escaparlos).
+
+  app_name está también en app/src/main/res/: el manifiesto de Android sólo
+  sabe leer recursos de Android.
+-->
+<resources>
+    <string name="app_name">DsForEveryone</string>
+
+    <!-- Splash -->
+    <string name="splash_tagline">Your DS. Anywhere.</string>
+
+    <!-- Between-screen loading -->
+    <string name="tr_loading">Loading</string>
+
+    <!-- Onboarding -->
+    <string name="onb_title">Your DS games, on your phone</string>
+    <string name="onb_body">Add your own files and play with touch and stylus controls built for two screens.</string>
+    <string name="onb_f1">Add your ROMs</string>
+    <string name="onb_f1b">From your phone's storage</string>
+    <string name="onb_f2">Two screens, one stylus</string>
+    <string name="onb_f2b">Adjustable touch and button controls</string>
+    <string name="onb_f3">Save any time</string>
+    <string name="onb_f3b">Multiple state slots per game</string>
+    <string name="onb_next">Next</string>
+    <string name="onb_cta">Get started</string>
+    <string name="onb_skip">I already have games</string>
+    <string name="onb_dont">Don't show this screen again</string>
+
+    <!-- Onboarding: system files step (conditional, see WelcomeScreen.kt) -->
+    <string name="onb_sys_title">One more file before you play</string>
+    <string name="onb_sys_body">The Nintendo DS needs its BIOS and firmware to start up. These come from your own console — this app doesn't include or download them.</string>
+    <string name="onb_sys_f1">You provide them</string>
+    <string name="onb_sys_f1b">Import them later, from Settings</string>
+    <string name="onb_sys_f2">Never distributed</string>
+    <string name="onb_sys_f2b">The app doesn't include them or link to where to get them</string>
+
+    <!-- Still-empty destinations in the navigation graph -->
+    <string name="scr_settings_title">Settings</string>
+    <string name="scr_about_title">About</string>
+    <string name="scr_about_body">DsForEveryone uses melonDS to emulate the Nintendo DS, published under the GNU General Public License v3.0. Linking its code inside this application makes the whole app — interface, save system, bridge included — distributed under the same license. You can keep, modify, and redistribute this application under the terms of that license.</string>
+    <string name="ab_core_label">Emulation core: melonDS 1.1 · GPL-3.0-or-later</string>
+    <string name="ab_core_link">melonDS source code</string>
+    <string name="ab_source_link">This app's source code</string>
+    <string name="nav_open_settings">Settings</string>
+    <string name="nav_open_about">About</string>
+
+    <!-- Accessibility -->
+    <string name="cd_back">Back</string>
+    <string name="cd_menu">Open menu</string>
+    <string name="cd_dpad">D-pad</string>
+    <string name="cd_joystick">Joystick</string>
+    <string name="cd_hide_controls">Move controls aside</string>
+    <string name="cd_show_controls">Show controls</string>
+    <string name="cd_blow">Blow</string>
+
+    <!-- Pause menu -->
+    <string name="pa_title">Game paused</string>
+    <string name="pa_resume">Resume</string>
+    <string name="pa_exit">Exit</string>
+    <string name="pa_swap_screens">Swap screens</string>
+    <string name="pa_layout">Screen layout</string>
+    <string name="pa_touch_mode">Touch mode</string>
+    <string name="pa_speed">Speed</string>
+    <string name="pa_save">Save game</string>
+    <string name="pa_load">Load game</string>
+    <string name="pa_cheats">Cheats</string>
+    <string name="pa_lid">Close the lid</string>
+    <string name="pa_cheats_count">%1$d/%2$d</string>
+
+    <!-- Screen layout modes -->
+    <string name="layout_stacked">Stacked</string>
+    <string name="layout_side_by_side">Side by side</string>
+    <string name="layout_top_only">Top only</string>
+    <string name="layout_bottom_only">Bottom only</string>
+    <string name="layout_main_secondary">Main + secondary</string>
+
+    <!-- The console lid -->
+    <string name="lid_closed">Lid closed</string>
+    <string name="lid_open_hint">Tap to open it</string>
+
+    <!-- Emulation speed -->
+    <string name="speed_normal">1x</string>
+    <string name="speed_1_5x">1.5x</string>
+    <string name="speed_2x">2x</string>
+    <string name="speed_muted_hint">Sound is muted while running fast.</string>
+
+    <!-- Touch modes -->
+    <string name="touch_direct">Direct</string>
+    <string name="touch_offset">Offset</string>
+
+    <!-- Settings -->
+    <string name="se_section_app">Application</string>
+    <string name="se_section_image">Image</string>
+    <string name="se_section_input">Input</string>
+    <string name="se_section_about">Information</string>
+    <string name="se_language">Language</string>
+    <string name="se_language_hint">The app's only; it does not change your phone's.</string>
+    <string name="se_language_es">Español</string>
+    <string name="se_language_en">English</string>
+    <string name="se_welcome">Welcome screen</string>
+    <string name="se_welcome_hint">Show it every time the app opens.</string>
+    <string name="se_filter_hint">Sharp keeps square pixels; Smooth interpolates them.</string>
+    <string name="se_screens">Screen and control layout</string>
+    <string name="se_screens_hint">Where each screen and each control goes, per orientation.</string>
+    <string name="se_directional">Direction control</string>
+    <string name="se_directional_hint">Joystick or classic D-pad. Both give the DS's eight directions.</string>
+    <string name="directional_joystick">Joystick</string>
+    <string name="directional_dpad">D-pad</string>
+    <string name="se_touch_hint">Direct puts the stylus under your finger; Offset, above it.</string>
+    <string name="se_touch_distance">Stylus distance</string>
+    <string name="se_touch_distance_hint">How far the contact point sits from your fingertip.</string>
+    <string name="se_touch_short">Short</string>
+    <string name="se_touch_medium">Medium</string>
+    <string name="se_touch_long">Long</string>
+    <string name="se_gamepad">Gamepad</string>
+    <string name="se_gamepad_hint">Which gamepad button does what in the game.</string>
+    <string name="se_about_hint">Licence, version and the core that emulates the console.</string>
+    <string name="se_section_saves">Saves</string>
+    <string name="se_archive_export">Export all saves</string>
+    <string name="se_archive_export_hint">A .zip with the saves, save states and cheats of every game. For moving to a new phone or reinstalling.</string>
+    <string name="se_archive_import">Import backup</string>
+    <string name="se_archive_import_hint">Replaces the saves of the games in the backup. Other games are left alone.</string>
+    <string name="se_archive_replace_title">Import the backup?</string>
+    <string name="se_archive_replace_body">Games in the backup: %1$d. Games with data on this phone, which will be replaced entirely (save, save states and cheats): %2$d. It can't be undone.</string>
+    <string name="se_archive_replace">Import and replace</string>
+
+    <!-- Image filter -->
+    <string name="se_filter">Image filter</string>
+    <string name="filter_sharp">Sharp</string>
+    <string name="filter_smooth">Smooth</string>
+
+    <!-- Layout editor (deliverable 2.7) -->
+    <string name="le_title_portrait">Layout editor · Portrait</string>
+    <string name="le_title_landscape">Layout editor · Landscape</string>
+    <string name="le_reset">Reset</string>
+    <string name="le_hint">Drag a group to move it, its corner to resize it. Tap it to adjust its opacity.</string>
+    <string name="le_opacity">Opacity</string>
+    <string name="le_swap">Swap screens</string>
+    <string name="le_screen_top">Top</string>
+    <string name="le_screen_touch">Touch</string>
+    <string name="le_group_dpad">Direction</string>
+    <string name="le_group_action">A · B · X · Y</string>
+    <string name="le_group_l">L</string>
+    <string name="le_group_r">R</string>
+    <string name="le_group_start">Start</string>
+    <string name="le_group_select">Select</string>
+    <string name="le_group_blow">Blow</string>
+
+    <!-- Library (deliverable 3.3) -->
+    <string name="lib_title">Library</string>
+    <string name="lib_search">Search</string>
+    <string name="lib_add">Add ROM</string>
+    <string name="lib_no_results">No results for "%1$s"</string>
+    <string name="lib_open">Open</string>
+    <string name="lib_unavailable">File not found</string>
+    <string name="lib_options_title">%1$s</string>
+    <string name="lib_remove_body">This removes the game from the library. You can keep its save in case you add it back.</string>
+    <string name="lib_remove_keep">Remove, keep the save</string>
+    <string name="lib_remove_delete">Remove and delete the save</string>
+    <string name="lib_sav_extract">Extract .sav</string>
+    <string name="lib_sav_import">Import .sav</string>
+    <string name="lib_sav_replace_title">Replace the save for "%1$s"?</string>
+    <string name="lib_sav_replace_body">This replaces this game's current save. It can't be undone, and the app can't verify the file actually belongs to this game. It doesn't affect save states saved separately.</string>
+    <string name="lib_sav_delete">Delete .sav</string>
+    <string name="lib_sav_delete_title">Delete the save for "%1$s"?</string>
+    <string name="lib_sav_delete_body">The game will start from scratch next time you open it. It can't be undone, and it doesn't affect save states saved separately.</string>
+    <string name="lib_archive_export">Export saves</string>
+    <string name="lib_archive_import">Import saves</string>
+    <string name="lib_archive_replace_title">Replace the saves of "%1$s"?</string>
+    <string name="lib_archive_replace_body">This game's save, save states and cheats are replaced with the ones in the backup. It can't be undone.</string>
+    <string name="lib_page_indicator">%1$d of %2$d</string>
+    <string name="cd_settings">Settings</string>
+    <string name="cd_page_previous">Previous page</string>
+    <string name="cd_page_next">Next page</string>
+    <string name="cd_rom_options">Options for %1$s</string>
+    <string name="cd_cover_custom">Cover for %1$s, tap to change it</string>
+    <string name="cd_cover_default">Cover for %1$s, tap to add one</string>
+
+    <!-- Library: messages -->
+    <string name="msg_imported">%1$s added to the library</string>
+    <string name="msg_already">%1$s was already in the library; its location was updated</string>
+    <string name="msg_unrecognized_rom">The file isn't a recognizable Nintendo DS ROM</string>
+    <string name="msg_unreadable">The chosen file couldn't be read</string>
+    <string name="msg_zip_no_rom">The .zip doesn't contain any .nds ROM</string>
+    <string name="msg_zip_multiple">The .zip contains %1$d ROMs; add only one per file</string>
+    <string name="msg_zip_encrypted">The .zip is encrypted; its contents can't be read</string>
+    <string name="msg_zip_corrupt">The .zip is corrupt</string>
+    <string name="msg_rom_too_large">The uncompressed ROM is too large</string>
+    <string name="msg_removed_all">Game and save deleted</string>
+    <string name="msg_removed_keep">Game removed; the save was kept</string>
+    <string name="msg_sav_exported">Save extracted</string>
+    <string name="msg_sav_export_failed">Couldn't extract the save</string>
+    <string name="msg_sav_imported">Save imported</string>
+    <string name="msg_sav_import_failed">Couldn't import the file</string>
+    <string name="msg_sav_too_large">That file is too large to be a Nintendo DS save</string>
+    <string name="msg_sav_deleted">Save deleted</string>
+    <string name="msg_sav_delete_failed">Couldn't delete the save</string>
+    <string name="msg_archive_exported">Backup saved</string>
+    <string name="msg_archive_exported_skipped">Backup saved. Damaged files left out: %1$d</string>
+    <string name="msg_archive_nothing">There are no saves to export</string>
+    <string name="msg_archive_export_failed">Couldn't save the backup</string>
+    <string name="msg_archive_imported">Saves imported</string>
+    <string name="msg_archive_import_partial">Imported: %1$d. Couldn't be replaced: %2$d</string>
+    <string name="msg_archive_not_backup">That file isn't a DsForEveryone saves backup</string>
+    <string name="msg_archive_newer">That backup is from a newer version of the app</string>
+    <string name="msg_archive_corrupt">The backup is damaged. Nothing was imported</string>
+    <string name="msg_archive_too_large">The backup is too large</string>
+    <string name="msg_archive_unreadable">Couldn't read the backup</string>
+    <string name="msg_archive_not_this_game">That backup has no saves for this game</string>
+
+    <!-- Empty library -->
+    <string name="em_title">Add your first game</string>
+    <string name="em_body">Choose an .nds file, or a .zip containing one, from your phone's storage.</string>
+    <string name="em_cta">Add ROM</string>
+
+    <!-- Cover -->
+    <string name="cover_add_title">Add cover</string>
+    <string name="cover_change_title">Change cover</string>
+    <string name="cover_add">Add image</string>
+    <string name="cover_change">Change image</string>
+    <string name="cover_delete">Remove cover</string>
+    <string name="cover_delete_title">Remove cover</string>
+    <string name="cover_delete_body">The cartridge's own icon takes its place. This can't be undone.</string>
+    <string name="cover_crop_title">Crop cover</string>
+    <string name="cover_crop_square">The image is already square: it shows in full.</string>
+    <string name="cover_crop_body">Drag and pinch to choose what shows.</string>
+    <string name="cover_save">Save</string>
+    <string name="cover_failed">The image couldn't be processed</string>
+    <string name="cover_removed">Cover removed</string>
+    <string name="cover_too_large">The image is too large</string>
+    <string name="cover_unsupported">Unsupported image format</string>
+
+    <!-- Sheet generics -->
+    <string name="st_cancel">Cancel</string>
+    <string name="st_delete">Delete</string>
+
+    <!-- Relative last-played date -->
+    <string name="when_never">Never played</string>
+    <string name="when_today">Today, %1$s</string>
+    <string name="when_yesterday">Yesterday</string>
+    <string name="when_days_ago">%1$d days ago</string>
+    <string name="when_last_week">Last week</string>
+
+    <!-- Save system: slot sheet (deliverable 3.4) -->
+    <string name="st_save_title">Save game</string>
+    <string name="st_load_title">Load game</string>
+    <string name="st_manual_section">Slots</string>
+    <string name="st_auto_section">Automatic backup</string>
+    <string name="st_slot">Slot %1$d</string>
+    <string name="st_empty">Empty</string>
+    <string name="st_save">Save</string>
+    <string name="st_overwrite">Overwrite</string>
+    <string name="st_load">Load</string>
+    <string name="st_auto_last">Latest backup</string>
+    <string name="st_auto_never">No backups yet</string>
+    <string name="st_auto_restore">Restore</string>
+    <string name="st_overwrite_title">Overwrite slot %1$d?</string>
+    <string name="st_overwrite_body">The state currently in this slot will be lost.</string>
+    <string name="st_delete_title">Delete slot %1$d?</string>
+    <string name="st_delete_body">This can't be undone.</string>
+    <string name="st_replace">Overwrite</string>
+    <string name="cd_close">Close</string>
+    <string name="cd_delete_auto">Delete the automatic backup</string>
+    <string name="cd_delete_state">Delete slot %1$d</string>
+
+    <!-- Cheats sheet -->
+    <string name="ch_title">Cheats</string>
+    <string name="ch_empty">No cheats added yet.</string>
+    <string name="ch_add">Add cheat</string>
+    <string name="ch_code_placeholder">Paste the Action Replay code here. Multiple lines allowed.</string>
+    <string name="ch_name_placeholder">Name (optional)</string>
+    <string name="ch_name_fallback">Cheat %1$d</string>
+    <string name="ch_cancel">Cancel</string>
+    <string name="ch_submit">Add</string>
+    <string name="ch_limit_reached">There are already %1$d cheats; that's the max per game.</string>
+    <string name="ch_notice_full_title">Worth having a backup before trying this</string>
+    <string name="ch_notice_full_body">A cheat can leave the save in a weird state. Save a state now so you can go back if needed.</string>
+    <string name="ch_notice_compact">Just in case? You already have a backup, but you can update it.</string>
+    <string name="ch_notice_backup_cta">Save state</string>
+    <string name="cd_delete_cheat">Delete cheat "%1$s"</string>
+
+    <!-- Why a slot can't be restored -->
+    <string name="st_problem_other_game">Different game</string>
+    <string name="st_problem_other_core">Different version</string>
+    <string name="st_problem_other_version">Old format</string>
+    <string name="st_problem_unknown">Unknown file</string>
+    <string name="st_problem_damaged">Damaged</string>
+
+    <!-- Save system: messages -->
+    <string name="msg_state_no_session">No game loaded yet</string>
+    <string name="msg_state_failed">The state couldn't be saved</string>
+    <string name="msg_state_saved">Saved to slot %1$d</string>
+    <string name="msg_state_slot_empty">Slot %1$d is empty</string>
+    <string name="msg_state_unreadable">The slot couldn't be read</string>
+    <string name="msg_state_loaded">Loaded from slot %1$d</string>
+    <string name="msg_state_rejected_by_core">The emulator rejected the state</string>
+    <string name="msg_state_deleted">Slot %1$d deleted</string>
+    <string name="msg_state_not_a_state">The file isn't a saved state</string>
+    <string name="msg_state_other_container">The file is from an unsupported version</string>
+    <string name="msg_state_truncated">The file is incomplete</string>
+    <string name="msg_state_corrupt">The file is damaged</string>
+    <string name="msg_state_other_game">This state belongs to a different game</string>
+    <string name="msg_state_other_core">This state was saved with %1$s</string>
+    <string name="msg_state_wrong_size">This state doesn't match the current emulator version</string>
+
+    <!-- Physical gamepad (Bluetooth and USB) -->
+    <string name="msg_gamepad_detected">Gamepad detected: %1$s</string>
+    <string name="msg_keyboard_detected">Keyboard detected: %1$s</string>
+    <string name="gp_title">Gamepad</string>
+    <string name="gp_no_gamepad">No gamepad connected. Connect one over Bluetooth or USB to map it.</string>
+    <string name="gp_device_name">Connected gamepad: %1$s</string>
+    <string name="gp_reassign">Reassign</string>
+    <string name="gp_listening">Press a button on the gamepad…</string>
+    <string name="gp_swap_hint">If that button is already assigned to another one, they swap.</string>
+    <string name="gp_leave_blank">Leave unassigned</string>
+    <string name="gp_cancel">Cancel</string>
+    <string name="gp_reset">Reset to default mapping</string>
+    <string name="gp_target_up">Up</string>
+    <string name="gp_target_down">Down</string>
+    <string name="gp_target_left">Left</string>
+    <string name="gp_target_right">Right</string>
+    <string name="gp_target_a">A</string>
+    <string name="gp_target_b">B</string>
+    <string name="gp_target_x">X</string>
+    <string name="gp_target_y">Y</string>
+    <string name="gp_target_l">L</string>
+    <string name="gp_target_r">R</string>
+    <string name="gp_target_start">Start</string>
+    <string name="gp_target_select">Select</string>
+    <string name="gp_target_blow">Blow</string>
+
+    <!-- Cheats: messages -->
+    <string name="msg_cheat_added">Cheat activated</string>
+    <string name="msg_cheat_too_large">That code is too long</string>
+    <string name="msg_cheat_rejected_line">Line %1$d isn't valid Action Replay code</string>
+    <string name="msg_cheat_enabled">Cheat activated</string>
+    <string name="msg_cheat_disabled">Cheat deactivated</string>
+    <string name="msg_cheat_deleted">Cheat deleted</string>
+    <string name="msg_cheat_save_failed">Couldn't save the cheat</string>
+    <string name="msg_cheats_corrupt">Couldn't read your saved cheats; the list was reset</string>
+
+    <!-- Provisional (docs/ios.md, iOS-3 paso 5): lo que enseña iOS en las pantallas que aún no tiene -->
+</resources>

@@ -282,6 +282,15 @@ NDK (`std::__ndk1::...`).
 
 ## 7. El puente: cargar y pintar (fase 4.2)
 
+> **Desde la fase iOS-1** ([`ios.md`](ios.md)) el puente está partido en dos.
+> Todo lo que toca a melonDS —la interfaz `Platform`, la carga, el
+> micrófono, el anillo de audio, save states, batería y trucos— vive en
+> `native/ds_core/ds_core.cpp`, detrás de la API en C de `ds_core.h`, sin
+> nada de Android. `native/emulator_bridge/` se queda con lo propio de
+> Android: `ds_bridge.cpp` sólo traduce JNI a esa API, y `audio_aaudio.cpp`
+> abre AAudio y llama a `ds_audio_read`. Lo que sigue describe la lógica,
+> que es la misma; donde dice `ds_bridge.cpp`, hoy es `ds_core.cpp`.
+
 `native/emulator_bridge/ds_bridge.cpp` enlaza `core` en `libdsemu.so` y expone
 las funciones nativas de `NativeBridge.kt`; `DsEmulatorCore.kt` traduce el
 contrato de `EmulatorCore` a esas llamadas. Con esto, la línea
@@ -339,7 +348,7 @@ Además, el formato de píxel de melonDS no es directamente el que espera
 Android: cada píxel sale como `r | (g << 8) | (b << 16)` en memoria (bytes
 R, G, B, A en ese orden), mientras que Android espera un entero
 `0xAARRGGBB`. El puente hace el canje byte a byte al copiar
-(`ToAndroidArgb` en `ds_bridge.cpp`); sin él, el rojo y el azul saldrían
+(`ToArgb` en `ds_core.cpp`); sin él, el rojo y el azul saldrían
 intercambiados en pantalla.
 
 ### `melonDS::Platform`: la lista exacta, no toda la cabecera
@@ -377,7 +386,7 @@ De lo que sí hace falta:
 
 ### `BRIDGE_CORE_VERSION`
 
-`"1.1"`, literal en `ds_bridge.cpp`, expuesta a Kotlin por `nativeCoreVersion()`.
+`"1.1"`, literal en `ds_core.cpp`, expuesta a Kotlin por `nativeCoreVersion()`.
 Sigue el principio de la sección 2 aunque melonDS no tenga el defecto de
 mGBA: lo que se graba en cada save state es esta constante, nunca un valor
 generado por CMake.
@@ -577,7 +586,7 @@ que hable de espacio ocupado.
 2. **La tarea de Gradle `verifyCoreVersionDebug`/`verifyCoreVersionRelease`**
    (`app/build.gradle.kts`), con dependencia de `assembleDebug`/
    `assembleRelease`, que sí inspecciona el objeto compilado
-   (`ds_bridge.cpp.o`): comprueba que contiene el literal `"1.1"` y que
+   (`ds_core.cpp.o`): comprueba que contiene el literal `"1.1"` y que
    ninguna fuente propia referencia los símbolos de `version.h` de melonDS
    (`MELONDS_VERSION`, `MELONDS_GIT_BRANCH`, `MELONDS_GIT_HASH`,
    `MELONDS_BUILD_PROVIDER`) en vez de `BRIDGE_CORE_VERSION`. Verificada en

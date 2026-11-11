@@ -1,6 +1,5 @@
 package com.moralesDev.dsForEveryone.ui.archive
 
-import com.moralesDev.dsForEveryone.R
 import com.moralesDev.dsForEveryone.data.save.SaveArchive
 import com.moralesDev.dsForEveryone.data.save.SaveStateManager
 import com.moralesDev.dsForEveryone.data.save.StateIdentity
@@ -21,6 +20,15 @@ import org.junit.rules.TemporaryFolder
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
 import java.io.File
+import com.moralesDev.dsForEveryone.data.storage.importStagingDirectory
+import com.moralesDev.dsForEveryone.data.storage.savesDirectory
+import com.moralesDev.dsForEveryone.resources.Res
+import com.moralesDev.dsForEveryone.resources.msg_archive_exported_skipped
+import com.moralesDev.dsForEveryone.resources.msg_archive_imported
+import com.moralesDev.dsForEveryone.resources.msg_archive_not_this_game
+import com.moralesDev.dsForEveryone.resources.msg_archive_unreadable
+import okio.sink
+import okio.source
 
 /**
  * Cuándo se pregunta y cuándo no, y que cancelar no deje nada a medias.
@@ -54,7 +62,7 @@ class SaveArchiveCoordinatorTest {
 
     private suspend fun backupOf(storage: StorageManager): ByteArray {
         val output = ByteArrayOutputStream()
-        SaveArchive(storage, Dispatchers.Unconfined).export(output, emptyMap())
+        SaveArchive(storage, Dispatchers.Unconfined).export(output.sink(), emptyMap())
         return output.toByteArray()
     }
 
@@ -71,11 +79,11 @@ class SaveArchiveCoordinatorTest {
         val backup = backupOf(source)
         val coordinator = coordinatorFor(target)
 
-        coordinator.onPicked({ ByteArrayInputStream(backup) })
+        coordinator.onPicked({ ByteArrayInputStream(backup).source() })
         advanceUntilIdle()
 
         assertNull(coordinator.pending.value)
-        assertEquals(listOf(UiMessage(R.string.msg_archive_imported)), messages)
+        assertEquals(listOf(UiMessage(Res.string.msg_archive_imported)), messages)
         assertTrue(stateOnTarget(gameA, 1).exists())
         assertFalse(coordinator.busy.value)
     }
@@ -88,7 +96,7 @@ class SaveArchiveCoordinatorTest {
         target.saveState(gameA, 3)
         val coordinator = coordinatorFor(target)
 
-        coordinator.onPicked({ ByteArrayInputStream(backup) })
+        coordinator.onPicked({ ByteArrayInputStream(backup).source() })
         advanceUntilIdle()
 
         val pending = coordinator.pending.value!!
@@ -104,7 +112,7 @@ class SaveArchiveCoordinatorTest {
         assertFalse(stateOnTarget(gameA, 3).exists())
         assertTrue(stateOnTarget(gameA, 1).exists())
         assertTrue(stateOnTarget(gameB, 1).exists())
-        assertEquals(listOf(UiMessage(R.string.msg_archive_imported)), messages)
+        assertEquals(listOf(UiMessage(Res.string.msg_archive_imported)), messages)
     }
 
     @Test
@@ -114,7 +122,7 @@ class SaveArchiveCoordinatorTest {
         target.saveState(gameA, 3)
         val coordinator = coordinatorFor(target)
 
-        coordinator.onPicked({ ByteArrayInputStream(backup) })
+        coordinator.onPicked({ ByteArrayInputStream(backup).source() })
         advanceUntilIdle()
         coordinator.cancel()
 
@@ -133,7 +141,7 @@ class SaveArchiveCoordinatorTest {
         val coordinator = coordinatorFor(target)
 
         // gameA tiene datos aquí, pero se importa desde la hoja de gameB.
-        coordinator.onPicked({ ByteArrayInputStream(backup) }, onlyRomId = gameB)
+        coordinator.onPicked({ ByteArrayInputStream(backup).source() }, onlyRomId = gameB)
         advanceUntilIdle()
 
         assertNull(coordinator.pending.value)
@@ -147,10 +155,10 @@ class SaveArchiveCoordinatorTest {
         val backup = backupOf(source)
         val coordinator = coordinatorFor(target)
 
-        coordinator.onPicked({ ByteArrayInputStream(backup) }, onlyRomId = gameB)
+        coordinator.onPicked({ ByteArrayInputStream(backup).source() }, onlyRomId = gameB)
         advanceUntilIdle()
 
-        assertEquals(listOf(UiMessage(R.string.msg_archive_not_this_game)), messages)
+        assertEquals(listOf(UiMessage(Res.string.msg_archive_not_this_game)), messages)
         assertFalse(File(target.savesDirectory(), gameA).exists())
         assertTrue(stagingIsEmpty())
     }
@@ -162,7 +170,7 @@ class SaveArchiveCoordinatorTest {
         coordinator.onPicked({ throw SecurityException("sin permiso") })
         advanceUntilIdle()
 
-        assertEquals(listOf(UiMessage(R.string.msg_archive_unreadable)), messages)
+        assertEquals(listOf(UiMessage(Res.string.msg_archive_unreadable)), messages)
     }
 
     @Test
@@ -184,9 +192,9 @@ class SaveArchiveCoordinatorTest {
         slot2.writeBytes(slot2.readBytes().copyOf(10))
         val coordinator = coordinatorFor(source)
 
-        coordinator.export({ ByteArrayOutputStream() }, emptyMap())
+        coordinator.export({ ByteArrayOutputStream().sink() }, emptyMap())
         advanceUntilIdle()
 
-        assertEquals(listOf(UiMessage(R.string.msg_archive_exported_skipped, 1)), messages)
+        assertEquals(listOf(UiMessage(Res.string.msg_archive_exported_skipped, 1)), messages)
     }
 }

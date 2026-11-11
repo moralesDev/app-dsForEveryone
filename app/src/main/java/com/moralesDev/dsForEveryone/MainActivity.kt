@@ -7,21 +7,13 @@ import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.activity.viewModels
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.runtime.getValue
-import androidx.compose.ui.Modifier
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.moralesDev.dsForEveryone.emulator.gamepad.GamepadInputRouter
-import com.moralesDev.dsForEveryone.ui.MainViewModel
-import com.moralesDev.dsForEveryone.ui.locale.ProvideAppLanguage
-import com.moralesDev.dsForEveryone.ui.navigation.AppNavHost
-import com.moralesDev.dsForEveryone.ui.theme.Background
-import com.moralesDev.dsForEveryone.ui.theme.DsEmuTheme
-import dagger.hilt.android.AndroidEntryPoint
-import javax.inject.Inject
+import com.moralesDev.dsForEveryone.ui.App
+import com.moralesDev.dsForEveryone.ui.game.GameScreen
+import com.moralesDev.dsForEveryone.ui.game.gamepad.GamepadMappingScreen
+import com.moralesDev.dsForEveryone.ui.library.RomLibraryScreen
+import com.moralesDev.dsForEveryone.ui.navigation.PlatformScreens
+import org.koin.android.ext.android.inject
 
 /**
  * Única Activity de la aplicación. El manifiesto fija vertical por defecto;
@@ -29,13 +21,9 @@ import javax.inject.Inject
  * ejecución para poder rotar durante la partida. El resto de la app —
  * biblioteca, ajustes, bienvenida— no está pensada para horizontal.
  */
-@AndroidEntryPoint
 class MainActivity : ComponentActivity() {
 
-    private val viewModel: MainViewModel by viewModels()
-
-    @Inject
-    lateinit var gamepadInputRouter: GamepadInputRouter
+    private val gamepadInputRouter: GamepadInputRouter by inject()
 
     /**
      * Punto más alto posible para interceptar un `KeyEvent` de mando, antes
@@ -59,26 +47,15 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
 
         setContent {
-            DsEmuTheme {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(Background),
-                ) {
-                    val settings by viewModel.settings.collectAsStateWithLifecycle()
-
-                    // Hasta que no se sabe el idioma y si toca el onboarding no
-                    // se pinta nada: sólo el fondo, que ya es el definitivo.
-                    settings?.let { current ->
-                        ProvideAppLanguage(current.language) {
-                            AppNavHost(
-                                skipWelcome = current.skipWelcome,
-                                onWelcomeFinished = viewModel::onWelcomeFinished,
-                            )
-                        }
-                    }
-                }
-            }
+            App(
+                screens = PlatformScreens(
+                    library = { onOpenSettings, onOpenGame ->
+                        RomLibraryScreen(onOpenSettings = onOpenSettings, onOpen = { rom -> onOpenGame(rom.id) })
+                    },
+                    game = { onExit -> GameScreen(onExit = onExit) },
+                    gamepadMapping = { onBack -> GamepadMappingScreen(onBack = onBack) },
+                ),
+            )
         }
     }
 }

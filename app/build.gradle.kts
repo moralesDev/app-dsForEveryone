@@ -4,9 +4,6 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.kotlin.serialization)
-    alias(libs.plugins.ksp)
-    alias(libs.plugins.hilt)
-    alias(libs.plugins.room)
 }
 
 /**
@@ -127,12 +124,9 @@ android {
     }
 }
 
-room {
-    schemaDirectory("$projectDir/schemas")
-}
-
-// Verifica que el objeto compilado de nuestro puente (ds_bridge.cpp.o, no
+// Verifica que el objeto compilado de nuestro puente (ds_core.cpp.o, no
 // libdsemu.so entero) contenga la constante BRIDGE_CORE_VERSION ("1.1").
+// Desde la fase iOS-1 vive en native/ds_core/, compartida con iOS.
 //
 // A diferencia de mGBA en `app-emulador`, melonDS 1.1 no tiene el bug de
 // `version.cmake` escapándose a un `.git` ajeno (ver docs/integracion-
@@ -147,8 +141,8 @@ room {
 // el .so.
 //
 // Segunda comprobación: un grep sobre nuestras propias fuentes (los .cpp/.h
-// de native/emulator_bridge y los .kt de app/src/main/java, comentarios
-// descontados) que falla si alguien referencia los símbolos de
+// de native/ds_core y native/emulator_bridge y los .kt de app/src/main/java,
+// comentarios descontados) que falla si alguien referencia los símbolos de
 // third_party/melonDS/src/version.h.in que identifican una compilación
 // concreta (MELONDS_VERSION, MELONDS_GIT_BRANCH, MELONDS_GIT_HASH,
 // MELONDS_BUILD_PROVIDER) en vez de la constante propia del puente.
@@ -173,9 +167,9 @@ abstract class VerifyCoreVersionTask : DefaultTask() {
 
     private fun verifyCompiledObject() {
         val root = cxxBuildDirectory.get().asFile
-        val objectFile = root.walkTopDown().firstOrNull { it.name == "ds_bridge.cpp.o" }
+        val objectFile = root.walkTopDown().firstOrNull { it.name == "ds_core.cpp.o" }
             ?: error(
-                "No se encontró ds_bridge.cpp.o bajo $root: ¿cambió el layout de " +
+                "No se encontró ds_core.cpp.o bajo $root: ¿cambió el layout de " +
                     ".cxx o el nombre del objeto?",
             )
 
@@ -184,7 +178,7 @@ abstract class VerifyCoreVersionTask : DefaultTask() {
         // ese proyecto quedaría descartada sin llegar a compararse.
         val strings = extractPrintableStrings(objectFile.readBytes(), minLength = 3)
         check("1.1" in strings) {
-            "ds_bridge.cpp.o no contiene \"1.1\": BRIDGE_CORE_VERSION cambió sin " +
+            "ds_core.cpp.o no contiene \"1.1\": BRIDGE_CORE_VERSION cambió sin " +
                 "actualizar esta comprobación (o dejó de ser un literal)."
         }
     }
@@ -252,6 +246,9 @@ abstract class VerifyCoreVersionTask : DefaultTask() {
 }
 
 val coreVersionGuardedSources = files(
+    fileTree(layout.projectDirectory.dir("../native/ds_core")) {
+        include("**/*.cpp", "**/*.h")
+    },
     fileTree(layout.projectDirectory.dir("../native/emulator_bridge")) {
         include("**/*.cpp", "**/*.h")
     },
@@ -280,6 +277,9 @@ listOf(
 }
 
 dependencies {
+    // Lo común con iOS (docs/ios.md): geometría, ROMs, partidas, ajustes y
+    // base de datos. Trae consigo Room y DataStore (`api` en :shared).
+    implementation(project(":shared"))
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.lifecycle.runtime.compose)
@@ -287,11 +287,7 @@ dependencies {
     implementation(libs.androidx.navigation.compose)
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.kotlinx.serialization.json)
-    implementation(libs.androidx.datastore.preferences)
 
-    implementation(libs.androidx.room.runtime)
-    implementation(libs.androidx.room.ktx)
-    ksp(libs.androidx.room.compiler)
     implementation(libs.androidx.exifinterface)
 
     implementation(platform(libs.androidx.compose.bom))
@@ -302,12 +298,17 @@ dependencies {
     implementation(libs.androidx.compose.material.icons.extended)
     debugImplementation(libs.androidx.compose.ui.tooling)
 
-    implementation(libs.hilt.android)
-    implementation(libs.androidx.hilt.navigation.compose)
-    implementation(libs.androidx.hilt.lifecycle.viewmodel.compose)
-    ksp(libs.hilt.compiler)
+    // Inyección de dependencias. Koin y no Hilt porque Hilt sólo existe en
+    // Android y Koin también en iOS (docs/ios.md, iOS-3). El módulo está en
+    // di/AppModule.kt; AppModuleTest comprueba en la JVM que se resuelve
+    // entero, lo que Hilt comprobaba al compilar.
+    implementation(platform(libs.koin.bom))
+    implementation(libs.koin.android)
+    implementation(libs.koin.compose.viewmodel)
 
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)
     testImplementation(libs.turbine)
+    testImplementation(platform(libs.koin.bom))
+    testImplementation(libs.koin.test.junit4)
 }

@@ -1,16 +1,19 @@
 package com.moralesDev.dsForEveryone.di
 
-import android.content.ContentResolver
-import android.content.Context
+import androidx.core.os.ConfigurationCompat
+import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import androidx.room.Room
 import com.moralesDev.dsForEveryone.data.cheats.CheatsManager
 import com.moralesDev.dsForEveryone.data.cover.CoverRepository
+import com.moralesDev.dsForEveryone.data.cover.CoverStore
 import com.moralesDev.dsForEveryone.data.db.DsEmuDatabase
-import com.moralesDev.dsForEveryone.data.db.RomDao
 import com.moralesDev.dsForEveryone.data.rom.ContentResolverDocumentAccess
 import com.moralesDev.dsForEveryone.data.rom.DocumentAccess
+import com.moralesDev.dsForEveryone.data.rom.GameTitles
+import com.moralesDev.dsForEveryone.data.rom.RomLibrary
 import com.moralesDev.dsForEveryone.data.rom.RomRepository
 import com.moralesDev.dsForEveryone.data.save.BatterySaveManager
+import com.moralesDev.dsForEveryone.data.save.BitmapThumbnailEncoder
 import com.moralesDev.dsForEveryone.data.save.SaveArchive
 import com.moralesDev.dsForEveryone.data.save.SaveManager
 import com.moralesDev.dsForEveryone.data.save.SaveStateManager
@@ -19,126 +22,108 @@ import com.moralesDev.dsForEveryone.data.storage.StorageManager
 import com.moralesDev.dsForEveryone.emulator.EmulatorController
 import com.moralesDev.dsForEveryone.emulator.core.DsEmulatorCore
 import com.moralesDev.dsForEveryone.emulator.core.EmulatorCore
+import com.moralesDev.dsForEveryone.emulator.gamepad.AndroidGamepadSource
 import com.moralesDev.dsForEveryone.emulator.gamepad.GamepadInputRouter
+import com.moralesDev.dsForEveryone.emulator.gamepad.GamepadKeyDispatcher
+import com.moralesDev.dsForEveryone.emulator.gamepad.GamepadSource
+import com.moralesDev.dsForEveryone.data.rom.AndroidGameRomOpener
+import com.moralesDev.dsForEveryone.data.rom.GameRomOpener
 import com.moralesDev.dsForEveryone.emulator.gamepad.GamepadManager
-import dagger.Module
-import dagger.Provides
-import dagger.hilt.InstallIn
-import dagger.hilt.android.qualifiers.ApplicationContext
-import dagger.hilt.components.SingletonComponent
+import com.moralesDev.dsForEveryone.ui.MainViewModel
+import com.moralesDev.dsForEveryone.ui.game.GameViewModel
+import com.moralesDev.dsForEveryone.ui.game.gamepad.GamepadMappingViewModel
+import com.moralesDev.dsForEveryone.ui.game.layout.LayoutEditorViewModel
+import com.moralesDev.dsForEveryone.ui.library.RomLibraryViewModel
+import com.moralesDev.dsForEveryone.ui.settings.SettingsViewModel
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
-import javax.inject.Singleton
+import kotlinx.coroutines.flow.first
+import org.koin.android.ext.koin.androidContext
+import org.koin.core.module.dsl.viewModel
+import org.koin.dsl.module
 
-@Module
-@InstallIn(SingletonComponent::class)
-object AppModule {
+/**
+ * Todo lo que se inyecta en la aplicación, en un solo sitio.
+ *
+ * `single` es lo que en Hilt era `@Singleton`: una instancia para toda la
+ * aplicación. `factory` es lo que no lo era (una por petición). Los
+ * ViewModels se declaran con `viewModel` y las pantallas los piden con
+ * `koinViewModel()`: Koin los guarda en el `ViewModelStore` de la entrada de
+ * navegación, igual que hacía `hiltViewModel()`.
+ *
+ * A diferencia de Hilt, Koin resuelve en tiempo de ejecución: una
+ * dependencia sin declarar no rompe la compilación, rompe al abrir la
+ * pantalla. Por eso AppModuleTest verifica el módulo entero en la JVM.
+ */
+val appModule = module {
 
-    @Provides
-    @Singleton
-    @IoDispatcher
-    fun provideIoDispatcher(): CoroutineDispatcher = Dispatchers.IO
+    single<CoroutineDispatcher>(IoDispatcher) { Dispatchers.IO }
 
-    @Provides
-    @Singleton
-    @ApplicationScope
-    fun provideApplicationScope(
-        @IoDispatcher ioDispatcher: CoroutineDispatcher,
-    ): CoroutineScope = CoroutineScope(SupervisorJob() + ioDispatcher)
+    single<CoroutineScope>(ApplicationScope) {
+        CoroutineScope(SupervisorJob() + get<CoroutineDispatcher>(IoDispatcher))
+    }
 
-    @Provides
-    @Singleton
-    fun provideSettingsRepository(@ApplicationContext context: Context): SettingsRepository =
-        SettingsRepository(context)
+    // El almacén de ajustes: uno solo en todo el proceso (`single`), en el
+    // mismo archivo que usaba el `preferencesDataStore` de antes, así que los
+    // ajustes de cada usuario se conservan.
+    single {
+        val context = androidContext()
+        PreferenceDataStoreFactory.create(
+            produceFile = { context.filesDir.resolve("datastore/${SettingsRepository.FILE_NAME}") },
+        )
+    }
 
-    @Provides
-    @Singleton
-    fun provideStorageManager(@ApplicationContext context: Context): StorageManager =
-        StorageManager(context.filesDir)
+    single {
+        val context = androidContext()
+        SettingsRepository(
+            dataStore = get(),
+            systemLanguageTag = { ConfigurationCompat.getLocales(context.resources.configuration)[0]?.language },
+        )
+    }
 
-    @Provides
-    @Singleton
-    fun provideGamepadManager(@ApplicationContext context: Context): GamepadManager =
-        GamepadManager(context)
+    single { StorageManager(androidContext().filesDir) }
 
-    @Provides
-    @Singleton
-    fun provideGamepadInputRouter(
-        settingsRepository: SettingsRepository,
-        @ApplicationScope applicationScope: CoroutineScope,
-    ): GamepadInputRouter = GamepadInputRouter(settingsRepository, applicationScope)
+    single { GamepadManager(androidContext()) }
 
-    @Provides
-    @Singleton
-    fun provideDatabase(@ApplicationContext context: Context): DsEmuDatabase =
-        Room.databaseBuilder(context, DsEmuDatabase::class.java, DsEmuDatabase.NAME).build()
+    single { GamepadKeyDispatcher(get(), get(ApplicationScope)) }
 
-    @Provides
-    fun provideRomDao(database: DsEmuDatabase): RomDao = database.romDao()
+    single { GamepadInputRouter(get()) }
 
-    @Provides
-    fun provideContentResolver(@ApplicationContext context: Context): ContentResolver =
-        context.contentResolver
+    single<GamepadSource> { AndroidGamepadSource(get(), get()) }
 
-    @Provides
-    @Singleton
-    fun provideDocumentAccess(contentResolver: ContentResolver): DocumentAccess =
-        ContentResolverDocumentAccess(contentResolver)
+    single {
+        Room.databaseBuilder(androidContext(), DsEmuDatabase::class.java, DsEmuDatabase.NAME).build()
+    }
 
-    @Provides
-    @Singleton
-    fun provideRomRepository(
-        documentAccess: DocumentAccess,
-        romDao: RomDao,
-        storageManager: StorageManager,
-        @IoDispatcher ioDispatcher: CoroutineDispatcher,
-    ): RomRepository = RomRepository(documentAccess, romDao, storageManager, ioDispatcher)
+    factory { get<DsEmuDatabase>().romDao() }
 
-    @Provides
-    @Singleton
-    fun provideCoverRepository(
-        contentResolver: ContentResolver,
-        storageManager: StorageManager,
-        @IoDispatcher ioDispatcher: CoroutineDispatcher,
-    ): CoverRepository = CoverRepository(contentResolver, storageManager, ioDispatcher)
+    factory { androidContext().contentResolver }
 
-    @Provides
-    @Singleton
-    fun provideBatterySaveManager(
-        storageManager: StorageManager,
-        @IoDispatcher ioDispatcher: CoroutineDispatcher,
-    ): BatterySaveManager = BatterySaveManager(storageManager, ioDispatcher)
+    single<DocumentAccess> { ContentResolverDocumentAccess(get()) }
 
-    @Provides
-    @Singleton
-    fun provideCheatsManager(
-        storageManager: StorageManager,
-        @IoDispatcher ioDispatcher: CoroutineDispatcher,
-    ): CheatsManager = CheatsManager(storageManager, ioDispatcher)
+    single { RomRepository(get(), get(), get(), get(IoDispatcher)) }
 
-    @Provides
-    @Singleton
-    fun provideSaveStateManager(
-        storageManager: StorageManager,
-        @IoDispatcher ioDispatcher: CoroutineDispatcher,
-    ): SaveStateManager = SaveStateManager(storageManager, ioDispatcher)
+    // La misma instancia, vista como la biblioteca común (data/rom/RomLibrary).
+    single<RomLibrary> { get<RomRepository>() }
 
-    @Provides
-    @Singleton
-    fun provideSaveManager(
-        batterySaveManager: BatterySaveManager,
-        saveStateManager: SaveStateManager,
-        storageManager: StorageManager,
-    ): SaveManager = SaveManager(batterySaveManager, saveStateManager, storageManager)
+    single<GameRomOpener> { AndroidGameRomOpener(get()) }
 
-    @Provides
-    @Singleton
-    fun provideSaveArchive(
-        storageManager: StorageManager,
-        @IoDispatcher ioDispatcher: CoroutineDispatcher,
-    ): SaveArchive = SaveArchive(storageManager, ioDispatcher)
+    single { CoverRepository(get(), get(), get(IoDispatcher)) }
+
+    // La misma instancia, vista como las portadas comunes (data/cover/CoverStore).
+    single<CoverStore> { get<CoverRepository>() }
+
+    single { BatterySaveManager(get(), get(IoDispatcher)) }
+
+    single { CheatsManager(get(), get(IoDispatcher)) }
+
+    single { SaveStateManager(get(), get(IoDispatcher), BitmapThumbnailEncoder) }
+
+    single { SaveManager(get(), get(), get()) }
+
+    single { SaveArchive(get(), get(IoDispatcher)) }
 
     /**
      * Único punto donde se decide qué core usa la aplicación.
@@ -146,16 +131,40 @@ object AppModule {
      * `StubEmulatorCore` sigue en el proyecto tras llegar el core nativo: es
      * el doble con el que se prueba sin NDK.
      */
-    @Provides
-    @Singleton
-    fun provideEmulatorCore(): EmulatorCore = DsEmulatorCore()
+    single<EmulatorCore> { DsEmulatorCore() }
 
     /**
      * El controlador es único en la aplicación: la sesión de juego debe
      * sobrevivir a rotaciones y a que la pantalla se recomponga, y sólo puede
      * haber un hilo de emulación vivo.
      */
-    @Provides
-    @Singleton
-    fun provideEmulatorController(core: EmulatorCore): EmulatorController = EmulatorController(core)
+    single { EmulatorController(get()) }
+
+    viewModel { MainViewModel(get()) }
+    // Lo único que Ajustes necesita de la biblioteca: los títulos.
+    single {
+        val roms = get<RomRepository>()
+        GameTitles { roms.observeLibrary().first().associate { it.id to it.displayName } }
+    }
+
+    viewModel { SettingsViewModel(get(), get(), get()) }
+    viewModel { RomLibraryViewModel(get(), get(), get(), get()) }
+    viewModel { LayoutEditorViewModel(get()) }
+    viewModel { GamepadMappingViewModel(get(), get()) }
+
+    // El último `get()` es el SavedStateHandle de la entrada de navegación:
+    // Koin lo saca de la misma entrada que guarda el ViewModel, como Hilt.
+    viewModel {
+        GameViewModel(
+            controller = get(),
+            settingsRepository = get(),
+            romLibrary = get(),
+            romOpener = get(),
+            saveManager = get(),
+            cheatsManager = get(),
+            gamepads = get(),
+            applicationScope = get(ApplicationScope),
+            savedStateHandle = get(),
+        )
+    }
 }

@@ -12,6 +12,9 @@ import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TemporaryFolder
+import com.moralesDev.dsForEveryone.data.storage.batteryFile
+import com.moralesDev.dsForEveryone.data.storage.stateFile
+import com.moralesDev.dsForEveryone.data.storage.statesDirectory
 
 /**
  * El sistema de ranuras sobre disco de verdad.

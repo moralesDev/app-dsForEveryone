@@ -271,6 +271,10 @@ la sustituye en vertical:
   queda libre abajo, sin llevar Start y Select al filo. Si no caben entre el
   techo y el borde, todo encoge por igual. El editor tampoco deja arrastrar un mando
   por encima de ese techo.
+- **L y R entre las dos pantallas**, cada uno en su borde y en fila con la
+  barra de velocidad (`shouldersBetween`): ahí no tapan nada. Si el hueco
+  es más bajo que ellos, se quedan arriba del racimo. El editor deja
+  arrastrar mandos a ese hueco, no al resto de lo que queda sobre el techo.
 - La dirección y el rombo se separan **3 mm** de su borde hacia el centro.
 - Select y Start no van en el bloque: van **0,5 cm por debajo de la
   pantalla inferior** (`ControlLayout.lowerScreenBottom`), centrados. Si ahí
@@ -289,8 +293,8 @@ la sustituye en vertical:
   juego se ve a través. Los tamaños son pequeños a propósito salvo la
   dirección: el rombo un 20 % menor que ella y con sus cuatro botones sin
   tocarse; L y R finos (la mitad de alto y un 25 % menos de largo que en la
-  banda horizontal); soplar, la mitad del mínimo táctil; Start y Select, la
-  mitad que antes.
+  banda horizontal); soplar, del mismo tamaño que «>», con el que hace pareja
+  a la misma altura; Start y Select, la mitad que antes.
 - La táctil sigue **debajo**: todo lo que no cae en un mando le llega al
   juego. Los botones redondos recortan su forma, así que las esquinas de su
   caja no roban toques.
@@ -304,6 +308,34 @@ la sustituye en vertical:
   que lo piden de golpe en mitad de una escena. Del todo apartados, los mandos
   dejan de componerse, así que no queda ningún botón pegado. Sólo existe en
   vertical: en horizontal los mandos no tapan la táctil.
+
+### En horizontal, un racimo en cada esquina
+
+El mismo `overlayProfile`, con dos cambios que pidió el iPad tumbado, donde
+las manos lo sujetan por los lados:
+
+- **Cada racimo abajo en su esquina** (`anchorBottom`): la dirección y el
+  rombo no cuelgan del techo, se apoyan en el borde de abajo. Antes iban
+  todos en una franja bajo la pantalla izquierda y los de la derecha
+  quedaban incómodos.
+- **Las pantallas arriba** (`ScreenLayout.resolve(alignTop = true)`), no
+  centradas, dejando encima sólo el sitio del botón de menú (`topReserve`),
+  para que no tape la pantalla derecha: todo el alto que sobra queda abajo,
+  para los mandos. Si no sobra alto —un teléfono—, no se reserva nada. Y L y R
+  van en su racimo, encima de la dirección y del rombo: probadas encima de
+  las pantallas quedaban demasiado arriba.
+- **Medio centímetro entre las pantallas** con la separación por defecto
+  (`landscapeGapScale`): el 5 % del ancho de un iPad era más de 1 cm que se
+  les quitaba a las pantallas. El ajuste sigue mandando en proporción.
+- **Soplar debajo de las pantallas** (`blowBelow`), en el borde izquierdo:
+  en el racimo tapaba la pantalla izquierda. Si ahí pisa la dirección, se
+  corre a su derecha; si no cabe —un teléfono, donde las pantallas ocupan
+  todo el alto—, se queda en el racimo.
+- La **velocidad** (1x, 1,5x, 2x), centrada bajo las dos pantallas, en fila
+  con soplar (`ControlLayout.speedBarCenterY`), si cabe.
+- La dirección y el rombo se separan **13 mm** del borde
+  (`CONTROLS_INWARD_SHIFT_LANDSCAPE_MM`): con 3 mm quedaban pegados al
+  borde y con 23 mm, demasiado lejos del pulgar.
 
 El perfil vertical guardado cambió de clave (`portrait_controls_overlay`): uno
 hecho con la regla anterior de no tocar la táctil no se trae, se cae al perfil
@@ -332,6 +364,10 @@ genérico (`SOURCE_GAMEPAD` / `SOURCE_JOYSTICK`) que entrega `KeyEvent` y
 `MotionEvent` normales. No hace falta declarar `BLUETOOTH` ni ningún permiso
 nuevo — la regla de cero permisos del proyecto sigue intacta, y el soporte USB
 que ya se dejó anotado como pendiente sale del mismo código.
+
+En iOS los mandos llegan por GameController (`IosGamepadSource`), traducidos
+a los mismos códigos de tecla de Android; el mapeo, la captura y la pantalla
+son comunes (`GamepadKeyDispatcher`). Ver [`ios.md`](ios.md), iOS-4.
 
 ### Detección
 

@@ -18,6 +18,7 @@ import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TemporaryFolder
+import com.moralesDev.dsForEveryone.data.storage.cheatsFile
 
 /**
  * [CheatsCoordinator] se prueba aparte de [GameViewModel] porque éste no se

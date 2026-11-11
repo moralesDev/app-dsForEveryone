@@ -1,8 +1,7 @@
 package com.moralesDev.dsForEveryone.emulator.core
 
 import android.os.ParcelFileDescriptor
-import android.view.Surface
-import java.nio.ByteBuffer
+import com.moralesDev.dsForEveryone.emulator.FrameBuffer
 
 /**
  * Core de emulación real, sobre melonDS.
@@ -10,13 +9,13 @@ import java.nio.ByteBuffer
  * Traduce el contrato de [EmulatorCore] a las llamadas del puente JNI y no
  * hace nada más: la emulación entera ocurre en C++. Igual que el resto del
  * proyecto, asume que todas las operaciones llegan desde el hilo de
- * emulación salvo [attachSurface].
+ * emulación.
  *
  * El manejador nativo se crea una sola vez y vive lo que viva el proceso, con
  * el mismo motivo que en `app-emulador`: la superficie puede engancharse
  * antes de que haya ninguna ROM cargada.
  */
-class DsEmulatorCore : EmulatorCore {
+class DsEmulatorCore : DescriptorLoadingCore {
 
     private val handle: Long by lazy {
         if (NativeBridge.isAvailable) NativeBridge.nativeCreate() else 0L
@@ -111,11 +110,6 @@ class DsEmulatorCore : EmulatorCore {
         return code.removePrefix("L").toIntOrNull()?.let(CheatRejection::InvalidLine)
     }
 
-    override fun attachSurface(surface: Surface?) {
-        // melonDS no dibuja en esta superficie: el vídeo de la DS sale por
-        // captureFrame (ver la documentación de EmulatorCore.attachSurface).
-    }
-
     override fun stateSize(): Int =
         if (isUsable) NativeBridge.nativeStateSize(handle) else 0
 
@@ -134,8 +128,8 @@ class DsEmulatorCore : EmulatorCore {
     override fun captureFrame(): IntArray? =
         if (isUsable) NativeBridge.nativeCaptureFrame(handle) else null
 
-    override fun captureFrameInto(buffer: ByteBuffer): Boolean =
-        isUsable && NativeBridge.nativeCaptureFrameInto(handle, buffer)
+    override fun captureFrameInto(buffer: FrameBuffer): Boolean =
+        isUsable && NativeBridge.nativeCaptureFrameInto(handle, buffer.byteBuffer)
 
     private companion object {
         const val LOAD_OK = 0

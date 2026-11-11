@@ -1,0 +1,165 @@
+package com.moralesDev.dsForEveryone.di
+
+import androidx.datastore.preferences.core.PreferenceDataStoreFactory
+import androidx.room.Room
+import androidx.sqlite.driver.bundled.BundledSQLiteDriver
+import com.moralesDev.dsForEveryone.data.db.DsEmuDatabase
+import com.moralesDev.dsForEveryone.data.cover.CoverStore
+import com.moralesDev.dsForEveryone.data.cover.IosCoverStore
+import com.moralesDev.dsForEveryone.data.rom.GameTitles
+import com.moralesDev.dsForEveryone.data.rom.IosRomLibrary
+import com.moralesDev.dsForEveryone.data.rom.RomLibrary
+import com.moralesDev.dsForEveryone.data.save.BatterySaveManager
+import com.moralesDev.dsForEveryone.data.save.SaveManager
+import com.moralesDev.dsForEveryone.data.save.SaveStateManager
+import com.moralesDev.dsForEveryone.data.save.SkiaThumbnailEncoder
+import com.moralesDev.dsForEveryone.ui.library.RomLibraryViewModel
+import com.moralesDev.dsForEveryone.data.save.SaveArchive
+import com.moralesDev.dsForEveryone.data.settings.SettingsRepository
+import com.moralesDev.dsForEveryone.data.storage.StorageManager
+import com.moralesDev.dsForEveryone.ui.MainViewModel
+import com.moralesDev.dsForEveryone.ui.game.layout.LayoutEditorViewModel
+import com.moralesDev.dsForEveryone.ui.settings.SettingsViewModel
+import kotlinx.cinterop.ExperimentalForeignApi
+import com.moralesDev.dsForEveryone.data.cheats.CheatsManager
+import com.moralesDev.dsForEveryone.data.rom.GameRomOpener
+import com.moralesDev.dsForEveryone.data.rom.IosGameRomOpener
+import com.moralesDev.dsForEveryone.emulator.EmulatorController
+import com.moralesDev.dsForEveryone.emulator.core.EmulatorCore
+import com.moralesDev.dsForEveryone.emulator.core.IosEmulatorCore
+import com.moralesDev.dsForEveryone.emulator.gamepad.GamepadSource
+import com.moralesDev.dsForEveryone.ui.game.gamepad.GamepadMappingViewModel
+import com.moralesDev.dsForEveryone.emulator.gamepad.GamepadKeyDispatcher
+import com.moralesDev.dsForEveryone.emulator.gamepad.IosGamepadSource
+import com.moralesDev.dsForEveryone.ui.game.GameViewModel
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.IO
+import kotlinx.coroutines.flow.first
+import okio.FileSystem
+import okio.Path
+import okio.Path.Companion.toPath
+import org.koin.core.context.startKoin
+import org.koin.core.module.dsl.viewModel
+import org.koin.dsl.module
+import platform.Foundation.NSApplicationSupportDirectory
+import platform.Foundation.NSFileManager
+import platform.Foundation.NSLocale
+import platform.Foundation.NSUserDomainMask
+import platform.Foundation.languageCode
+import platform.Foundation.preferredLanguages
+
+/**
+ * Lo que se inyecta en iOS: el equivalente de `AppModule` de Android, sólo
+ * con lo que usan las pantallas comunes (docs/ios.md). Faltan los mandos
+ * físicos y su pantalla de mapeo.
+ *
+ * Todo vive en `Application Support/files/`, que es la carpeta privada de la
+ * app que el sistema incluye en las copias de seguridad, y la misma
+ * disposición que `filesDir` en Android (ver StorageManager).
+ */
+private val iosModule = module {
+
+    single<CoroutineDispatcher>(IoDispatcher) { Dispatchers.IO }
+
+    // Lo que tiene que terminar aunque se cierre la pantalla que lo pidió:
+    // volcar la partida al salir del juego (ver GameViewModel.onCleared).
+    single<CoroutineScope>(ApplicationScope) { CoroutineScope(SupervisorJob() + Dispatchers.Default) }
+
+    single { filesDirectory() }
+
+    single { StorageManager(get<Path>()) }
+
+    single {
+        PreferenceDataStoreFactory.createWithPath(
+            produceFile = { get<Path>() / "datastore" / SettingsRepository.FILE_NAME },
+        )
+    }
+
+    single {
+        SettingsRepository(
+            dataStore = get(),
+            // El idioma del sistema, sin lo que la app haya fijado en
+            // AppleLanguages (ver ProvideAppLanguage.ios.kt): para eso está
+            // la lista de preferencias, no la primera de la app.
+            systemLanguageTag = { (NSLocale.preferredLanguages.firstOrNull() as? String)?.substringBefore('-') },
+        )
+    }
+
+    single {
+        Room.databaseBuilder<DsEmuDatabase>(name = (get<Path>() / DsEmuDatabase.NAME).toString())
+            .setDriver(BundledSQLiteDriver())
+            .setQueryCoroutineContext(Dispatchers.IO)
+            .build()
+    }
+
+    single { SaveArchive(get(), get(IoDispatcher)) }
+
+    single { BatterySaveManager(get(), get(IoDispatcher)) }
+    // Sin miniaturas en las ranuras hasta que llegue el juego a iOS.
+    single { SaveStateManager(get(), get(IoDispatcher), SkiaThumbnailEncoder) }
+    single { SaveManager(get(), get(), get()) }
+
+    single { CheatsManager(get(), get(IoDispatcher)) }
+
+    single { IosRomLibrary(get<DsEmuDatabase>().romDao(), get(), get(IoDispatcher)) }
+    single<RomLibrary> { get<IosRomLibrary>() }
+    single<CoverStore> { IosCoverStore(get(), get(IoDispatcher)) }
+    single<GameRomOpener> { IosGameRomOpener(get()) }
+
+    // melonDS por cinterop (native/ds_core), con su salida de audio. Igual
+    // que en Android, el controlador es único: un solo hilo de emulación.
+    single<EmulatorCore> { IosEmulatorCore() }
+    single { EmulatorController(get()) }
+
+    // Mandos físicos con GameController; el mapeo y la captura, comunes.
+    single { GamepadKeyDispatcher(get(), get(ApplicationScope)) }
+    single<GamepadSource> { IosGamepadSource(get()) }
+
+    // Ajustes sólo necesita los títulos para el manifiesto de una copia:
+    // salen de la base de datos, sin pasar por el repositorio de ROMs.
+    single {
+        val database = get<DsEmuDatabase>()
+        GameTitles { database.romDao().observeAll().first().associate { it.id to it.displayName } }
+    }
+
+    viewModel { MainViewModel(get()) }
+    viewModel { SettingsViewModel(get(), get(), get()) }
+    viewModel { LayoutEditorViewModel(get()) }
+    viewModel { GamepadMappingViewModel(get(), get()) }
+    viewModel { RomLibraryViewModel(get(), get(), get(), get()) }
+    viewModel {
+        GameViewModel(
+            controller = get(),
+            settingsRepository = get(),
+            romLibrary = get(),
+            romOpener = get(),
+            saveManager = get(),
+            cheatsManager = get(),
+            gamepads = get(),
+            applicationScope = get(ApplicationScope),
+            savedStateHandle = get(),
+        )
+    }
+}
+
+/** `Application Support/files/`, creada si no existe. */
+@OptIn(ExperimentalForeignApi::class)
+private fun filesDirectory(): Path {
+    val url = NSFileManager.defaultManager.URLsForDirectory(NSApplicationSupportDirectory, NSUserDomainMask)
+        .first() as platform.Foundation.NSURL
+    val root = url.path!!.toPath() / "files"
+    FileSystem.SYSTEM.createDirectories(root)
+    return root
+}
+
+private var started = false
+
+/** Arranca Koin una sola vez. Lo llama MainViewController. */
+fun startKoinIos() {
+    if (started) return
+    started = true
+    startKoin { modules(iosModule) }
+}

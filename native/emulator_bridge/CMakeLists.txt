@@ -1,8 +1,9 @@
 # Puente nativo entre la aplicación Android y el core de emulación.
 #
-# El código propio vive aquí; melonDS vive intacto en third_party/melonDS y se
-# consume como subdirectorio, sin mezclar fuentes de terceros con las
-# nuestras.
+# Aquí sólo queda lo propio de Android (JNI y AAudio). Lo que toca a melonDS
+# está en ../ds_core, compartido con iOS; melonDS vive intacto en
+# third_party/melonDS y se consume como subdirectorio, sin mezclar fuentes
+# de terceros con las nuestras.
 #
 # melonDS 1.1 — GNU General Public License v3.0. Ver docs/integracion-core.md.
 
@@ -38,32 +39,32 @@ project(ds_emulator_bridge CXX)
 #   aplicación no declara ningún permiso de red.
 # ---------------------------------------------------------------------------
 
+# ---------------------------------------------------------------------------
+# ds_core: melonDS más todo lo que no es de Android, compartido con iOS
+# (ver ../ds_core/CMakeLists.txt y docs/ios.md, fase iOS-1). Trae consigo el
+# subdirectorio de melonDS y su biblioteca `core`.
+# ---------------------------------------------------------------------------
 add_subdirectory(
-    ${CMAKE_CURRENT_SOURCE_DIR}/../../third_party/melonDS
-    ${CMAKE_CURRENT_BINARY_DIR}/melonDS
+    ${CMAKE_CURRENT_SOURCE_DIR}/../ds_core
+    ${CMAKE_CURRENT_BINARY_DIR}/ds_core
 )
 
 # ---------------------------------------------------------------------------
-# Puente propio
+# Puente propio de Android
 #
-# Enlaza `core` en una biblioteca dinámica de verdad, así que a partir de este
-# entregable (4.2) AGP vuelve a encontrar sola qué construir: la línea
-# `externalNativeBuild.cmake.targets("core")` de app/build.gradle.kts, que
-# hacía falta cuando `core` era la única biblioteca (estática) del proyecto,
-# ya no es necesaria y se retira.
+# Sólo JNI (ds_bridge.cpp) y AAudio (audio_aaudio.cpp) sobre ds_core, en
+# una biblioteca dinámica de verdad: AGP encuentra sola qué construir (ver
+# docs/integracion-core.md, sección 6).
 # ---------------------------------------------------------------------------
 add_library(dsemu SHARED
     ds_bridge.cpp
+    audio_aaudio.cpp
 )
 
 target_compile_features(dsemu PRIVATE cxx_std_17)
 
-target_include_directories(dsemu PRIVATE
-    ${CMAKE_CURRENT_SOURCE_DIR}/../../third_party/melonDS/src
-)
-
 target_link_libraries(dsemu
-    core
+    ds_core
     aaudio
     android
     log
