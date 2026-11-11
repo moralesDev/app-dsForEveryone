@@ -1,9 +1,11 @@
 # iOS y iPadOS
 
 Plan para llevar DsForEveryone a iPhone y iPad desde este mismo repositorio.
-Estado: **iOS-4 en curso.** En el iPad se juega: biblioteca, ajustes, copias
-de partidas y la pantalla de juego con el core, el sonido, los mandos en
-pantalla, las ranuras y los mandos físicos (GameController). El detalle de cada fase, más abajo.
+Estado: **iOS-0 a iOS-5 hechos y probados en un iPad Air M2.** La app entera:
+biblioteca, ajustes, copias de partidas y la pantalla de juego con el core,
+el sonido, los mandos en pantalla, las ranuras, mandos físicos y teclado
+(GameController), Pencil y Split View. Sin publicar: ver «Licencia y
+distribución». El detalle de cada fase, más abajo.
 
 ## La decisión: Kotlin Multiplatform, en este repositorio
 
@@ -567,10 +569,10 @@ táctil, mandos en pantalla y partidas que se guardan y se cargan.
 
 - Pencil, ventanas de tamaño variable, teclado y mandos físicos.
   - ✅ Mandos físicos: iOS-4, paso 4.
-  - Teclado físico con `GCKeyboard`: hecho, falta probarlo en el iPad.
-  - Pencil y Split View no piden código: el Pencil es un puntero más y
-    `Info.plist` admite las cuatro orientaciones sin `UIRequiresFullScreen`.
-    Falta probarlos en el iPad.
+  - ✅ Teclado físico con `GCKeyboard`, probado en el iPad.
+  - ✅ Pencil y Split View, probados en el iPad. No pidieron código: el
+    Pencil es un puntero más y `Info.plist` admite las cuatro orientaciones
+    sin `UIRequiresFullScreen`.
 - Cambios de tamaño en caliente sin cortar la emulación.
 - La decisión sobre distribución (ver arriba), documentada.
 
