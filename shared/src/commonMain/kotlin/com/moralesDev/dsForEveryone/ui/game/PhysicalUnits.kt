@@ -26,6 +26,13 @@ expect fun rememberPxPerMm(): PxPerMm
 /** Cuánto se acercan al centro la dirección y el rombo en vertical. */
 const val CONTROLS_INWARD_SHIFT_MM = 3f
 
+/**
+ * Lo mismo en horizontal: 1 cm más que en vertical. Con un iPad tumbado las
+ * manos lo sujetan por los lados y el pulgar llega cómodo bastante hacia
+ * dentro; pegados al borde quedaban incómodos, y con 2 cm, demasiado lejos.
+ */
+const val CONTROLS_INWARD_SHIFT_LANDSCAPE_MM = 13f
+
 /** A cuánto por debajo del centro empieza el techo de los mandos en vertical. */
 const val CONTROLS_CEILING_BELOW_CENTER_MM = 5f
 

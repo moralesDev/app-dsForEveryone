@@ -132,7 +132,7 @@ fun BlowButton(
             imageVector = Icons.Filled.Air,
             tint = iconTint,
             opacity = opacity,
-            modifier = Modifier.fillMaxSize(0.6f),
+            modifier = Modifier.fillMaxSize(0.8f),
         )
     }
 }

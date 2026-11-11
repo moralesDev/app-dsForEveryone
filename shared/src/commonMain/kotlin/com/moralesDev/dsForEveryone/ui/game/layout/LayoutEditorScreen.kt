@@ -60,6 +60,7 @@ import com.moralesDev.dsForEveryone.emulator.layout.ScreenPlacement
 import com.moralesDev.dsForEveryone.emulator.layout.inset
 import com.moralesDev.dsForEveryone.ui.components.GlassIconButton
 import com.moralesDev.dsForEveryone.ui.game.CONTROLS_CEILING_BELOW_CENTER_MM
+import com.moralesDev.dsForEveryone.ui.game.CONTROLS_INWARD_SHIFT_LANDSCAPE_MM
 import com.moralesDev.dsForEveryone.ui.game.CONTROLS_INWARD_SHIFT_MM
 import com.moralesDev.dsForEveryone.ui.game.LayoutModeChips
 import com.moralesDev.dsForEveryone.ui.game.SYSTEM_BUTTONS_BELOW_SCREEN_MM
@@ -172,7 +173,7 @@ fun LayoutEditorScreen(onBack: () -> Unit) {
     // distinto que el juego.
     val pxPerMm = rememberPxPerMm()
     val ceilingBelowCenterPx = CONTROLS_CEILING_BELOW_CENTER_MM * pxPerMm.y
-    val inwardShiftPx = CONTROLS_INWARD_SHIFT_MM * pxPerMm.x
+    val inwardShiftPx = (if (isPortrait) CONTROLS_INWARD_SHIFT_MM else CONTROLS_INWARD_SHIFT_LANDSCAPE_MM) * pxPerMm.x
     val systemBelowScreenPx = SYSTEM_BUTTONS_BELOW_SCREEN_MM * pxPerMm.y
     val controlProfile = remember(
         placement,
@@ -191,10 +192,18 @@ fun LayoutEditorScreen(onBack: () -> Unit) {
             touchScreen = current.touchScreen,
             minTouchTarget = minTouchTargetPx,
             opacity = ControlLayout.DEFAULT_OPACITY,
-            overlay = isPortrait,
-            ceiling = ControlLayout.overlayCeiling(current, usableArea, belowCenter = ceilingBelowCenterPx),
+            // Lo mismo que GameScreen: en horizontal, a las esquinas de abajo.
+            overlay = true,
+            ceiling = if (isPortrait) {
+                ControlLayout.overlayCeiling(current, usableArea, belowCenter = ceilingBelowCenterPx)
+            } else {
+                usableArea.top
+            },
             inwardShift = inwardShiftPx,
-            systemTop = ControlLayout.lowerScreenBottom(current)?.plus(systemBelowScreenPx),
+            systemTop = if (isPortrait) ControlLayout.lowerScreenBottom(current)?.plus(systemBelowScreenPx) else null,
+            anchorBottom = !isPortrait,
+            // L y R, arriba: por encima de las pantallas, como en la consola.
+            shouldersAbove = if (isPortrait) null else minOf(current.topScreen.top, current.touchScreen.top),
         )
     }
 

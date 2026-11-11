@@ -289,8 +289,8 @@ la sustituye en vertical:
   juego se ve a través. Los tamaños son pequeños a propósito salvo la
   dirección: el rombo un 20 % menor que ella y con sus cuatro botones sin
   tocarse; L y R finos (la mitad de alto y un 25 % menos de largo que en la
-  banda horizontal); soplar, la mitad del mínimo táctil; Start y Select, la
-  mitad que antes.
+  banda horizontal); soplar, del mismo tamaño que «>», con el que hace pareja
+  a la misma altura; Start y Select, la mitad que antes.
 - La táctil sigue **debajo**: todo lo que no cae en un mando le llega al
   juego. Los botones redondos recortan su forma, así que las esquinas de su
   caja no roban toques.
@@ -304,6 +304,21 @@ la sustituye en vertical:
   que lo piden de golpe en mitad de una escena. Del todo apartados, los mandos
   dejan de componerse, así que no queda ningún botón pegado. Sólo existe en
   vertical: en horizontal los mandos no tapan la táctil.
+
+### En horizontal, un racimo en cada esquina
+
+El mismo `overlayProfile`, con dos cambios que pidió el iPad tumbado, donde
+las manos lo sujetan por los lados:
+
+- **Cada racimo abajo en su esquina** (`anchorBottom`): la dirección y el
+  rombo no cuelgan del techo, se apoyan en el borde de abajo. Antes iban
+  todos en una franja bajo la pantalla izquierda y los de la derecha
+  quedaban incómodos.
+- **L y R encima de las pantallas** (`shouldersAbove`), donde estarían en la
+  consola. Si ahí no caben sin salirse o pisar algo, se quedan en el racimo.
+- La dirección y el rombo se separan **13 mm** del borde
+  (`CONTROLS_INWARD_SHIFT_LANDSCAPE_MM`): con 3 mm quedaban pegados al
+  borde y con 23 mm, demasiado lejos del pulgar.
 
 El perfil vertical guardado cambió de clave (`portrait_controls_overlay`): uno
 hecho con la regla anterior de no tocar la táctil no se trae, se cae al perfil

@@ -220,11 +220,12 @@ fun GameScreen(onExit: () -> Unit) {
     }
 
     val activeControlLayout = if (isPortrait) settings.portraitControlLayout else settings.landscapeControlLayout
-    // En vertical los mandos van encima de la pantalla inferior (ver
-    // ControlLayout.overlayProfile); en horizontal, en una banda aparte.
+    // Los mandos van encima de las pantallas (ver
+    // ControlLayout.overlayProfile): en vertical, sobre la inferior; en
+    // horizontal, en las esquinas de abajo.
     val pxPerMm = rememberPxPerMm()
     val ceilingBelowCenterPx = CONTROLS_CEILING_BELOW_CENTER_MM * pxPerMm.y
-    val inwardShiftPx = CONTROLS_INWARD_SHIFT_MM * pxPerMm.x
+    val inwardShiftPx = (if (isPortrait) CONTROLS_INWARD_SHIFT_MM else CONTROLS_INWARD_SHIFT_LANDSCAPE_MM) * pxPerMm.x
     val systemBelowScreenPx = SYSTEM_BUTTONS_BELOW_SCREEN_MM * pxPerMm.y
     val controlProfile = remember(
         placement,
@@ -243,12 +244,20 @@ fun GameScreen(onExit: () -> Unit) {
             touchScreen = current.touchScreen,
             minTouchTarget = minTouchTargetPx,
             opacity = ControlLayout.DEFAULT_OPACITY,
-            overlay = isPortrait,
-            // Nunca por encima de la pantalla de arriba: los mandos van
-            // encima de la inferior, no de las dos.
-            ceiling = ControlLayout.overlayCeiling(current, usableArea, belowCenter = ceilingBelowCenterPx),
+            overlay = true,
+            // En vertical, nunca por encima de la pantalla de arriba: los
+            // mandos van encima de la inferior, no de las dos. En horizontal
+            // (un iPad tumbado), cada racimo a su esquina de abajo.
+            ceiling = if (isPortrait) {
+                ControlLayout.overlayCeiling(current, usableArea, belowCenter = ceilingBelowCenterPx)
+            } else {
+                usableArea.top
+            },
             inwardShift = inwardShiftPx,
-            systemTop = ControlLayout.lowerScreenBottom(current)?.plus(systemBelowScreenPx),
+            systemTop = if (isPortrait) ControlLayout.lowerScreenBottom(current)?.plus(systemBelowScreenPx) else null,
+            anchorBottom = !isPortrait,
+            // L y R, arriba: por encima de las pantallas, como en la consola.
+            shouldersAbove = if (isPortrait) null else minOf(current.topScreen.top, current.touchScreen.top),
         )
     }
 

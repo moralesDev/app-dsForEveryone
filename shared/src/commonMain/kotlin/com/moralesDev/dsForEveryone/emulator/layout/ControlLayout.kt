@@ -135,19 +135,20 @@ object ControlLayout {
      * - La dirección conserva el tamaño grande: es la que más precisión pide.
      * - El rombo, un 20 % menor que la dirección.
      * - L y R, la mitad de alto y un 25 % menos de largo que en la banda.
-     * - Soplar, la mitad del mínimo táctil.
+     * - Soplar, del mismo tamaño que el botón de apartar los mandos, con el
+     *   que hace pareja a la misma altura al otro lado.
      * - Start y Select, pastillas con el nombre debajo, la mitad que antes.
      */
     private const val OVERLAY_DIRECTIONAL_SCALE = PRIMARY_SCALE
     private const val OVERLAY_ACTION_SCALE = PRIMARY_SCALE * 0.8f
     private const val OVERLAY_SHOULDER_WIDTH_SCALE = SHOULDER_WIDTH_SCALE * 0.75f
     private const val OVERLAY_SHOULDER_HEIGHT_SCALE = SHOULDER_HEIGHT_SCALE * 0.5f
-    private const val OVERLAY_BLOW_SCALE = SECONDARY_SCALE * 0.5f
     private const val OVERLAY_SYSTEM_WIDTH_SCALE = 0.9f
     private const val OVERLAY_SYSTEM_HEIGHT_SCALE = 0.6f
 
-    /** El botón de apartar los mandos, algo mayor que soplar con el que comparte fila. */
+    /** El botón de apartar los mandos, y soplar, que es de su mismo tamaño. */
     private const val HIDE_TOGGLE_SCALE = 0.6f
+    private const val OVERLAY_BLOW_SCALE = HIDE_TOGGLE_SCALE
 
     /** Alto de la fila de soplar y del botón de apartar: el mayor de los dos. */
     private const val OVERLAY_MIDDLE_ROW_SCALE = HIDE_TOGGLE_SCALE
@@ -176,10 +177,12 @@ object ControlLayout {
         ceiling: Float = area.top,
         inwardShift: Float = 0f,
         systemTop: Float? = null,
+        anchorBottom: Boolean = false,
+        shouldersAbove: Float? = null,
     ): ControlLayoutProfile {
         val fromCustom = custom?.let { fromFractions(it, area) }
         return fromCustom ?: if (overlay) {
-            overlayProfile(area, minTouchTarget, opacity, ceiling, inwardShift, systemTop)
+            overlayProfile(area, minTouchTarget, opacity, ceiling, inwardShift, systemTop, anchorBottom, shouldersAbove)
         } else {
             defaultProfile(area, touchScreen, minTouchTarget, opacity)
         }
@@ -423,6 +426,15 @@ object ControlLayout {
      *   quedan debajo, bajan hasta librarlos— ni se salen por abajo: si
      *   debajo de la pantalla no caben, van lo más abajo posible. Sólo si ni
      *   eso cabe se quedan donde iban en el bloque.
+     * @param anchorBottom el bloque se queda pegado al borde de abajo en vez
+     *   de subir hasta [ceiling]. Es el perfil en horizontal (un iPad
+     *   tumbado): las pantallas van lado a lado y ocupan el ancho entero, así
+     *   que cada racimo va a su esquina de abajo, donde están los pulgares, y
+     *   Select y Start abajo en el centro.
+     * @param shouldersAbove si no es `null`, L y R suben justo por encima de
+     *   esa altura —el borde de arriba de las pantallas, en horizontal—, cada
+     *   uno en su esquina: arriba, como en la consola. Si ahí no caben, se
+     *   quedan en el bloque.
      */
     fun overlayProfile(
         area: LayoutRect,
@@ -431,6 +443,8 @@ object ControlLayout {
         ceiling: Float = area.top,
         inwardShift: Float = 0f,
         systemTop: Float? = null,
+        anchorBottom: Boolean = false,
+        shouldersAbove: Float? = null,
     ): ControlLayoutProfile {
         val top = ceiling.coerceIn(area.top, area.bottom)
         val usable = LayoutRect(area.left, top, area.right, area.bottom)
@@ -485,7 +499,7 @@ object ControlLayout {
         // Hasta aquí todo se ha apilado desde abajo; ahora el bloque entero
         // sube hasta que L y R tocan el techo. `fit` garantiza que cabe, así
         // que el desplazamiento sólo puede ser hacia arriba (o nulo).
-        val lift = (l.top - usable.top).coerceAtLeast(0f)
+        val lift = if (anchorBottom) 0f else (l.top - usable.top).coerceAtLeast(0f)
 
         val groups = mapOf(
             ControlGroup.L to l,
@@ -498,12 +512,38 @@ object ControlLayout {
         ).mapValues { (_, bounds) ->
             LayoutRect(bounds.left, bounds.top - lift, bounds.right, bounds.bottom - lift)
         }
-        val placed = if (systemTop != null) {
+        val withSystem = if (systemTop != null) {
             withBlowBesideSystemButtons(withSystemButtonsAt(groups, systemTop, usable, gap), usable, gap)
         } else {
             groups
         }
+        val placed = shouldersAbove?.let { withShouldersAbove(withSystem, it, usable, gap) } ?: withSystem
         return ControlLayoutProfile(placed.mapValues { (_, bounds) -> ControlGroupPlacement(bounds, opacity) })
+    }
+
+    /**
+     * Sube L y R justo por encima de [screensTop], ver [overlayProfile].
+     * Devuelve [groups] sin tocar si ahí no caben sin salirse ni pisar nada.
+     */
+    private fun withShouldersAbove(
+        groups: Map<ControlGroup, LayoutRect>,
+        screensTop: Float,
+        usable: LayoutRect,
+        gap: Float,
+    ): Map<ControlGroup, LayoutRect> {
+        val l = groups.getValue(ControlGroup.L)
+        val r = groups.getValue(ControlGroup.R)
+        val bottom = screensTop - gap
+        val top = bottom - l.height
+        if (top < usable.top) return groups
+        val moved = groups + mapOf(
+            ControlGroup.L to LayoutRect(l.left, top, l.right, bottom),
+            ControlGroup.R to LayoutRect(r.left, top, r.right, bottom),
+        )
+        val overlaps = moved.entries.any { (group, rect) ->
+            moved.any { (other, otherRect) -> other != group && LayoutEngine.overlaps(rect, otherRect) }
+        }
+        return if (overlaps) groups else moved
     }
 
     /**
@@ -650,14 +690,13 @@ object ControlLayout {
      * comparten fila con el rombo, que llega hasta el borde derecho—, baja
      * justo por debajo de lo que pisa. Nunca sale de [area].
      *
-     * Del tamaño de soplar escalado a [HIDE_TOGGLE_SCALE], pero nunca mayor
-     * que [minTouchTarget].
+     * Del tamaño de soplar, pero nunca mayor que [minTouchTarget].
      */
     fun hideToggleBounds(profile: ControlLayoutProfile, minTouchTarget: Float, area: LayoutRect): LayoutRect {
         val r = profile.groups.getValue(ControlGroup.R).bounds
         val start = profile.groups.getValue(ControlGroup.START).bounds
         val blow = profile.groups.getValue(ControlGroup.BLOW).bounds
-        val side = (blow.height * HIDE_TOGGLE_SCALE / OVERLAY_BLOW_SCALE).coerceAtMost(minTouchTarget)
+        val side = blow.height.coerceAtMost(minTouchTarget)
         val right = r.right.coerceAtMost(area.right)
 
         fun at(top: Float): LayoutRect {

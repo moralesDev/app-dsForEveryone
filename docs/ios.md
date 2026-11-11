@@ -524,6 +524,8 @@ sonido, táctil, mandos, ranuras con miniatura, giro y pausa al salir).
   pantallas de la DS ocupan casi todo el alto y Select y Start no caben
   debajo. Antes se quedaban en mitad de la pantalla inferior; ahora van lo
   más abajo posible (`ControlLayout.overlayProfile`).
+  En horizontal, un racimo en cada esquina y L y R encima de las pantallas
+  (ver [`entrada.md`](entrada.md)).
 
 **Paso 4 — mandos físicos** con `GameController` y la pantalla de mapeo
 común. Pendiente.
