@@ -23,7 +23,11 @@ class GamepadKeyCodesTest {
         assertEquals(KeyEvent.KEYCODE_BUTTON_Y, GamepadKeyCodes.BUTTON_Y)
         assertEquals(KeyEvent.KEYCODE_BUTTON_L1, GamepadKeyCodes.BUTTON_L1)
         assertEquals(KeyEvent.KEYCODE_BUTTON_R1, GamepadKeyCodes.BUTTON_R1)
+        assertEquals(KeyEvent.KEYCODE_BUTTON_L2, GamepadKeyCodes.BUTTON_L2)
+        assertEquals(KeyEvent.KEYCODE_BUTTON_R2, GamepadKeyCodes.BUTTON_R2)
         assertEquals(KeyEvent.KEYCODE_BUTTON_THUMBL, GamepadKeyCodes.BUTTON_THUMBL)
+        assertEquals(KeyEvent.KEYCODE_BUTTON_THUMBR, GamepadKeyCodes.BUTTON_THUMBR)
+        assertEquals(KeyEvent.KEYCODE_BUTTON_MODE, GamepadKeyCodes.BUTTON_MODE)
         assertEquals(KeyEvent.KEYCODE_BUTTON_START, GamepadKeyCodes.BUTTON_START)
         assertEquals(KeyEvent.KEYCODE_BUTTON_SELECT, GamepadKeyCodes.BUTTON_SELECT)
     }

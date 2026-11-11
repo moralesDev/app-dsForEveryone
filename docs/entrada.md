@@ -348,6 +348,10 @@ genérico (`SOURCE_GAMEPAD` / `SOURCE_JOYSTICK`) que entrega `KeyEvent` y
 nuevo — la regla de cero permisos del proyecto sigue intacta, y el soporte USB
 que ya se dejó anotado como pendiente sale del mismo código.
 
+En iOS los mandos llegan por GameController (`IosGamepadSource`), traducidos
+a los mismos códigos de tecla de Android; el mapeo, la captura y la pantalla
+son comunes (`GamepadKeyDispatcher`). Ver [`ios.md`](ios.md), iOS-4.
+
 ### Detección
 
 Un componente propio (`GamepadManager`, distinto del `InputManager` del

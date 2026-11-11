@@ -1,6 +1,5 @@
 package com.moralesDev.dsForEveryone.ui.game.gamepad
 
-import android.view.KeyEvent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -30,6 +29,7 @@ import org.jetbrains.compose.resources.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.moralesDev.dsForEveryone.emulator.DsButton
+import com.moralesDev.dsForEveryone.emulator.gamepad.GamepadKeyCodes
 import com.moralesDev.dsForEveryone.emulator.gamepad.GamepadTarget
 import com.moralesDev.dsForEveryone.ui.components.AccentButton
 import com.moralesDev.dsForEveryone.ui.components.GlassIconButton
@@ -212,9 +212,8 @@ private fun CaptureOverlay(onCancel: () -> Unit, onLeaveBlank: () -> Unit) {
     }
 }
 
-/** Nombre de un `keyCode` de Android sin el prefijo `KEYCODE_`: técnico a propósito, no se traduce. */
-private fun keyCodeLabel(keyCode: Int): String =
-    KeyEvent.keyCodeToString(keyCode).removePrefix("KEYCODE_")
+/** Nombre de la tecla, sin el prefijo `KEYCODE_` de Android: técnico a propósito, no se traduce. */
+private fun keyCodeLabel(keyCode: Int): String = GamepadKeyCodes.nameOf(keyCode) ?: keyCodeName(keyCode)
 
 private fun GamepadTarget.labelRes(): StringResource = when (this) {
     is GamepadTarget.Button -> when (button) {

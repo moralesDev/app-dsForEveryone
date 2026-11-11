@@ -24,6 +24,7 @@ import com.moralesDev.dsForEveryone.emulator.core.DsEmulatorCore
 import com.moralesDev.dsForEveryone.emulator.core.EmulatorCore
 import com.moralesDev.dsForEveryone.emulator.gamepad.AndroidGamepadSource
 import com.moralesDev.dsForEveryone.emulator.gamepad.GamepadInputRouter
+import com.moralesDev.dsForEveryone.emulator.gamepad.GamepadKeyDispatcher
 import com.moralesDev.dsForEveryone.emulator.gamepad.GamepadSource
 import com.moralesDev.dsForEveryone.data.rom.AndroidGameRomOpener
 import com.moralesDev.dsForEveryone.data.rom.GameRomOpener
@@ -86,7 +87,9 @@ val appModule = module {
 
     single { GamepadManager(androidContext()) }
 
-    single { GamepadInputRouter(get(), get(ApplicationScope)) }
+    single { GamepadKeyDispatcher(get(), get(ApplicationScope)) }
+
+    single { GamepadInputRouter(get()) }
 
     single<GamepadSource> { AndroidGamepadSource(get(), get()) }
 
@@ -147,7 +150,7 @@ val appModule = module {
     viewModel { SettingsViewModel(get(), get(), get()) }
     viewModel { RomLibraryViewModel(get(), get(), get(), get()) }
     viewModel { LayoutEditorViewModel(get()) }
-    viewModel { GamepadMappingViewModel(get(), get(), get()) }
+    viewModel { GamepadMappingViewModel(get(), get()) }
 
     // El último `get()` es el SavedStateHandle de la entrada de navegación:
     // Koin lo saca de la misma entrada que guarda el ViewModel, como Hilt.

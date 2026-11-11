@@ -353,7 +353,4 @@
     <string name="msg_cheats_corrupt">No se pudieron leer tus trucos guardados; se reinició la lista</string>
 
     <!-- Provisional (docs/ios.md, iOS-3 paso 5): lo que enseña iOS en las pantallas que aún no tiene -->
-    <string name="ios_pending_title">Esto todavía no está en iOS</string>
-    <string name="ios_pending_body">El juego llega en el próximo paso: la biblioteca y los ajustes ya funcionan.</string>
-    <string name="ios_pending_back">Volver</string>
 </resources>

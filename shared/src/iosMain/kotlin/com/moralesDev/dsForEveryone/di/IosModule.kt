@@ -28,7 +28,9 @@ import com.moralesDev.dsForEveryone.emulator.EmulatorController
 import com.moralesDev.dsForEveryone.emulator.core.EmulatorCore
 import com.moralesDev.dsForEveryone.emulator.core.IosEmulatorCore
 import com.moralesDev.dsForEveryone.emulator.gamepad.GamepadSource
-import com.moralesDev.dsForEveryone.emulator.gamepad.NoGamepads
+import com.moralesDev.dsForEveryone.ui.game.gamepad.GamepadMappingViewModel
+import com.moralesDev.dsForEveryone.emulator.gamepad.GamepadKeyDispatcher
+import com.moralesDev.dsForEveryone.emulator.gamepad.IosGamepadSource
 import com.moralesDev.dsForEveryone.ui.game.GameViewModel
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.SupervisorJob
@@ -112,8 +114,9 @@ private val iosModule = module {
     single<EmulatorCore> { IosEmulatorCore() }
     single { EmulatorController(get()) }
 
-    // Los mandos llegan en el paso 5 de iOS-4 (GameController).
-    single<GamepadSource> { NoGamepads() }
+    // Mandos físicos con GameController; el mapeo y la captura, comunes.
+    single { GamepadKeyDispatcher(get(), get(ApplicationScope)) }
+    single<GamepadSource> { IosGamepadSource(get()) }
 
     // Ajustes sólo necesita los títulos para el manifiesto de una copia:
     // salen de la base de datos, sin pasar por el repositorio de ROMs.
@@ -125,6 +128,7 @@ private val iosModule = module {
     viewModel { MainViewModel(get()) }
     viewModel { SettingsViewModel(get(), get(), get()) }
     viewModel { LayoutEditorViewModel(get()) }
+    viewModel { GamepadMappingViewModel(get(), get()) }
     viewModel { RomLibraryViewModel(get(), get(), get(), get()) }
     viewModel {
         GameViewModel(

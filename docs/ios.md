@@ -3,8 +3,7 @@
 Plan para llevar DsForEveryone a iPhone y iPad desde este mismo repositorio.
 Estado: **iOS-4 en curso.** En el iPad se juega: biblioteca, ajustes, copias
 de partidas y la pantalla de juego con el core, el sonido, los mandos en
-pantalla y las ranuras. Faltan los mandos físicos. El
-detalle de cada fase, más abajo.
+pantalla, las ranuras y los mandos físicos (GameController). El detalle de cada fase, más abajo.
 
 ## La decisión: Kotlin Multiplatform, en este repositorio
 
@@ -387,9 +386,8 @@ Se hace en cinco pasos; tras cada uno Android sigue igual:
      plataforma: en Android, la `Configuration` de siempre (también la usa ya
      `GameScreen`); en iOS, alto contra ancho de la ventana, que sirve
      también en Split View.
-   - El **mapeo de mandos físicos** espera al sistema de mandos de iOS
-     (GameController): depende de `KeyEvent`, `GamepadManager` y
-     `GamepadInputRouter`, que son el de Android.
+   - El **mapeo de mandos físicos** esperó al sistema de mandos de iOS
+     (GameController); pasó a común en iOS-4, paso 4.
    - Pendiente: biblioteca, juego, mapeo de mandos, navegación y el idioma.
 5. **Arranque en iOS**: la app abre en el simulador.
    - ✅ **Arranca** (2026-11-09), en el simulador de iPad. Antes, en el
@@ -528,7 +526,26 @@ sonido, táctil, mandos, ranuras con miniatura, giro y pausa al salir).
   (ver [`entrada.md`](entrada.md)).
 
 **Paso 4 — mandos físicos** con `GameController` y la pantalla de mapeo
-común. Pendiente.
+común. ✅ Probado en el iPad con un mando de verdad.
+
+- Lo que no depende de la plataforma —capturar el siguiente botón para la
+  pantalla de mapeo, o traducirlo con el mapeo de ese mando y mandarlo al
+  juego— es `GamepadKeyDispatcher`, común y probado en la JVM y en el
+  simulador. `GamepadSource` gana `beginCapture`/`cancelCapture`, y
+  `GamepadMappingScreen` y su ViewModel pasan a común.
+- En Android, `GamepadInputRouter` se queda con lo suyo (que el `KeyEvent`
+  sea de un mando y no una auto-repetición) y le pasa el resto.
+- En iOS, `IosGamepadSource`: los mandos con perfil extendido de
+  `GCController.controllers()`, al conectarse y desconectarse, y un
+  `pressedChangedHandler` por botón. Cada botón se traduce a su código de
+  Android (`GamepadKeyCodes`, que gana L2, R2, THUMBR y MODE): un mapeo
+  significa lo mismo en las dos y el de por defecto sirve tal cual. Menú
+  es Start y Opciones es Select.
+- GameController no da un identificador que sobreviva a reconectar el
+  mando, así que en iOS el mapeo va por modelo (fabricante y tipo): dos
+  mandos iguales comparten mapeo.
+- Como en Android, la cruceta es la del mando; el stick izquierdo no mueve
+  nada.
 
 **Lección de iOS-0 para el hilo de emulación:** un hilo propio no tiene
 bucle de eventos que vacíe la reserva de *autorelease*. En la prueba, cada

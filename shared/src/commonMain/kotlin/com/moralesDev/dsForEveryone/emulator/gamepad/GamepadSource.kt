@@ -39,13 +39,20 @@ interface GamepadSource {
     val events: Flow<GamepadInput>
 
     var isActive: Boolean
+
+    /** El próximo botón que se pulse va a [onCaptured] en vez de al juego: la pantalla de mapeo. */
+    fun beginCapture(onCaptured: (keyCode: Int) -> Unit)
+
+    fun cancelCapture()
 }
 
-/** Sin mandos: la plataforma todavía no los lee. Ver docs/ios.md. */
+/** Sin mandos: para pruebas y para una plataforma que no los lea. */
 class NoGamepads : GamepadSource {
     override val connectedDevices: StateFlow<List<GamepadDevice>> =
         MutableStateFlow<List<GamepadDevice>>(emptyList()).asStateFlow()
     override val connections: Flow<GamepadDevice> = emptyFlow()
     override val events: Flow<GamepadInput> = emptyFlow()
     override var isActive: Boolean = false
+    override fun beginCapture(onCaptured: (keyCode: Int) -> Unit) = Unit
+    override fun cancelCapture() = Unit
 }
